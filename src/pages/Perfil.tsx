@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Camera, Loader2, Save, Edit, User as UserIcon, Calendar, AlertCircle, CheckCircle, Clock, Lock, Eye, EyeOff } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Camera, Loader2, Save, Edit, User as UserIcon, Calendar, AlertCircle, CheckCircle, Clock, Lock, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { MobileLayout } from "@/components/mobile/MobileLayout";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -96,6 +97,7 @@ const AVATAR_CROP_BOX_SIZE = 256;
 const AVATAR_OUTPUT_SIZE = 512;
 const DEFAULT_CROP_SCALE = 1;
 export default function Perfil() {
+  const navigate = useNavigate();
   const {
     user,
     roles
@@ -807,7 +809,12 @@ export default function Perfil() {
       <div className="space-y-6 p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Meu Perfil</h1>
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" size="icon" onClick={() => navigate("/")} className="rounded-full">
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <h1 className="text-3xl font-bold text-foreground">Meu Perfil</h1>
+            </div>
             <p className="mt-2 text-muted-foreground">
               Gerencie suas informações pessoais e mantenha seus dados sempre atualizados.
             </p>
