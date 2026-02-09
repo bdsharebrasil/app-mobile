@@ -13,7 +13,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Plus, Trash2, Save, Send, Upload, Eye, FileText, ArrowLeft, Edit, AlertCircle, AlertTriangle, RotateCcw, Calendar as CalendarIcon } from 'lucide-react';
+import { Plus, Trash2, Save, Send, Upload, Eye, FileText, ArrowLeft, Edit, AlertCircle, AlertTriangle, RotateCcw, Calendar as CalendarIcon, ChevronLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useClientes } from '@/hooks/useClientes';
@@ -71,6 +72,7 @@ interface TravelReport {
 }
 
 export default function RelatorioViagem() {
+  const navigate = useNavigate();
   const { clientes, isLoadingClientes } = useClientes();
   const { aeronaves, isLoadingAeronaves } = useAeronaves();
   const { tripulantes, isLoadingTripulantes } = useTripulantes();
@@ -765,6 +767,10 @@ export default function RelatorioViagem() {
   return (
     <MobileLayout>
       <div className="p-6 space-y-6">
+        <Button variant="ghost" size="sm" onClick={() => navigate("/")} className="gap-2 -ml-2 mb-2">
+          <ArrowLeft className="h-4 w-4" />
+          Menu Principal
+        </Button>
         {!isCreating ? (
           <>
             {hasSavedDraft && (
