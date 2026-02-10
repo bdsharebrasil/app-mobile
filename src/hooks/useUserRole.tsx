@@ -29,6 +29,9 @@ export function useUserRole() {
   const isAdmin = hasRole("admin");
   const isFinanceiroMaster = hasRole("financeiro_master");
   const isGestorMaster = hasRole("gestor_master");
+  const isPilotoChefe = hasRole("piloto_chefe");
+  const isCoordenadorVoo = hasRole("coordenador_de_voo");
+  const isTripulante = hasRole("tripulante");
 
   return {
     userRoles,
@@ -37,6 +40,9 @@ export function useUserRole() {
     isAdmin,
     isFinanceiroMaster,
     isGestorMaster,
+    isPilotoChefe,
+    isCoordenadorVoo,
+    isTripulante,
     isLoading,
   };
 }

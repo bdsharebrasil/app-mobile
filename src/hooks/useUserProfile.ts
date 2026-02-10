@@ -85,7 +85,7 @@ export const useUserProfile = (user: User | null | undefined, options?: { skipCr
 
             // Se erro e não é "não encontrado", lança
             if (error && error.code !== 'PGRST116') {
-                console.error("Erro ao ler perfil:", error);
+                console.error("Erro ao ler perfil:", error.message || error);
                 throw error;
             }
 
@@ -108,7 +108,7 @@ export const useUserProfile = (user: User | null | undefined, options?: { skipCr
                 .single();
 
             if (insertError) {
-                console.error("Erro ao criar perfil:", insertError);
+                console.error("Erro ao criar perfil:", insertError.message || insertError);
                 throw insertError;
             }
 

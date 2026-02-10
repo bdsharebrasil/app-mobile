@@ -23,7 +23,7 @@ export function useFlightCycles() {
         .order('flight_date', { ascending: false });
 
       if (error) throw error;
-      setCycles(data || []);
+      setCycles((data || []) as FlightCycle[]);
     } catch (err: any) {
       setError(err.message);
       console.error('Error fetching flight cycles:', err);
@@ -40,14 +40,14 @@ export function useFlightCycles() {
     try {
       const { data: cycle, error } = await supabase
         .from('flight_cycles')
-        .insert(cycleData)
+        .insert([cycleData as any])
         .select()
         .single();
 
       if (error) throw error;
 
       // Generate automatic checklist
-      await generateChecklist(cycle);
+      await generateChecklist(cycle as FlightCycle);
       
       toast.success('Ciclo de voo criado com sucesso!');
       await fetchCycles();
@@ -135,7 +135,7 @@ export function useFlightCycles() {
     }
 
     if (expenses.length > 0) {
-      const { error } = await supabase.from('flight_expenses').insert(expenses);
+      const { error } = await supabase.from('flight_expenses').insert(expenses as any[]);
       if (error) console.error('Error creating expenses:', error);
     }
   };
@@ -146,6 +146,10 @@ export function useFlightCycles() {
       
       if (status === 'em_execucao') updateData.started_at = new Date().toISOString();
       if (status === 'concluido') updateData.completed_at = new Date().toISOString();
+      if (status === 'aguardando_despesas') {
+        updateData.completed_at = new Date().toISOString();
+        updateData.return_date = new Date().toISOString().split('T')[0];
+      }
       if (status === 'finalizado') updateData.finalized_at = new Date().toISOString();
 
       const { error } = await supabase
@@ -194,10 +198,10 @@ export function useFlightCycles() {
     try {
       const { error } = await supabase
         .from('flight_expenses')
-        .insert({
+        .insert([{
           flight_cycle_id: cycleId,
           ...expenseData,
-        });
+        } as any]);
 
       if (error) throw error;
       
@@ -205,6 +209,23 @@ export function useFlightCycles() {
       await fetchCycles();
     } catch (err: any) {
       toast.error('Erro ao adicionar despesa');
+    }
+  };
+
+  const updateCycle = async (cycleId: string, updates: Partial<FlightCycle>) => {
+    try {
+      const { error } = await supabase
+        .from('flight_cycles')
+        .update(updates)
+        .eq('id', cycleId);
+
+      if (error) throw error;
+
+      toast.success('Ciclo atualizado com sucesso!');
+      await fetchCycles();
+    } catch (err: any) {
+      toast.error('Erro ao atualizar ciclo');
+      throw err;
     }
   };
 
@@ -216,7 +237,7 @@ export function useFlightCycles() {
         .eq('id', cycleId);
 
       if (error) throw error;
-      
+
       toast.success('Ciclo excluído!');
       await fetchCycles();
     } catch (err: any) {
@@ -248,6 +269,7 @@ export function useFlightCycles() {
     error,
     fetchCycles,
     createCycle,
+    updateCycle,
     updateCycleStatus,
     updateExpenseStatus,
     addManualExpense,
