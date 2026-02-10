@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Layout } from '@/components/layout/Layout';
+import { MobileLayout } from '@/components/mobile/MobileLayout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,17 +11,10 @@ import { Plane, MapPin, Clock, Fuel, Wind, Calendar, AlertTriangle, CheckCircle,
 import { InlineLottieSpinner } from '@/components/ui/inline-lottie-spinner';
 import { useAerodromes, type Aerodromo } from '@/hooks/useAerodromes';
 import { useAeronaves, type Aeronave } from '@/hooks/useAeronaves';
-import { useAISWeb } from '@/hooks/useAISWeb';
-import { useFlightPlans } from '@/hooks/useFlightPlans';
 import { useAuth } from '@/contexts/AuthContext';
-import { useSolarData } from '@/hooks/useSolarData';
 import { calculateDistance, calculateMagneticHeading, calculateOptimalAltitude, isAerodromeOperational, type NOTAMData, type ROTAERData } from '@/lib/aviation';
-import { FlightRouteMap, type RoutePoint } from '@/components/plano-voo/FlightRouteMap';
-import { AerodromeCombobox } from '@/components/plano-voo/AerodromeCombobox';
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { fetchAISWebMETAR, type AISWebMETARData } from '@/services/aiswebWeather';
-import { fetchAirportCharts, type ChartData } from '@/services/chartsService';
 interface FlightFormData {
   origin: string;
   destination: string;
@@ -733,7 +726,7 @@ export default function PlanoVooPage() {
         </div>
       </Card>;
   };
-  return <Layout>
+  return <MobileLayout>
       <div className="min-h-screen p-4 md:p-6 bg-inherit rounded-2xl">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
@@ -1373,5 +1366,5 @@ export default function PlanoVooPage() {
           </div>
         </DialogContent>
       </Dialog>
-    </Layout>;
+    </MobileLayout>;
 }
