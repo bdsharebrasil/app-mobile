@@ -1,4 +1,4 @@
-import { Layout } from "@/components/layout/Layout";
+import { MobileLayout } from "@/components/mobile/MobileLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -332,7 +332,7 @@ export default function SolicitacaoCompras() {
   };
 
   return (
-    <Layout>
+    <MobileLayout>
       <div className="p-4 md:p-6 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between flex-col sm:flex-row gap-4">
@@ -697,6 +697,6 @@ export default function SolicitacaoCompras() {
           )}
         </div>
       </div>
-    </Layout>
+    </MobileLayout>
   );
 }

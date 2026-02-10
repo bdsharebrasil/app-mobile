@@ -1,4 +1,4 @@
-import { Layout } from "@/components/layout/Layout";
+import { MobileLayout } from "@/components/mobile/MobileLayout";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -44,8 +44,8 @@ export default function Aerodromos() {
   }) || [];
 
   return (
-    <Layout>
-      <div className="p-6 space-y-8 animate-in fade-in duration-500">
+    <MobileLayout>
+      <div className="p-4 sm:p-6 space-y-8 animate-in fade-in duration-500">
         <div className="flex items-center gap-2 mb-6">
           <Button variant="secondary" onClick={() => navigate("/diario-bordo")}>
             <ArrowLeft className="h-4 w-4 mr-2" /> Voltar
@@ -128,6 +128,6 @@ export default function Aerodromos() {
 
         <AddAerodromeDialog open={dialogOpen} onOpenChange={setDialogOpen} aerodrome={editing} />
       </div>
-    </Layout>
+    </MobileLayout>
   );
 }
