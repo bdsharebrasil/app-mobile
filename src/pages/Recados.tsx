@@ -1,4 +1,4 @@
-import { Layout } from "@/components/layout/Layout";
+import { MobileLayout } from "@/components/mobile/MobileLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -221,8 +221,8 @@ export default function Recados() {
   const pinnedCount = messages.filter(m => m.is_pinned).length;
 
   return (
-    <Layout>
-      <div className="p-6 space-y-6">
+    <MobileLayout>
+      <div className="p-4 sm:p-6 space-y-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-3xl font-bold text-foreground">Recados</h1>
@@ -370,6 +370,6 @@ export default function Recados() {
           </CardContent>
         </Card>
       </div>
-    </Layout>
+    </MobileLayout>
   );
 }

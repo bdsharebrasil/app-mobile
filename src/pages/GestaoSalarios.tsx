@@ -1,4 +1,4 @@
-import { Layout } from "@/components/layout/Layout";
+import { MobileLayout } from "@/components/mobile/MobileLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -378,9 +378,9 @@ export const GestaoSalariosContent = () => {
 
 const GestaoSalarios = () => {
   return (
-    <Layout>
+    <MobileLayout>
       <GestaoSalariosContent />
-    </Layout>
+    </MobileLayout>
   );
 };
 

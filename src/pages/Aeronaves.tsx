@@ -1,4 +1,4 @@
-import { Layout } from "@/components/layout/Layout";
+import { MobileLayout } from "@/components/mobile/MobileLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -229,7 +229,7 @@ export default function Aeronaves() {
   );
 
   return (
-    <Layout>
+    <MobileLayout>
       <div className="p-4 lg:p-6 space-y-6 max-w-7xl mx-auto">
         {/* Back Button */}
         <button
@@ -421,6 +421,6 @@ export default function Aeronaves() {
 
         <AddAircraftDialog open={dialogOpen} onOpenChange={setDialogOpen} aircraft={editing} />
       </div>
-    </Layout>
+    </MobileLayout>
   );
 }

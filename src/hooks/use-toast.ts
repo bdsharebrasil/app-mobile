@@ -1,11 +1,17 @@
-// Re-export from modern toast for backwards compatibility
-import { toast } from "@/components/ui/modern-toast";
+// Re-export from sonner for backwards compatibility
+import { toast } from "sonner";
 
 // Wrapper hook for components that use useToast pattern
 function useToast() {
   return {
     toast,
-    dismiss: toast.dismiss,
+    dismiss: (id?: string | number) => {
+      if (id) {
+        toast.dismiss(id);
+      } else {
+        toast.dismiss();
+      }
+    },
     toasts: [] as any[], // Legacy compat - not used with sonner
   };
 }

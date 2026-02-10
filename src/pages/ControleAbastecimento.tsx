@@ -1,4 +1,4 @@
-import { Layout } from "@/components/layout/Layout";
+import { MobileLayout } from "@/components/mobile/MobileLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SupplierDirectory } from "@/components/fuel/SupplierDirectory";
 import { ClientFuelRecords } from "@/components/fuel/ClientFuelRecords";
@@ -6,8 +6,8 @@ import { Fuel, Users } from "lucide-react";
 
 export default function ControleAbastecimento() {
   return (
-    <Layout>
-      <div className="p-6 space-y-8">
+    <MobileLayout>
+      <div className="p-4 sm:p-6 space-y-8">
         <div className="space-y-2">
           <div className="flex items-center gap-3">
             <div className="p-3 bg-gradient-to-br from-primary/10 to-primary/5 rounded-lg">
@@ -43,6 +43,6 @@ export default function ControleAbastecimento() {
           </TabsContent>
         </Tabs>
       </div>
-    </Layout>
+    </MobileLayout>
   );
 }

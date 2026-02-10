@@ -1,11 +1,11 @@
-import { Layout } from "@/components/layout/Layout";
+import { MobileLayout } from "@/components/mobile/MobileLayout";
 import { FinancialPortal } from "@/components/financial/FinancialPortal";
 
 const PortalFinanceiro = () => {
   return (
-    <Layout>
+    <MobileLayout>
       <FinancialPortal />
-    </Layout>
+    </MobileLayout>
   );
 };
 
