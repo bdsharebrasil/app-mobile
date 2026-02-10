@@ -12,7 +12,13 @@ import { InlineLottieSpinner } from '@/components/ui/inline-lottie-spinner';
 import { useAerodromes, type Aerodromo } from '@/hooks/useAerodromes';
 import { useAeronaves, type Aeronave } from '@/hooks/useAeronaves';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSolarData } from '@/hooks/useSolarData';
+import { useAISWeb } from '@/hooks/useAISWeb';
+import { useFlightPlans } from '@/hooks/useFlightPlans';
 import { calculateDistance, calculateMagneticHeading, calculateOptimalAltitude, isAerodromeOperational, type NOTAMData, type ROTAERData } from '@/lib/aviation';
+import { fetchAISWebMETAR, type AISWebMETARData } from '@/services/aiswebWeather';
+import { fetchAirportCharts, type ChartData } from '@/services/chartsService';
+import { AerodromeCombobox, FlightRouteMap, type RoutePoint } from '@/components/plano-voo';
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 interface FlightFormData {
