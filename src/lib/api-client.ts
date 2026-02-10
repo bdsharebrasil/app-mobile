@@ -12,22 +12,22 @@ const getApiBaseUrl = () => {
     return import.meta.env.VITE_API_URL;
   }
 
-  // Em desenvolvimento preferimos apontar explicitamente para o backend local
-  // Isso resolve casos onde o hostname não é 'localhost' (ex: Codespaces, GitHub.dev)
+  // Em desenvolvimento, usa o proxy do Vite (/api)
+  // O proxy está configurado em vite.config.ts para encaminhar para localhost:3001
   if (import.meta.env.DEV) {
-    return 'http://localhost:3001';
+    return '/api';
   }
 
   // Em produção/staging, usa relative path (mesma origem)
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
     if (hostname.includes('fly.dev')) {
-      return '';
+      return '/api';
     }
   }
 
   // Fallback: relative path
-  return '';
+  return '/api';
 };
 
 const API_BASE_URL = getApiBaseUrl();
@@ -90,8 +90,9 @@ export class ApiClient {
       const isBackendError = errorMsg.includes('Failed to fetch') || errorMsg.includes('fetch');
 
       if (isBackendError) {
-        console.error(`[API Error] Backend não está respondendo em ${this.baseUrl}${endpoint}:`, errorMsg);
-        console.warn(`[API Debug] BASE_URL=${this.baseUrl}, DEV=${import.meta.env.DEV}`);
+        // Backend não disponível - isso é esperado em desenvolvimento sem backend rodando
+        // Os hooks devem ter fallbacks para Supabase
+        console.debug(`[API] Backend não disponível em ${this.baseUrl}${endpoint} - usando fallback`);
       } else {
         console.error(`[API Error] ${endpoint}: ${errorMsg}`, { url, error });
       }
