@@ -1,4 +1,4 @@
-import { Layout } from "@/components/layout/Layout";
+import { MobileLayout } from "@/components/mobile/MobileLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -67,8 +67,8 @@ export default function Cobranca() {
   };
 
   return (
-    <Layout>
-      <div className="p-6 space-y-6">
+    <MobileLayout>
+      <div className="p-4 sm:p-6 space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-foreground">Cobrança</h1>
@@ -186,6 +186,6 @@ export default function Cobranca() {
           </CardContent>
         </Card>
       </div>
-    </Layout>
+    </MobileLayout>
   );
 }

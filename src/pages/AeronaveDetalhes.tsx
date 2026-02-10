@@ -1,4 +1,4 @@
-import { Layout } from "@/components/layout/Layout";
+import { MobileLayout } from "@/components/mobile/MobileLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -241,17 +241,17 @@ export default function AeronaveDetalhes() {
     return expiry > new Date() && expiry <= alertDate;
   };
   if (isLoading) {
-    return <Layout>
+    return <MobileLayout>
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center space-y-4">
             <Plane className="h-12 w-12 mx-auto text-muted-foreground/40 animate-pulse" />
             <p className="text-muted-foreground">Carregando informações...</p>
           </div>
         </div>
-      </Layout>;
+      </MobileLayout>;
   }
   if (!aircraft) {
-    return <Layout>
+    return <MobileLayout>
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center space-y-4">
             <AlertCircle className="h-12 w-12 mx-auto text-destructive" />
@@ -259,9 +259,9 @@ export default function AeronaveDetalhes() {
             <Button onClick={() => navigate("/aeronaves")}>Voltar</Button>
           </div>
         </div>
-      </Layout>;
+      </MobileLayout>;
   }
-  return <Layout>
+  return <MobileLayout>
       <div className="p-4 lg:p-6 space-y-6 max-w-7xl mx-auto">
         {/* Header */}
         <div className="bg-gradient-to-r from-slate-800 to-slate-700 text-white p-6 lg:p-8 rounded-3xl shadow-xl">
@@ -559,5 +559,5 @@ export default function AeronaveDetalhes() {
           </DialogContent>
         </Dialog>
       </div>
-    </Layout>;
+    </MobileLayout>;
 }

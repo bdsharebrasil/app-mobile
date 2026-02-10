@@ -1,4 +1,4 @@
-import { Layout } from "@/components/layout/Layout";
+import { MobileLayout } from "@/components/mobile/MobileLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -251,17 +251,17 @@ export default function ConfigEmpresa() {
 
   if (isLoading) {
     return (
-      <Layout>
+      <MobileLayout>
         <div className="flex items-center justify-center min-h-screen">
           <Loader2 className="animate-spin h-8 w-8" />
         </div>
-      </Layout>
+      </MobileLayout>
     );
   }
 
   return (
-    <Layout>
-      <div className="p-6">
+    <MobileLayout>
+      <div className="p-4 sm:p-6">
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-foreground">Configuração da Empresa</h1>
@@ -500,6 +500,6 @@ export default function ConfigEmpresa() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Layout>
+    </MobileLayout>
   );
 }

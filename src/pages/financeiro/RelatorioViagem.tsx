@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Layout } from '@/components/layout/Layout';
+import { MobileLayout } from '@/components/mobile/MobileLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -784,8 +784,8 @@ export default function RelatorioViagem() {
   }, [reports]);
 
   return (
-    <Layout>
-      <div className="p-6 space-y-6">
+    <MobileLayout>
+      <div className="p-4 sm:p-6 space-y-6">
         {!isCreating ? (
           <>
             {hasSavedDraft && (
@@ -1534,6 +1534,6 @@ export default function RelatorioViagem() {
           }
         }}
       />
-    </Layout>
+    </MobileLayout>
   );
 }
