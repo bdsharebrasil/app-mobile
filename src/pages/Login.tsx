@@ -103,18 +103,20 @@ const Login = () => {
       if (user) {
         const loadedRoles = await refreshRoles(user.id);
 
-        // Redireciona para o dashboard apropriado baseado na role
+        // Redireciona para o dashboard principal (MobileDashboard)
+        // Em mobile, usamos um único dashboard que se adapta ao perfil do usuário
         if (loadedRoles && loadedRoles.length > 0) {
           const {
-            route,
             viewMode
           } = getDashboardRouteFromRoles(loadedRoles);
           setViewMode(viewMode);
-          navigate(route, {
-            replace: true
-          });
-          return;
         }
+
+        // Redireciona para / que mostra MobileDashboard
+        navigate("/", {
+          replace: true
+        });
+        return;
       }
       toast({
         title: "Login realizado",
