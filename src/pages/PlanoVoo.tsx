@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { MobileLayout } from '@/components/mobile/MobileLayout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Plane, MapPin, Clock, Fuel, Wind, Calendar, AlertTriangle, CheckCircle, FileText, Download, Save, Calculator, Navigation, Route, CloudRain, RefreshCw, Loader2, Shield, Radio, Info, XCircle, AlertCircle, CheckCircle2, Thermometer, ChevronRight } from 'lucide-react';
+import { Plane, MapPin, Clock, Fuel, Wind, Calendar, AlertTriangle, CheckCircle, FileText, Download, Save, Calculator, Navigation, Route, CloudRain, RefreshCw, Loader2, Shield, Radio, Info, XCircle, AlertCircle, CheckCircle2, Thermometer, ChevronRight, ChevronLeft } from 'lucide-react';
 import { InlineLottieSpinner } from '@/components/ui/inline-lottie-spinner';
 import { useAerodromes, type Aerodromo } from '@/hooks/useAerodromes';
 import { useAeronaves, type Aeronave } from '@/hooks/useAeronaves';
@@ -164,6 +165,7 @@ function formatNOTAMDate(dateValue: any): string {
 }
 
 export default function PlanoVooPage() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('planejar');
   const [formData, setFormData] = useState<FlightFormData>({
     origin: '',
@@ -733,77 +735,85 @@ export default function PlanoVooPage() {
       </Card>;
   };
   return <MobileLayout>
-      <div className="min-h-screen p-4 md:p-6 bg-inherit rounded-2xl">
+      <div className="min-h-screen p-4 sm:p-6 bg-inherit rounded-2xl">
         <div className="max-w-7xl mx-auto">
-          {/* Header */}
-          <div className="mb-6 rounded-xl">
-            <div className="flex items-center gap-3 mb-2 mx-[2px] px-[12px]">
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <Plane className="w-6 h-6 text-primary" />
+          {/* Header com botão de voltar */}
+          <div className="mb-6">
+            <button
+              onClick={() => navigate('/')}
+              className="flex items-center gap-2 mb-4 p-2 -ml-2 rounded-lg hover:bg-primary/10 transition-colors text-primary hover:text-primary/80"
+            >
+              <ChevronLeft className="w-5 h-5" />
+              <span className="text-sm font-medium">Voltar</span>
+            </button>
+
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 bg-primary/10 rounded-lg flex-shrink-0">
+                <Plane className="w-5 sm:w-6 h-5 sm:h-6 text-primary" />
               </div>
-              <h1 className="text-2xl md:text-3xl font-bold text-foreground">Plano de Voo</h1>
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">Plano de Voo</h1>
             </div>
-            <p className="text-muted-foreground">
-              Planejamento completo com NOTAMs, ROTAER, meteorologia e validação automática
+            <p className="text-xs sm:text-sm text-muted-foreground pl-11">
+              Planejamento com NOTAMs, ROTAER e meteorologia
             </p>
           </div>
 
           {/* Erro da API AISWeb */}
-          {aiswebError && <Alert className="mb-4 bg-orange-500/10 border-orange-500/50">
-              <AlertTriangle className="w-4 h-4 text-orange-400" />
-              <AlertDescription className="text-orange-400">
+          {aiswebError && <Alert className="mb-3 sm:mb-4 bg-orange-500/10 border-orange-500/50 text-xs sm:text-sm">
+              <AlertTriangle className="w-3 sm:w-4 h-3 sm:h-4 text-orange-400 flex-shrink-0" />
+              <AlertDescription className="text-orange-400 text-xs sm:text-sm">
                 {aiswebError} - O app continuará funcionando com dados limitados.
               </AlertDescription>
             </Alert>}
 
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-            <TabsList className="bg-surface-dark border border-border-dark">
-              <TabsTrigger value="planejar" className="data-[state=active]:bg-primary/20">
-                <Calculator className="w-4 h-4 mr-2" />
-                Planejar
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-3 sm:space-y-4">
+            <TabsList className="bg-surface-dark border border-border-dark grid grid-cols-4 sm:grid-cols-auto overflow-x-auto w-full h-auto sm:h-10 gap-1 sm:gap-0">
+              <TabsTrigger value="planejar" className="data-[state=active]:bg-primary/20 text-xs sm:text-sm px-2 sm:px-4 py-2 sm:py-0">
+                <Calculator className="w-4 h-4 sm:mr-2 flex-shrink-0" />
+                <span className="hidden sm:inline">Planejar</span>
               </TabsTrigger>
-              <TabsTrigger value="resultados" className="data-[state=active]:bg-primary/20">
-                <Route className="w-4 h-4 mr-2" />
-                Resultados
+              <TabsTrigger value="resultados" className="data-[state=active]:bg-primary/20 text-xs sm:text-sm px-2 sm:px-4 py-2 sm:py-0">
+                <Route className="w-4 h-4 sm:mr-2 flex-shrink-0" />
+                <span className="hidden sm:inline">Resultados</span>
               </TabsTrigger>
-              <TabsTrigger value="notam" className="data-[state=active]:bg-primary/20">
-                <Shield className="w-4 h-4 mr-2" />
-                NOTAMs
-                {validation && validation.warnings.length > 0 && <Badge className="ml-2 bg-red-500/20 text-red-400 border-red-500/50">
+              <TabsTrigger value="notam" className="data-[state=active]:bg-primary/20 text-xs sm:text-sm px-2 sm:px-4 py-2 sm:py-0 relative">
+                <Shield className="w-4 h-4 sm:mr-2 flex-shrink-0" />
+                <span className="hidden sm:inline">NOTAMs</span>
+                {validation && validation.warnings.length > 0 && <Badge className="absolute top-0 right-0 -mt-1 -mr-1 text-xs bg-red-500/20 text-red-400 border-red-500/50 p-0.5 w-4 h-4 flex items-center justify-center text-xs">
                     {validation.warnings.length}
                   </Badge>}
               </TabsTrigger>
-              <TabsTrigger value="aerodromos" className="data-[state=active]:bg-primary/20">
-                <Radio className="w-4 h-4 mr-2" />
-                Aeródromos
+              <TabsTrigger value="aerodromos" className="data-[state=active]:bg-primary/20 text-xs sm:text-sm px-2 sm:px-4 py-2 sm:py-0">
+                <Radio className="w-4 h-4 sm:mr-2 flex-shrink-0" />
+                <span className="hidden sm:inline">Aeródromos</span>
               </TabsTrigger>
-              <TabsTrigger value="cartas" className="data-[state=active]:bg-primary/20">
-                <FileText className="w-4 h-4 mr-2" />
-                Cartas
+              <TabsTrigger value="cartas" className="data-[state=active]:bg-primary/20 text-xs sm:text-sm px-2 sm:px-4 py-2 sm:py-0 hidden sm:flex">
+                <FileText className="w-4 h-4 mr-2 flex-shrink-0" />
+                <span>Cartas</span>
               </TabsTrigger>
-              <TabsTrigger value="meteorologia" className="data-[state=active]:bg-primary/20">
-                <CloudRain className="w-4 h-4 mr-2" />
-                Meteorologia
+              <TabsTrigger value="meteorologia" className="data-[state=active]:bg-primary/20 text-xs sm:text-sm px-2 sm:px-4 py-2 sm:py-0 hidden sm:flex">
+                <CloudRain className="w-4 h-4 mr-2 flex-shrink-0" />
+                <span>Meteorologia</span>
               </TabsTrigger>
-              <TabsTrigger value="salvos" className="data-[state=active]:bg-primary/20">
-                <FileText className="w-4 h-4 mr-2" />
-                Salvos ({flightPlans.length})
+              <TabsTrigger value="salvos" className="data-[state=active]:bg-primary/20 text-xs sm:text-sm px-2 sm:px-4 py-2 sm:py-0 hidden sm:flex">
+                <FileText className="w-4 h-4 mr-2 flex-shrink-0" />
+                <span>Salvos ({flightPlans.length})</span>
               </TabsTrigger>
             </TabsList>
 
             {/* TAB: Planejar */}
-            <TabsContent value="planejar" className="space-y-4">
-              <Card className="bg-surface-dark border-border-dark p-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <Navigation className="w-5 h-5 text-primary" />
-                  <h2 className="text-lg font-semibold text-foreground">Informações de Voo</h2>
+            <TabsContent value="planejar" className="space-y-3 sm:space-y-4">
+              <Card className="bg-surface-dark border-border-dark p-4 sm:p-6">
+                <div className="flex items-center gap-2 mb-3 sm:mb-4">
+                  <Navigation className="w-4 sm:w-5 h-4 sm:h-5 text-primary flex-shrink-0" />
+                  <h2 className="text-base sm:text-lg font-semibold text-foreground">Informações de Voo</h2>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
                   {/* Origem */}
                   <div>
-                    <Label className="text-muted-foreground">Aeródromo de Origem *</Label>
-                    <div className="mt-1">
+                    <Label className="text-xs sm:text-sm text-muted-foreground">Aeródromo de Origem *</Label>
+                    <div className="mt-2 sm:mt-1">
                       <AerodromeCombobox aerodromes={aerodromes} value={formData.origin} onChange={val => setFormData({
                       ...formData,
                       origin: val
@@ -817,8 +827,8 @@ export default function PlanoVooPage() {
 
                   {/* Destino */}
                   <div>
-                    <Label className="text-muted-foreground">Aeródromo de Destino *</Label>
-                    <div className="mt-1">
+                    <Label className="text-xs sm:text-sm text-muted-foreground">Aeródromo de Destino *</Label>
+                    <div className="mt-2 sm:mt-1">
                       <AerodromeCombobox aerodromes={aerodromes} value={formData.destination} onChange={val => setFormData({
                       ...formData,
                       destination: val
@@ -832,8 +842,8 @@ export default function PlanoVooPage() {
 
                   {/* Alternativa */}
                   <div>
-                    <Label className="text-muted-foreground">Alternativa</Label>
-                    <div className="mt-1">
+                    <Label className="text-xs sm:text-sm text-muted-foreground">Alternativa</Label>
+                    <div className="mt-2 sm:mt-1">
                       <AerodromeCombobox aerodromes={aerodromes} value={formData.alternate} onChange={val => setFormData({
                       ...formData,
                       alternate: val
@@ -846,11 +856,11 @@ export default function PlanoVooPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
                   {/* Aeronave */}
                   <div>
-                    <Label className="text-muted-foreground">Aeronave *</Label>
-                    <select value={formData.aircraftId} onChange={e => handleAircraftChange(e.target.value)} className="w-full mt-1 bg-background border border-border rounded-lg px-3 py-2 text-foreground" disabled={isLoadingAeronaves}>
+                    <Label className="text-xs sm:text-sm text-muted-foreground">Aeronave *</Label>
+                    <select value={formData.aircraftId} onChange={e => handleAircraftChange(e.target.value)} className="w-full mt-2 sm:mt-1 bg-background border border-border rounded-lg px-3 py-2 text-foreground text-xs sm:text-sm h-9 sm:h-10" disabled={isLoadingAeronaves}>
                       <option value="">Selecione</option>
                       {aeronaves.map(ac => <option key={ac.id} value={ac.id}>
                           {ac.registration} - {ac.model}
@@ -860,20 +870,20 @@ export default function PlanoVooPage() {
 
                   {/* Matrícula */}
                   <div>
-                    <Label className="text-muted-foreground">Matrícula</Label>
+                    <Label className="text-xs sm:text-sm text-muted-foreground">Matrícula</Label>
                     <Input value={formData.registration} onChange={e => setFormData({
                     ...formData,
                     registration: e.target.value.toUpperCase()
-                  })} placeholder="PT-ABC" className="mt-1 bg-background border-border text-foreground" />
+                  })} placeholder="PT-ABC" className="mt-2 sm:mt-1 bg-background border-border text-foreground text-xs sm:text-sm h-9 sm:h-10" />
                   </div>
 
                   {/* Regra de Voo */}
                   <div>
-                    <Label className="text-muted-foreground">Regra de Voo</Label>
+                    <Label className="text-xs sm:text-sm text-muted-foreground">Regra de Voo</Label>
                     <select value={formData.flightRule} onChange={e => setFormData({
                     ...formData,
                     flightRule: e.target.value as 'V' | 'I' | 'Y' | 'Z'
-                  })} className="w-full mt-1 bg-background border border-border rounded-lg px-3 py-2 text-foreground">
+                  })} className="w-full mt-2 sm:mt-1 bg-background border border-border rounded-lg px-3 py-2 text-foreground text-xs sm:text-sm h-9 sm:h-10">
                       <option value="V">VFR</option>
                       <option value="I">IFR</option>
                       <option value="Y">IFR/VFR</option>
@@ -883,50 +893,52 @@ export default function PlanoVooPage() {
 
                   {/* Passageiros */}
                   <div>
-                    <Label className="text-muted-foreground">Passageiros</Label>
+                    <Label className="text-xs sm:text-sm text-muted-foreground">Passageiros</Label>
                     <Input type="number" value={formData.passengers} onChange={e => setFormData({
                     ...formData,
                     passengers: parseInt(e.target.value) || 1
-                  })} min="1" className="mt-1 bg-background border-border text-foreground" />
+                  })} min="1" className="mt-2 sm:mt-1 bg-background border-border text-foreground text-xs sm:text-sm h-9 sm:h-10" />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
                   {/* Velocidade de Cruzeiro */}
                   <div>
-                    <Label className="text-muted-foreground">Velocidade Cruzeiro (kt)</Label>
+                    <Label className="text-xs sm:text-sm text-muted-foreground">Velocidade Cruzeiro (kt)</Label>
                     <Input value={formData.cruiseSpeed} onChange={e => setFormData({
                     ...formData,
                     cruiseSpeed: e.target.value
-                  })} placeholder="180" className="mt-1 bg-background border-border text-foreground" />
+                  })} placeholder="180" className="mt-2 sm:mt-1 bg-background border-border text-foreground text-xs sm:text-sm h-9 sm:h-10" />
                   </div>
 
                   {/* Data/Hora */}
                   <div>
-                    <Label className="text-muted-foreground">Data/Hora de Partida</Label>
+                    <Label className="text-xs sm:text-sm text-muted-foreground">Data/Hora de Partida</Label>
                     <Input type="datetime-local" value={formData.departure} onChange={e => setFormData({
                     ...formData,
                     departure: e.target.value
-                  })} className="mt-1 bg-background border-border text-foreground" />
+                  })} className="mt-2 sm:mt-1 bg-background border-border text-foreground text-xs sm:text-sm h-9 sm:h-10" />
                   </div>
 
                   {/* Rota */}
                   <div>
-                    <Label className="text-muted-foreground">Rota</Label>
+                    <Label className="text-xs sm:text-sm text-muted-foreground">Rota</Label>
                     <Input value={formData.route} onChange={e => setFormData({
                     ...formData,
                     route: e.target.value.toUpperCase()
-                  })} placeholder="DCT ou via pontos" className="mt-1 bg-background border-border text-foreground" />
+                  })} placeholder="DCT ou via pontos" className="mt-2 sm:mt-1 bg-background border-border text-foreground text-xs sm:text-sm h-9 sm:h-10" />
                   </div>
                 </div>
 
-                <Button onClick={calculateFlightPlan} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={!formData.origin || !formData.destination || isValidating}>
+                <Button onClick={calculateFlightPlan} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm h-9 sm:h-10" disabled={!formData.origin || !formData.destination || isValidating}>
                   {isValidating ? <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Validando...
+                      <Loader2 className="w-3 sm:w-4 h-3 sm:h-4 mr-1 sm:mr-2 animate-spin" />
+                      <span className="hidden sm:inline">Validando...</span>
+                      <span className="sm:hidden">Calc...</span>
                     </> : <>
-                      <Calculator className="w-4 h-4 mr-2" />
-                      Calcular e Validar Plano
+                      <Calculator className="w-3 sm:w-4 h-3 sm:h-4 mr-1 sm:mr-2" />
+                      <span className="hidden sm:inline">Calcular e Validar</span>
+                      <span className="sm:hidden">Calcular</span>
                     </>}
                 </Button>
               </Card>
@@ -1006,24 +1018,24 @@ export default function PlanoVooPage() {
                   </Card>
 
                   {/* Mapa e Detalhes */}
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
                     {/* Mapa */}
-                    <Card className="bg-surface-dark border-border-dark p-4 h-[400px]">
-                      <h3 className="text-sm font-semibold text-foreground mb-2 flex items-center gap-2">
-                        <MapPin className="w-4 h-4 text-primary" />
-                        Visualização da Rota
+                    <Card className="bg-surface-dark border-border-dark p-3 sm:p-4 h-[300px] sm:h-[400px]">
+                      <h3 className="text-xs sm:text-sm font-semibold text-foreground mb-2 flex items-center gap-2">
+                        <MapPin className="w-3 sm:w-4 h-3 sm:h-4 text-primary flex-shrink-0" />
+                        Rota
                       </h3>
-                      <FlightRouteMap points={routePoints} className="h-[340px]" />
+                      <FlightRouteMap points={routePoints} className="h-[240px] sm:h-[340px]" />
                     </Card>
 
                     {/* Detalhes */}
-                    <div className="space-y-4">
-                      <Card className="bg-surface-dark border-border-dark p-4">
-                        <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-                          <Clock className="w-4 h-4 text-primary" />
-                          Tempo e Navegação
+                    <div className="space-y-3 sm:space-y-4">
+                      <Card className="bg-surface-dark border-border-dark p-3 sm:p-4">
+                        <h3 className="text-xs sm:text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                          <Clock className="w-3 sm:w-4 h-3 sm:h-4 text-primary flex-shrink-0" />
+                          <span>Tempo e Navegação</span>
                         </h3>
-                        <div className="space-y-2 text-sm">
+                        <div className="space-y-2 text-xs sm:text-sm">
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Tempo Estimado:</span>
                             <span className="text-foreground font-mono">{calculations.ete}</span>
@@ -1047,12 +1059,12 @@ export default function PlanoVooPage() {
                         </div>
                       </Card>
 
-                      <Card className="bg-surface-dark border-border-dark p-4">
-                        <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-                          <Fuel className="w-4 h-4 text-primary" />
-                          Combustível
+                      <Card className="bg-surface-dark border-border-dark p-3 sm:p-4">
+                        <h3 className="text-xs sm:text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                          <Fuel className="w-3 sm:w-4 h-3 sm:h-4 text-primary flex-shrink-0" />
+                          <span>Combustível</span>
                         </h3>
-                        <div className="space-y-2 text-sm">
+                        <div className="space-y-2 text-xs sm:text-sm">
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Consumo Estimado:</span>
                             <span className="text-foreground font-mono">{calculations.fuelRequired} L</span>
@@ -1071,19 +1083,22 @@ export default function PlanoVooPage() {
                   </div>
 
                   {/* Ações */}
-                  <Card className="bg-surface-dark border-border-dark p-4">
-                    <div className="flex flex-wrap gap-3">
-                      <Button onClick={savePlan} variant="outline" className="border-border-dark">
-                        <Save className="w-4 h-4 mr-2" />
-                        Salvar Plano
+                  <Card className="bg-surface-dark border-border-dark p-3 sm:p-4">
+                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                      <Button onClick={savePlan} variant="outline" className="border-border-dark text-xs sm:text-sm h-9 sm:h-10 flex-1 sm:flex-auto">
+                        <Save className="w-3 sm:w-4 h-3 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" />
+                        <span className="hidden sm:inline">Salvar Plano</span>
+                        <span className="sm:hidden">Salvar</span>
                       </Button>
-                      <Button variant="outline" className="border-border-dark" disabled>
-                        <Download className="w-4 h-4 mr-2" />
-                        Exportar PDF
+                      <Button variant="outline" className="border-border-dark text-xs sm:text-sm h-9 sm:h-10 flex-1 sm:flex-auto" disabled>
+                        <Download className="w-3 sm:w-4 h-3 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" />
+                        <span className="hidden sm:inline">Exportar PDF</span>
+                        <span className="sm:hidden">PDF</span>
                       </Button>
-                      <Button onClick={() => setActiveTab('notam')} variant="outline" className="border-border-dark">
-                        <Shield className="w-4 h-4 mr-2" />
-                        Ver NOTAMs
+                      <Button onClick={() => setActiveTab('notam')} variant="outline" className="border-border-dark text-xs sm:text-sm h-9 sm:h-10 flex-1 sm:flex-auto">
+                        <Shield className="w-3 sm:w-4 h-3 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" />
+                        <span className="hidden sm:inline">Ver NOTAMs</span>
+                        <span className="sm:hidden">NOTAMs</span>
                       </Button>
                     </div>
                   </Card>
@@ -1094,7 +1109,7 @@ export default function PlanoVooPage() {
             </TabsContent>
 
             {/* TAB: NOTAMs */}
-            <TabsContent value="notam" className="space-y-4">
+            <TabsContent value="notam" className="space-y-3 sm:space-y-4">
               {validation ? <>
                   {Object.entries(validation.notams).map(([icao, notams]) => <Card key={icao} className="bg-surface-dark border-border-dark p-4">
                       <div className="flex items-center justify-between mb-3">
@@ -1158,8 +1173,8 @@ export default function PlanoVooPage() {
             </TabsContent>
 
             {/* TAB: Aeródromos */}
-            <TabsContent value="aerodromos" className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <TabsContent value="aerodromos" className="space-y-3 sm:space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <h3 className="text-white font-semibold mb-2">Origem: {formData.origin}</h3>
                   {renderROTAERCard(originROTAER, formData.origin, originSolar)}
@@ -1172,15 +1187,16 @@ export default function PlanoVooPage() {
             </TabsContent>
 
             {/* TAB: Cartas */}
-            <TabsContent value="cartas" className="space-y-4">
+            <TabsContent value="cartas" className="space-y-3 sm:space-y-4">
               <div className="flex justify-end mb-2">
-                <Button onClick={fetchChartsData} disabled={isLoadingCharts || !formData.origin && !formData.destination} className="bg-primary hover:bg-primary/90">
-                  {isLoadingCharts ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
-                  Atualizar Cartas
+                <Button onClick={fetchChartsData} disabled={isLoadingCharts || !formData.origin && !formData.destination} className="bg-primary hover:bg-primary/90 text-xs sm:text-sm h-9 sm:h-10 px-3 sm:px-4">
+                  {isLoadingCharts ? <Loader2 className="w-3 sm:w-4 h-3 sm:h-4 mr-1 sm:mr-2 animate-spin" /> : <RefreshCw className="w-3 sm:w-4 h-3 sm:h-4 mr-1 sm:mr-2" />}
+                  <span className="hidden sm:inline">Atualizar</span>
+                  <span className="sm:hidden">Atualizar</span>
                 </Button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 {/* Cartas Origem */}
                 <div>
                   <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
@@ -1254,22 +1270,23 @@ export default function PlanoVooPage() {
             </TabsContent>
 
             {/* TAB: Meteorologia */}
-            <TabsContent value="meteorologia" className="space-y-4">
+            <TabsContent value="meteorologia" className="space-y-3 sm:space-y-4">
               <div className="flex justify-end mb-2">
-                <Button onClick={fetchWeatherData} disabled={isLoadingWeather || !formData.origin && !formData.destination} className="bg-primary hover:bg-primary/90">
-                  {isLoadingWeather ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
-                  Buscar METAR
+                <Button onClick={fetchWeatherData} disabled={isLoadingWeather || !formData.origin && !formData.destination} className="bg-primary hover:bg-primary/90 text-xs sm:text-sm h-9 sm:h-10 px-3 sm:px-4">
+                  {isLoadingWeather ? <Loader2 className="w-3 sm:w-4 h-3 sm:h-4 mr-1 sm:mr-2 animate-spin" /> : <RefreshCw className="w-3 sm:w-4 h-3 sm:h-4 mr-1 sm:mr-2" />}
+                  <span className="hidden sm:inline">Buscar METAR</span>
+                  <span className="sm:hidden">METAR</span>
                 </Button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 {renderWeatherCard(originWeather, 'Origem', formData.origin)}
                 {renderWeatherCard(destWeather, 'Destino', formData.destination)}
               </div>
             </TabsContent>
 
             {/* TAB: Salvos */}
-            <TabsContent value="salvos" className="space-y-4">
+            <TabsContent value="salvos" className="space-y-3 sm:space-y-4">
               {loadingPlans ? <Card className="bg-surface-dark border-border-dark p-12 text-center">
                   <Loader2 className="w-12 h-12 text-primary mx-auto mb-4 animate-spin" />
                   <p className="text-muted-foreground">Carregando planos...</p>
