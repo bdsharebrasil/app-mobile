@@ -654,26 +654,26 @@ export const MobileDiarioEntryForm: React.FC<Props> = ({
   return (
     <div className="flex flex-col min-h-screen bg-background">
       {/* Header */}
-      <div className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/50">
-        <div className="flex items-center justify-between px-4 h-14">
-          <button onClick={goBack} className="flex items-center gap-1 text-primary text-sm font-medium -ml-1 active:opacity-60">
-            <ArrowLeft className="w-5 h-5" />
-            <span>{step === 0 ? 'Aeronaves' : 'Voltar'}</span>
+      <div className="sticky top-0 z-50 bg-gradient-to-b from-background to-background/95 backdrop-blur-xl border-b border-border/30">
+        <div className="flex items-center justify-between px-4 h-12">
+          <button onClick={goBack} className="flex items-center gap-1 text-primary text-xs font-medium -ml-1 active:opacity-60">
+            <ArrowLeft className="w-4 h-4" />
+            <span className="hidden sm:inline">{step === 0 ? 'Aeronaves' : 'Voltar'}</span>
           </button>
-          <h1 className="text-base font-semibold text-foreground">{aircraftRegistration}</h1>
+          <h1 className="text-sm font-semibold text-foreground">{aircraftRegistration}</h1>
           <div className="w-16 text-right">
             <span className="text-xs text-muted-foreground">{step + 1}/{TOTAL_STEPS}</span>
           </div>
         </div>
         {/* Progress bar */}
-        <div className="px-4 pb-2">
-          <Progress value={progress} className="h-1.5 rounded-full" />
-          <div className="flex justify-between mt-1.5">
+        <div className="px-4 pb-2.5 pt-0">
+          <Progress value={progress} className="h-1 rounded-full" />
+          <div className="flex justify-between mt-1">
             {STEP_LABELS.map((label, i) => (
               <button
                 key={i}
                 onClick={() => i <= step && goToStep(i)}
-                className={`text-[9px] font-medium transition-colors ${i === step ? 'text-primary' : i < step ? 'text-primary/50' : 'text-muted-foreground/40'}`}
+                className={`text-[8px] font-medium transition-colors truncate ${i === step ? 'text-primary' : i < step ? 'text-primary/50' : 'text-muted-foreground/40'}`}
               >
                 {label}
               </button>
@@ -683,8 +683,8 @@ export const MobileDiarioEntryForm: React.FC<Props> = ({
       </div>
 
       {/* Step content */}
-      <div className="flex-1 overflow-y-auto px-5 pt-5 pb-28">
-        <div className="flex items-center gap-2 mb-4">
+      <div className="flex-1 overflow-y-auto px-4 pt-4 pb-20">
+        <div className="flex items-center gap-2 mb-3">
           {[<Plane />, <MapPin />, <Clock />, <Users />, <Fuel />, <Eye />][step]}
           <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{STEP_LABELS[step]}</span>
         </div>
@@ -692,14 +692,14 @@ export const MobileDiarioEntryForm: React.FC<Props> = ({
       </div>
 
       {/* Bottom navigation */}
-      <div className="sticky bottom-0 p-4 bg-background/80 backdrop-blur-xl border-t border-border/50 safe-area-bottom">
+      <div className="sticky bottom-0 p-3 bg-gradient-to-t from-background via-background/95 to-background/80 backdrop-blur-xl border-t border-border/50 safe-area-bottom">
         {step < TOTAL_STEPS - 1 ? (
-          <Button onClick={goNext} disabled={!canGoNext} className="w-full h-12 rounded-2xl text-base font-semibold" size="lg">
-            Próximo <ArrowRight className="w-5 h-5 ml-2" />
+          <Button onClick={goNext} disabled={!canGoNext} className="w-full h-11 rounded-xl text-sm font-semibold" size="lg">
+            Próximo <ArrowRight className="w-4 h-4 ml-2" />
           </Button>
         ) : (
-          <Button onClick={handleSave} disabled={saving} className="w-full h-12 rounded-2xl text-base font-semibold" size="lg">
-            {saving ? 'Salvando...' : <><Save className="w-5 h-5 mr-2" /> Confirmar Lançamento</>}
+          <Button onClick={handleSave} disabled={saving} className="w-full h-11 rounded-xl text-sm font-semibold" size="lg">
+            {saving ? 'Salvando...' : <><Save className="w-4 h-4 mr-2" /> Confirmar</>}
           </Button>
         )}
       </div>
