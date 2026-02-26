@@ -22,6 +22,9 @@ import { fetchAirportCharts, type ChartData } from '@/services/chartsService';
 import { AerodromeCombobox, FlightRouteMap, type RoutePoint } from '@/components/plano-voo';
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import useHandleStreamResponse from '@/utils/useHandleStreamResponse';
+import KeyboardAvoidingAnimatedView from '@/components/KeyboardAvoidingAnimatedView';
+import GlassContainer from '@/components/GlassContainer';
 interface FlightFormData {
   origin: string;
   destination: string;

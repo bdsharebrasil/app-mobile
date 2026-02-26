@@ -307,7 +307,7 @@ export default function GestaoCTM() {
         </div>
 
         {/* Search header */}
-        <div className="bg-gradient-to-br from-yellow-300 to-yellow-200 rounded-2xl p-4">
+        <div className="rounded-2xl p-4 border border-[#3c5791]" style={{ backgroundColor: 'rgba(74, 127, 187, 1)' }}>
           <div className="flex items-center gap-3 bg-white rounded-full px-4 py-2">
             <span className="text-lg">🔍</span>
             <input
@@ -318,10 +318,10 @@ export default function GestaoCTM() {
           </div>
         </div>
 
-        {/* Aircraft cards grid */}
-        <div className="grid gap-4">
+        {/* Aircraft cards grid - Folder style */}
+        <div className="grid grid-cols-2 gap-4">
           {aircraft.length === 0 ? (
-            <Card>
+            <Card className="col-span-2">
               <CardContent className="pt-6 text-center text-gray-500">
                 Nenhuma aeronave encontrada
               </CardContent>
@@ -332,80 +332,59 @@ export default function GestaoCTM() {
               const criticalCount = getCriticalCount(ac.id);
 
               return (
-                <motion.button
+                <motion.div
                   key={ac.id}
                   onClick={() => setSelectedAircraftId(ac.id)}
                   className="block w-full text-left"
-                  whileHover={{ y: -2 }}
-                  whileTap={{ scale: 0.98 }}
+                  whileHover={{ y: -4 }}
+                  whileTap={{ scale: 0.95 }}
                 >
-                  <Card className="hover:shadow-lg transition-all cursor-pointer overflow-hidden">
-                    {/* Aircraft image section */}
-                    <div className="relative h-40 bg-gradient-to-b from-blue-400 to-blue-600 overflow-hidden">
-                      {ac.image_url && (
-                        <img
-                          src={ac.image_url}
-                          alt={ac.registration}
-                          className="w-full h-full object-cover"
-                        />
-                      )}
-                      {!ac.image_url && (
-                        <div className="w-full h-full flex items-center justify-center bg-gray-200">
-                          <Wrench className="h-12 w-12 text-gray-400" />
+                  {/* Folder-style card container */}
+                  <div className="relative cursor-pointer group">
+                    {/* Folder tab effect - top accent */}
+                    <div className="absolute -top-2 left-0 w-24 h-4 bg-gradient-to-b from-blue-500 to-blue-600 rounded-t-xl opacity-70 group-hover:opacity-100 transition-opacity"></div>
+
+                    {/* Main card */}
+                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-all border border-blue-200">
+                      {/* Aircraft image section */}
+                      <div className="relative h-32 bg-gradient-to-b from-blue-400 to-blue-600 overflow-hidden">
+                        {ac.image_url && (
+                          <img
+                            src={ac.image_url}
+                            alt={ac.registration}
+                            className="w-full h-full object-cover"
+                          />
+                        )}
+                        {!ac.image_url && (
+                          <div className="w-full h-full flex items-center justify-center bg-gradient-to-b from-blue-300 to-blue-500">
+                            <Wrench className="h-10 w-10 text-white opacity-50" />
+                          </div>
+                        )}
+
+                        {/* Report indicator badge - circular on top right */}
+                        <div className="absolute top-2 right-2 flex items-center justify-center w-8 h-8 rounded-full bg-white border-2 border-teal-600 shadow-md hover:bg-teal-50 transition text-lg">
+                          ➤
                         </div>
-                      )}
-                      
-                      {/* Report indicator badge */}
-                      {criticalCount > 0 && (
-                        <div className="absolute top-3 right-3 flex items-center justify-center w-10 h-10 rounded-full bg-red-500 text-white shadow-lg font-bold text-sm">
-                          {criticalCount}
+                      </div>
+
+                      {/* Content section */}
+                      <div className="p-3 space-y-2">
+                        {/* Aircraft registration - compact */}
+                        <div>
+                          <h3 className="font-bold text-sm text-gray-800">{ac.registration}</h3>
+                          <p className="text-xs text-gray-500 truncate">{ac.model}</p>
                         </div>
-                      )}
+
+                        {/* Status indicator - only show if not active */}
+                        {(ac.status !== "ativo" && ac.status !== "Ativo") && (
+                          <div className="text-xs font-medium text-orange-600 bg-orange-50 px-2 py-1 rounded">
+                            Em Manutenção
+                          </div>
+                        )}
+                      </div>
                     </div>
-
-                    <CardContent className="pt-4 space-y-3">
-                      {/* Aircraft name */}
-                      <div>
-                        <h3 className="font-bold text-lg text-foreground">{ac.registration}</h3>
-                        <p className="text-sm text-gray-600">{ac.model}</p>
-                      </div>
-
-                      {/* Stats */}
-                      <div className="grid grid-cols-3 gap-2 text-xs">
-                        <div className="text-center p-2 bg-blue-50 rounded">
-                          <p className="text-blue-700 font-bold">{reportCount}</p>
-                          <p className="text-blue-600">Reports</p>
-                        </div>
-                        <div className={`text-center p-2 rounded ${
-                          criticalCount > 0 ? "bg-red-50" : "bg-green-50"
-                        }`}>
-                          <p className={`font-bold ${criticalCount > 0 ? "text-red-700" : "text-green-700"}`}>
-                            {criticalCount}
-                          </p>
-                          <p className={criticalCount > 0 ? "text-red-600" : "text-green-600"}>
-                            Críticos
-                          </p>
-                        </div>
-                        <div className="text-center p-2 bg-gray-100 rounded">
-                          <p className="text-gray-700 font-bold">
-                            {ac.status === "ativo" || ac.status === "Ativo" ? "✓" : "✕"}
-                          </p>
-                          <p className="text-gray-600">Status</p>
-                        </div>
-                      </div>
-
-                      {/* View button */}
-                      <Button 
-                        variant="outline" 
-                        className="w-full"
-                        onClick={() => setSelectedAircraftId(ac.id)}
-                      >
-                        <ExternalLink className="h-4 w-4 mr-2" />
-                        Ver Reports
-                      </Button>
-                    </CardContent>
-                  </Card>
-                </motion.button>
+                  </div>
+                </motion.div>
               );
             })
           )}
