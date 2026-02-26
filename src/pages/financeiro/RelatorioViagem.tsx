@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { MobileLayout } from '@/components/mobile/MobileLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -73,6 +74,7 @@ interface TravelReport {
 }
 
 export default function RelatorioViagem() {
+  const navigate = useNavigate();
   const { clientes, isLoadingClientes } = useClientes();
   const { aeronaves, isLoadingAeronaves } = useAeronaves();
   const { tripulantes, isLoadingTripulantes } = useTripulantes();
@@ -786,6 +788,18 @@ export default function RelatorioViagem() {
   return (
     <MobileLayout>
       <div className="p-4 sm:p-6 space-y-6">
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate("/")}
+            className="rounded-full"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="text-2xl font-bold">Relatórios de Viagem</h1>
+        </div>
+
         {!isCreating ? (
           <>
             {hasSavedDraft && (
@@ -816,8 +830,7 @@ export default function RelatorioViagem() {
             <Card>
               <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between">
                 <div>
-                  <CardTitle>Histórico de Relatórios de Viagem</CardTitle>
-                  {reports.length === 0 && <p className="text-sm text-muted-foreground mt-1">Carregando relatórios...</p>}
+                  {reports.length === 0 && <p className="text-sm text-muted-foreground">Carregando relatórios...</p>}
                 </div>
                 <div className="mt-4 md:mt-0 flex space-x-2">
                   <Button onClick={createNewReport}>

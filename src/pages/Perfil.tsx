@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Camera, Loader2, Save, Edit, User as UserIcon, Calendar, AlertCircle, CheckCircle, Clock, Lock, Eye, EyeOff, ArrowLeft } from "lucide-react";
+import { Camera, Loader2, Save, Edit, User as UserIcon, Calendar, AlertCircle, CheckCircle, Clock, Lock, Eye, EyeOff } from "lucide-react";
 import { MobileLayout } from "@/components/mobile/MobileLayout";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -22,9 +22,9 @@ import type { UserProfile } from "@/hooks/useUserProfile";
 import { ROLE_LABELS, selectPrimaryRole, type AppRole } from "@/lib/roles";
 import { getShortUserId, getIdBadgeColor } from "@/lib/user-id";
 import { useQuery } from "@tanstack/react-query";
-// Payslips hook removed - using pagamento_salario_funcionario directly
 import { EmployeeDocumentsManager } from "@/components/profile/EmployeeDocumentsManager";
 import { TimeClockTab } from "@/components/profile/TimeClockTab";
+
 type ContactType = "Colaboradores" | "Clientes" | "Fornecedores" | "Hoteis";
 type FormState = {
   full_name: string;
@@ -40,6 +40,7 @@ type FormState = {
   bank_account: string;
   bank_pix: string;
 };
+
 const contactTypeOptions: {
   value: ContactType;
   label: string;
@@ -57,8 +58,6 @@ const contactTypeOptions: {
   label: "Hotéis"
 }];
 
-// Use ROLE_LABELS from lib/roles.ts
-
 const getInitials = (input: string | null | undefined) => {
   if (!input) {
     return "";
@@ -72,12 +71,14 @@ const getInitials = (input: string | null | undefined) => {
   }
   return `${parts[0][0] ?? ""}${parts[parts.length - 1][0] ?? ""}`.toUpperCase();
 };
+
 const sanitizePhone = (value: string) => value.replace(/\D/g, "");
 const buildAvatarPath = (userId: string, fileName: string) => {
   const extension = fileName.split(".").pop();
   const uniqueId = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
   return extension ? `${userId}/${uniqueId}.${extension}` : `${userId}/${uniqueId}`;
 };
+
 const formatTimestamp = (isoDate: string | null | undefined) => {
   if (!isoDate) {
     return null;
@@ -92,9 +93,11 @@ const formatTimestamp = (isoDate: string | null | undefined) => {
     return null;
   }
 };
+
 const AVATAR_CROP_BOX_SIZE = 256;
 const AVATAR_OUTPUT_SIZE = 512;
 const DEFAULT_CROP_SCALE = 1;
+
 export default function Perfil() {
   const navigate = useNavigate();
   const {
@@ -108,6 +111,7 @@ export default function Perfil() {
   const isAdmin = roles.includes("admin");
   const isGestorMaster = roles.includes("gestor_master");
   const showTimeClock = roles.some(r => ['financeiro', 'financeiro_master', 'adm', 'operacoes'].includes(r));
+
   const {
     profile,
     isLoading,
@@ -117,6 +121,7 @@ export default function Perfil() {
   } = useUserProfile(user, {
     skipCreation: Boolean(isAdmin || isGestorMaster)
   });
+
   const [formState, setFormState] = useState<FormState>({
     full_name: "",
     display_name: "",
@@ -131,11 +136,10 @@ export default function Perfil() {
     bank_account: "",
     bank_pix: ""
   });
+
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [avatarPosition, setAvatarPosition] = useState<number>(50);
 
-  // Password change state
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -168,6 +172,7 @@ export default function Perfil() {
     y: number;
   } | null>(null);
   const [isCropDragging, setIsCropDragging] = useState(false);
+
   useEffect(() => {
     if (profile) {
       const p: any = profile as any;
@@ -187,9 +192,7 @@ export default function Perfil() {
       });
     }
   }, [profile]);
-  useEffect(() => {
-    setAvatarPosition(50);
-  }, [profile?.avatar_url]);
+
   useEffect(() => {
     return () => {
       if (cropImage) {
@@ -197,11 +200,13 @@ export default function Perfil() {
       }
     };
   }, [cropImage]);
+
   const displayName = useMemo(() => formState.display_name || formState.full_name || profile?.full_name || user?.email || "Usuário", [formState.display_name, formState.full_name, profile?.full_name, user?.email]);
   const avatarInitials = useMemo(() => getInitials(displayName), [displayName]);
   const accountUpdatedAt = useMemo(() => formatTimestamp(profile?.updated_at), [profile?.updated_at]);
   const isProfileBusy = isUpdating || avatarUploading;
   const userId = user?.id ?? "";
+
   const {
     data: salaryPayments = []
   } = useQuery({
@@ -219,7 +224,7 @@ export default function Perfil() {
     },
     enabled: !!userId
   });
-  // Payslips são agora carregados da tabela pagamento_salario_funcionario acima
+
   const {
     data: vacationRequests = [],
     refetch: refetchVacations
@@ -238,9 +243,11 @@ export default function Perfil() {
     },
     enabled: !!userId
   });
+
   const [absences, setAbsences] = useState<number>(0);
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
+
   const workingMonths = (() => {
     const admission = (profile as any)?.admission_date as string | undefined;
     if (!admission) return 0;
@@ -248,6 +255,7 @@ export default function Perfil() {
     const now = new Date();
     return Math.max(0, (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth()));
   })();
+
   const baseDays = workingMonths >= 12 ? 30 : Math.floor(workingMonths * 2.5);
   const entitlement = (() => {
     if (absences <= 5) return baseDays;
@@ -256,19 +264,23 @@ export default function Perfil() {
     if (absences <= 32) return Math.min(baseDays, 12);
     return 0;
   })();
+
   const approvedTaken = (vacationRequests as any[]).filter(r => r.status === "approved").reduce((sum, r) => sum + (Number(r.days) || 0), 0);
   const available = workingMonths < 12 ? 0 : Math.max(0, entitlement - approvedTaken);
+
   const isWeekend = (dateStr: string) => {
     const d = new Date(dateStr);
     const day = d.getDay();
     return day === 0 || day === 6;
   };
+
   const getEligibilityDateForVacation = () => {
     const admission = (profile as any)?.admission_date as string | undefined;
     if (!admission) return null;
     const start = new Date(admission);
     return new Date(start.getFullYear() + 1, start.getMonth(), start.getDate());
   };
+
   const handleVacationRequest = async () => {
     if (workingMonths < 12) {
       const eligibilityDate = getEligibilityDateForVacation();
@@ -358,7 +370,6 @@ export default function Perfil() {
     void refetchVacations();
   };
 
-  // Password change handler
   const handlePasswordChange = async () => {
     if (!newPassword || !confirmPassword) {
       toast({
@@ -399,7 +410,6 @@ export default function Perfil() {
         description: "Sua senha foi alterada com sucesso."
       });
 
-      // Clear password fields
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
@@ -414,6 +424,7 @@ export default function Perfil() {
       setIsChangingPassword(false);
     }
   };
+
   const resetCropState = useCallback(() => {
     setCropDialogOpen(false);
     setCropImage(null);
@@ -427,6 +438,7 @@ export default function Perfil() {
     cropDragStart.current = null;
     cropImageRef.current = null;
   }, []);
+
   const clampPosition = useCallback((position: {
     x: number;
     y: number;
@@ -444,6 +456,7 @@ export default function Perfil() {
       y: Math.min(Math.max(position.y, -maxOffsetY), maxOffsetY)
     };
   }, [cropMeta, cropScale]);
+
   const handleCropPointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     if (!cropMeta) {
       return;
@@ -456,6 +469,7 @@ export default function Perfil() {
     };
     event.currentTarget.setPointerCapture(event.pointerId);
   }, [cropMeta]);
+
   const handleCropPointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     if (!isCropDragging || !cropDragStart.current) {
       return;
@@ -472,6 +486,7 @@ export default function Perfil() {
       y: prev.y + deltaY
     }));
   }, [clampPosition, isCropDragging]);
+
   const handleCropPointerUp = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
@@ -479,11 +494,13 @@ export default function Perfil() {
     setIsCropDragging(false);
     cropDragStart.current = null;
   }, []);
+
   const handleScaleChange = useCallback((value: number[]) => {
     const newScale = value[0] ?? DEFAULT_CROP_SCALE;
     setCropScale(newScale);
     setCropPosition(prev => clampPosition(prev, newScale));
   }, [clampPosition]);
+
   const handleCropImageLoad = useCallback((event: React.SyntheticEvent<HTMLImageElement>) => {
     const {
       naturalWidth,
@@ -504,6 +521,7 @@ export default function Perfil() {
       y: 0
     });
   }, []);
+
   const uploadAvatarFile = useCallback(async (file: File) => {
     if (!user?.id) {
       toast({
@@ -551,6 +569,7 @@ export default function Perfil() {
       setAvatarUploading(false);
     }
   }, [toast, updateProfile, user?.id]);
+
   const handleConfirmCrop = useCallback(async () => {
     if (!cropImage || !cropMeta) {
       return;
@@ -607,12 +626,14 @@ export default function Perfil() {
       resetCropState();
     }
   }, [cropImage, cropMeta, cropPosition, cropScale, resetCropState, toast, uploadAvatarFile]);
+
   const handleCancelCrop = useCallback(() => {
     if (avatarUploading) {
       return;
     }
     resetCropState();
   }, [avatarUploading, resetCropState]);
+
   const handleCropDialogOpenChange = useCallback((open: boolean) => {
     if (!open) {
       if (avatarUploading) {
@@ -623,6 +644,7 @@ export default function Perfil() {
       setCropDialogOpen(true);
     }
   }, [avatarUploading, resetCropState]);
+
   const handleInputChange = (field: keyof FormState) => (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const value = event.target.value;
     setFormState(prev => ({
@@ -630,12 +652,14 @@ export default function Perfil() {
       [field]: field === "phone" ? sanitizePhone(value) : value
     }));
   };
+
   const handleSelectChange = (value: ContactType) => {
     setFormState(prev => ({
       ...prev,
       tipo: value
     }));
   };
+
   const handleSave = async () => {
     const trimmedFullName = formState.full_name.trim();
     if (!trimmedFullName) {
@@ -687,6 +711,7 @@ export default function Perfil() {
       });
     }
   };
+
   const handleSaveEditableFields = async () => {
     try {
       const payload = {
@@ -713,6 +738,7 @@ export default function Perfil() {
       });
     }
   };
+
   const handleAvatarUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = "";
@@ -733,11 +759,13 @@ export default function Perfil() {
     });
     setIsCropDragging(false);
   };
+
   const triggerFileDialog = () => {
     if (!isProfileBusy) {
       fileInputRef.current?.click();
     }
   };
+
   if (!user) {
     return <MobileLayout>
         <div className="p-6">
@@ -749,6 +777,7 @@ export default function Perfil() {
         </div>
       </MobileLayout>;
   }
+
   return <MobileLayout>
       <Dialog open={cropDialogOpen} onOpenChange={handleCropDialogOpenChange}>
         <DialogContent className="sm:max-w-xl">
@@ -805,496 +834,526 @@ export default function Perfil() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <div className="space-y-6 p-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" onClick={() => navigate("/")} className="rounded-full">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <h1 className="text-3xl font-bold text-foreground">Meu Perfil</h1>
+
+      <div className="flex flex-col min-h-screen bg-background pb-28">
+        {/* Header with greeting */}
+        <div className="px-6 pt-6 pb-4">
+          <p className="text-sm text-muted-foreground font-medium">Olá,</p>
+          <h1 className="text-3xl font-bold text-foreground">{displayName.split(' ')[0]}!</h1>
+        </div>
+
+        {/* Featured Banner Card */}
+        <div className="px-6 pb-8">
+          <div className="relative h-48 rounded-3xl bg-gradient-to-br from-primary/80 via-primary/50 to-primary/30 overflow-hidden shadow-lg">
+            {/* Background pattern */}
+            <div className="absolute inset-0 opacity-10">
+              <div className="absolute top-4 right-[-20%] scale-150 text-primary/30">
+                <UserIcon className="w-48 h-48" strokeWidth={0.5} />
+              </div>
             </div>
-            <p className="mt-2 text-muted-foreground">
-              Gerencie suas informações pessoais e mantenha seus dados sempre atualizados.
-            </p>
+            
+            {/* Content */}
+            <div className="relative h-full flex flex-col justify-between p-6">
+              <h2 className="text-xl font-bold text-white max-w-[80%] leading-tight">
+                Seu Perfil Completo!
+              </h2>
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <Avatar className="h-14 w-14 border-2 border-white shadow-lg">
+                    <AvatarImage src={profile?.avatar_url ?? undefined} alt={displayName} className="h-full w-full object-cover" />
+                    <AvatarFallback className="bg-white/20 text-white font-bold">{avatarInitials || "U"}</AvatarFallback>
+                  </Avatar>
+                </div>
+                <Button 
+                  onClick={triggerFileDialog} 
+                  disabled={avatarUploading}
+                  className="text-xs bg-white/20 hover:bg-white/30 text-white border border-white/50 rounded-full"
+                >
+                  {avatarUploading ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Camera className="h-3 w-3 mr-1" />}
+                  Editar
+                </Button>
+              </div>
+            </div>
           </div>
-          <Button onClick={() => setIsEditing(true)} disabled={isFetching || isLoading || isEditing} variant="default" className="text-xs rounded-lg opacity-90 bg-teal-700 hover:bg-teal-600 text-gray-950 px-[9px] mx-[2px] py-[7px] my-[5px] shadow-sm">
+        </div>
+
+        {/* Quick Stats Cards */}
+        <div className="px-6 pb-8 space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <Card className="border-border/50 bg-card/50">
+              <CardContent className="pt-4">
+                <p className="text-xs text-muted-foreground mb-2 font-medium">Telefone</p>
+                <p className="text-sm font-semibold text-foreground">{formState.phone || "Não informado"}</p>
+              </CardContent>
+            </Card>
+            <Card className="border-border/50 bg-card/50">
+              <CardContent className="pt-4">
+                <p className="text-xs text-muted-foreground mb-2 font-medium">CPF</p>
+                <p className="text-sm font-semibold text-foreground">{formState.cpf ? `***${formState.cpf.slice(-4)}` : "Não informado"}</p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Edit Profile Button */}
+        <div className="px-6 pb-8">
+          <Button 
+            onClick={() => setIsEditing(true)} 
+            disabled={isFetching || isLoading || isEditing}
+            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl"
+          >
             {isFetching ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Edit className="mr-2 h-4 w-4" />}
-            Editar
+            Editar Perfil
           </Button>
         </div>
 
-        <Tabs defaultValue="dados" className="w-full">
-          <TabsList className={`grid w-full ${showTimeClock ? 'grid-cols-6' : 'grid-cols-5'} bg-gradient-card border border-border rounded-xl p-2 shadow-card h-auto`}>
-            <TabsTrigger value="dados" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200">Dados</TabsTrigger>
-            {showTimeClock && <TabsTrigger value="ponto" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200">Ponto</TabsTrigger>}
-            <TabsTrigger value="salario" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200">Salário</TabsTrigger>
-            <TabsTrigger value="ferias" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200">Férias</TabsTrigger>
-            <TabsTrigger value="documentos" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200">Documentos</TabsTrigger>
-          </TabsList>
+        <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/gif" className="hidden" onChange={handleAvatarUpload} />
 
-          <TabsContent value="dados">
-            <Card className="border-border shadow-elevated rounded-xl">
-              <CardHeader className="border-b bg-gradient-card pb-8 rounded-t-xl">
-                <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start">
-                  <div className="relative">
-                    <Avatar className="h-32 w-32 border-4 border-primary shadow-elevated">
-                      <AvatarImage src={profile?.avatar_url ?? undefined} alt={displayName} className="h-full w-full object-cover transition-[object-position] duration-200" style={{
-                      objectPosition: `center ${avatarPosition}%`
-                    }} />
-                      <AvatarFallback className="bg-primary text-primary-foreground text-4xl">{avatarInitials || <UserIcon className="h-12 w-12" />}</AvatarFallback>
-                    </Avatar>
-                    <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/gif" className="hidden" onChange={handleAvatarUpload} />
-                    <button onClick={triggerFileDialog} disabled={avatarUploading} className="absolute bottom-0 right-0 bg-primary hover:bg-primary-dark p-2 rounded-full shadow-elevated text-white transition-all duration-200 disabled:opacity-50" aria-label="Alterar foto">
-                      {avatarUploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Camera className="h-5 w-5" />}
-                    </button>
-                  </div>
+        {/* Tabs Section */}
+        <div className="px-6 space-y-6">
+          <Tabs defaultValue="dados" className="w-full">
+            <TabsList className={`grid w-full ${showTimeClock ? 'grid-cols-6' : 'grid-cols-5'} bg-gradient-card border border-border rounded-xl p-2 shadow-card h-auto`}>
+              <TabsTrigger value="dados" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200">Dados</TabsTrigger>
+              {showTimeClock && <TabsTrigger value="ponto" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200">Ponto</TabsTrigger>}
+              <TabsTrigger value="salario" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200">Salário</TabsTrigger>
+              <TabsTrigger value="ferias" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200">Férias</TabsTrigger>
+              <TabsTrigger value="documentos" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200">Documentos</TabsTrigger>
+            </TabsList>
 
-                  <div className="flex-1 space-y-3 text-center sm:text-left">
+            <TabsContent value="dados">
+              <Card className="border-border shadow-elevated rounded-xl">
+                <CardContent className="space-y-8 py-8">
+                  <div className="space-y-6">
                     <div>
-                      <h2 className="font-bold text-foreground text-3xl">{displayName}</h2>
-                      
-                    </div>
-                    <div className="flex flex-wrap gap-2 justify-center sm:justify-start items-center">
-                      
-                      {user?.id && <Badge className={`${getIdBadgeColor(getShortUserId(user.id))} font-semibold px-3 py-1 text-sm`}>{getShortUserId(user.id)}</Badge>}
-                    </div>
-                  </div>
-                </div>
-              </CardHeader>
-
-              <CardContent className="space-y-8 py-8">
-                <div className="space-y-6">
-                  <div>
-                    <div className="space-y-4">
-                      <div>
-                        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-foreground">
-                          <div className="h-2 w-2 rounded-full bg-primary"></div>
-                          Informações Pessoais
-                        </h3>
-                      </div>
-                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                        <div className="space-y-2">
-                          <Label htmlFor="full-name" className="text-sm font-medium text-foreground">Nome Completo</Label>
-                        <Input id="full-name" value={formState.full_name} onChange={e => setFormState({
-                          ...formState,
-                          full_name: e.target.value
-                        })} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
+                      <div className="space-y-4">
+                        <div>
+                          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-foreground">
+                            <div className="h-2 w-2 rounded-full bg-primary"></div>
+                            Informações Pessoais
+                          </h3>
                         </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="display-name" className="text-sm font-medium text-foreground">Nome de Exibição</Label>
-                        <Input id="display-name" value={formState.display_name} onChange={e => setFormState({
-                          ...formState,
-                          display_name: e.target.value
-                        })} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="email" className="text-sm font-medium text-foreground">E-mail</Label>
-                        <Input id="email" value={profile?.email ?? user.email ?? ""} disabled className="rounded-lg border border-border bg-muted text-foreground cursor-not-allowed" />
-                        </div>
-                      </div>
-
-                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                        <div className="space-y-2">
-                          <Label htmlFor="phone" className="text-sm font-medium text-foreground">Telefone</Label>
-                        <Input id="phone" value={formState.phone} onChange={e => setFormState({
-                          ...formState,
-                          phone: e.target.value
-                        })} placeholder="(XX) XXXXX-XXXX" disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="cpf" className="text-sm font-medium text-foreground">CPF</Label>
-                        <Input id="cpf" value={formState.cpf} onChange={e => setFormState({
-                          ...formState,
-                          cpf: e.target.value
-                        })} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="rg" className="text-sm font-medium text-foreground">RG</Label>
-                        <Input id="rg" value={formState.rg} onChange={e => setFormState({
-                          ...formState,
-                          rg: e.target.value
-                        })} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="birth" className="text-sm font-medium text-foreground">Data de Nascimento</Label>
-                      <Input id="birth" type="date" value={formState.birth_date} onChange={e => setFormState({
-                        ...formState,
-                        birth_date: e.target.value
-                      })} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="address" className="text-sm font-medium text-foreground">Endereço</Label>
-                      <Textarea id="address" value={formState.address} onChange={e => setFormState({
-                        ...formState,
-                        address: e.target.value
-                      })} rows={3} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="border-t pt-6">
-                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-foreground">
-                    <div className="h-2 w-2 rounded-full bg-primary"></div>
-                    Dados Bancários
-                  </h3>
-                  <div className="space-y-4">
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <div className="space-y-2">
-                          <Label htmlFor="bank_name" className="text-sm font-medium text-foreground">Banco</Label>
-                        <Input id="bank_name" value={formState.bank_name} onChange={e => setFormState({
-                        ...formState,
-                        bank_name: e.target.value
-                      })} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="bank_agency" className="text-sm font-medium text-foreground">Agência</Label>
-                        <Input id="bank_agency" value={formState.bank_agency} onChange={e => setFormState({
-                        ...formState,
-                        bank_agency: e.target.value
-                      })} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
-                        </div>
-                      </div>
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <div className="space-y-2">
-                          <Label htmlFor="bank_account" className="text-sm font-medium text-foreground">Conta</Label>
-                        <Input id="bank_account" value={formState.bank_account} onChange={e => setFormState({
-                        ...formState,
-                        bank_account: e.target.value
-                      })} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="bank_pix" className="text-sm font-medium text-foreground">PIX</Label>
-                        <Input id="bank_pix" value={formState.bank_pix} onChange={e => setFormState({
-                        ...formState,
-                        bank_pix: e.target.value
-                      })} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                {/* Password Change Section */}
-                <div className="border-t pt-6">
-                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-foreground">
-                    <div className="h-2 w-2 rounded-full bg-primary"></div>
-                    <Lock className="h-4 w-4" />
-                    Alterar Senha
-                  </h3>
-                  <div className="space-y-4 max-w-md">
-                    <div className="space-y-2">
-                      <Label htmlFor="new-password" className="text-sm font-medium text-foreground">Nova Senha</Label>
-                      <div className="relative">
-                        <Input id="new-password" type={showNewPassword ? "text" : "password"} value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Digite a nova senha" className="rounded-lg border border-primary bg-background text-foreground pr-10" />
-                        <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                          {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </button>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="confirm-password" className="text-sm font-medium text-foreground">Confirmar Nova Senha</Label>
-                      <div className="relative">
-                        <Input id="confirm-password" type={showConfirmPassword ? "text" : "password"} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Confirme a nova senha" className="rounded-lg border border-primary bg-background text-foreground pr-10" />
-                        <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                          {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </button>
-                      </div>
-                    </div>
-                    <Button onClick={handlePasswordChange} disabled={isChangingPassword || !newPassword || !confirmPassword} className="flex items-center gap-2">
-                      {isChangingPassword ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}
-                      Alterar Senha
-                    </Button>
-                  </div>
-                </div>
-
-
-                {isEditing && <div className="border-t pt-6 flex gap-3 justify-end">
-                    <Button variant="outline" onClick={() => setIsEditing(false)} disabled={isProfileBusy}>
-                      Cancelar
-                    </Button>
-                    <Button onClick={handleSaveEditableFields} disabled={isProfileBusy} className="flex items-center gap-2">
-                      {isProfileBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                      Salvar
-                    </Button>
-                  </div>}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="salario">
-            <div className="grid gap-6 lg:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Histórico de Pagamentos</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {salaryPayments.length === 0 ? <p className="text-muted-foreground">Sem registros de salário.</p> : <ul className="space-y-3">
-                      {salaryPayments.map((s: any) => {
-                    const descriptions: string[] = [];
-                    if (s.base_salary_holerite) descriptions.push(`Salário: R$ ${Number(s.base_salary_holerite).toFixed(2)}`);
-                    if (s.benefit) descriptions.push(`Benefício: ${s.benefit}`);
-                    if (s.horas_voo) descriptions.push(`Horas de Voo: ${s.horas_voo}`);
-                    if (s.extra) descriptions.push(`Extra: ${s.extra}`);
-                    return <li key={s.id} className="rounded-md border p-3 space-y-2">
-                            <div className="flex items-center justify-between">
-                              <p className="font-medium text-sm">
-                                {new Date(s.created_at ?? Date.now()).toLocaleDateString("pt-BR", {
-                            month: "long",
-                            year: "numeric"
-                          })}
-                              </p>
-                              <div className="flex gap-2">
-                                {s.comprovante_url && <a href={s.comprovante_url} target="_blank" rel="noreferrer">
-                                    <Button variant="outline" size="sm" className="h-7 text-xs">
-                                      Comprovante
-                                    </Button>
-                                  </a>}
-                              </div>
-                            </div>
-                            <div className="text-sm text-muted-foreground space-y-1">
-                              {descriptions.map((desc, i) => <p key={i}>{desc}</p>)}
-                              {s.obs && <p className="text-xs italic mt-2">Obs: {s.obs}</p>}
-                            </div>
-                          </li>;
-                  })}
-                    </ul>}
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Holerites</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {salaryPayments.filter((s: any) => s.holerite_url).length === 0 ? <p className="text-muted-foreground">Sem holerites enviados.</p> : <ul className="space-y-3">
-                      {salaryPayments.filter((s: any) => s.holerite_url).map((s: any) => <li key={s.id} className="flex items-center justify-between rounded-md border p-3">
-                            <div>
-                              <p className="font-medium">
-                                {new Date(s.created_at ?? Date.now()).toLocaleDateString("pt-BR", {
-                          month: "long",
-                          year: "numeric"
-                        })}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {s.base_salary_holerite ? `R$ ${Number(s.base_salary_holerite).toFixed(2)}` : ""}
-                              </p>
-                            </div>
-                            <a href={s.holerite_url} target="_blank" rel="noreferrer">
-                              <Button variant="outline" size="sm">Visualizar</Button>
-                            </a>
-                          </li>)}
-                    </ul>}
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="ferias">
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-2xl font-bold mb-4">Férias</h2>
-                <p className="text-muted-foreground mb-6">Solicitação e informações sobre suas férias</p>
-
-                <div className="grid gap-4 md:grid-cols-3 mb-6">
-                  <Card>
-                    <CardContent className="pt-6">
-                      <div className="text-center">
-                        <p className="text-sm text-muted-foreground mb-2">Disponíveis</p>
-                        <p className="text-4xl font-bold text-green-600">{available}</p>
-                        <p className="text-xs text-muted-foreground mt-2">dias</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardContent className="pt-6">
-                      <div className="text-center">
-                        <p className="text-sm text-muted-foreground mb-2">Usadas</p>
-                        <p className="text-4xl font-bold text-blue-600">{approvedTaken}</p>
-                        <p className="text-xs text-muted-foreground mt-2">dias</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardContent className="pt-6">
-                      <div className="text-center">
-                        <p className="text-sm text-muted-foreground mb-2">Agendadas</p>
-                        <p className="text-4xl font-bold text-amber-600">{vacationRequests.filter((r: any) => r.status === 'pending' || r.status === 'approved').length}</p>
-                        <p className="text-xs text-muted-foreground mt-2">dias</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              </div>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <span className="text-lg">ℹ️</span>
-                    Regras de Férias
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-3">
-                    <li className="flex gap-3">
-                      <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
-                      <span className="text-sm">Direito a 30 dias após 12 meses de trabalho</span>
-                    </li>
-                    <li className="flex gap-3">
-                      <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
-                      <span className="text-sm">Podem ser fracionadas em até 3 períodos</span>
-                    </li>
-                    <li className="flex gap-3">
-                      <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
-                      <span className="text-sm">Um período deve ter no mínimo 14 dias</span>
-                    </li>
-                    <li className="flex gap-3">
-                      <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
-                      <span className="text-sm">Solicitar com 30 dias de antecedência</span>
-                    </li>
-                    <li className="flex gap-3">
-                      <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
-                      <span className="text-sm">Adicional de 1/3 sobre o salário</span>
-                    </li>
-                  </ul>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Solicitar Férias</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {workingMonths < 12 && <Alert className="border-yellow-500/50 bg-yellow-500/5">
-                      <AlertCircle className="h-4 w-4 text-yellow-600" />
-                      <AlertDescription className="text-yellow-800 dark:text-yellow-200">
-                        <p className="font-semibold mb-2">Período aquisitivo não completado</p>
-                        <p className="text-sm">
-                          Você poderá solicitar férias a partir de{" "}
-                          <span className="font-semibold">
-                            {new Intl.DateTimeFormat("pt-BR", {
-                          year: "numeric",
-                          month: "long",
-                          day: "numeric"
-                        }).format(getEligibilityDateForVacation()!)}
-                          </span>
-                          , quando completar 12 meses de trabalho.
-                        </p>
-                      </AlertDescription>
-                    </Alert>}
-
-                  {workingMonths >= 12 && <>
-                      <div className="space-y-2">
-                        <Label htmlFor="vacation-type">Tipo de Férias</Label>
-                        <Select defaultValue="full">
-                          <SelectTrigger id="vacation-type">
-                            <SelectValue placeholder="Selecione o tipo" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="full">Integral (mínimo 14 dias)</SelectItem>
-                            <SelectItem value="partial">Parcial (customizado)</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <div className="space-y-2">
-                          <Label htmlFor="start-date">Data de Início</Label>
-                          <Input id="start-date" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} placeholder="dd/mm/aaaa" />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="end-date">Data de Fim</Label>
-                          <Input id="end-date" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} placeholder="dd/mm/aaaa" />
-                        </div>
-                      </div>
-
-                      <Button onClick={handleVacationRequest} className="w-full">Solicitar</Button>
-                      <p className="text-xs text-muted-foreground">Aviso mínimo de 30 dias e pagamento até 2 dias antes do início.</p>
-                    </>}
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Histórico de Solicitações</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {vacationRequests.length === 0 ? <p className="text-muted-foreground text-center py-6">Nenhuma solicitação registrada.</p> : <div className="space-y-3">
-                      {(vacationRequests as any[]).map((r: any) => <div key={r.id} className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition">
-                          <div className="flex items-center gap-3">
-                            <Calendar className="h-5 w-5 text-primary" />
-                            <div>
-                              <p className="font-medium">{new Date(r.start_date).toLocaleDateString("pt-BR")} → {new Date(r.end_date).toLocaleDateString("pt-BR")}</p>
-                              <p className="text-sm text-muted-foreground">{r.days} dias</p>
-                            </div>
+                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                          <div className="space-y-2">
+                            <Label htmlFor="full-name" className="text-sm font-medium text-foreground">Nome Completo</Label>
+                          <Input id="full-name" value={formState.full_name} onChange={e => setFormState({
+                            ...formState,
+                            full_name: e.target.value
+                          })} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
                           </div>
-                          <Badge variant={r.status === 'approved' ? 'default' : r.status === 'rejected' ? 'destructive' : 'secondary'}>
-                            {r.status === 'approved' ? 'Aprovado' : r.status === 'rejected' ? 'Rejeitado' : 'Pendente'}
-                          </Badge>
-                        </div>)}
+                          <div className="space-y-2">
+                            <Label htmlFor="display-name" className="text-sm font-medium text-foreground">Nome de Exibição</Label>
+                          <Input id="display-name" value={formState.display_name} onChange={e => setFormState({
+                            ...formState,
+                            display_name: e.target.value
+                          })} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="email" className="text-sm font-medium text-foreground">E-mail</Label>
+                          <Input id="email" value={profile?.email ?? user.email ?? ""} disabled className="rounded-lg border border-border bg-muted text-foreground cursor-not-allowed" />
+                          </div>
+                        </div>
+
+                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                          <div className="space-y-2">
+                            <Label htmlFor="phone" className="text-sm font-medium text-foreground">Telefone</Label>
+                          <Input id="phone" value={formState.phone} onChange={e => setFormState({
+                            ...formState,
+                            phone: e.target.value
+                          })} placeholder="(XX) XXXXX-XXXX" disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="cpf" className="text-sm font-medium text-foreground">CPF</Label>
+                          <Input id="cpf" value={formState.cpf} onChange={e => setFormState({
+                            ...formState,
+                            cpf: e.target.value
+                          })} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="rg" className="text-sm font-medium text-foreground">RG</Label>
+                          <Input id="rg" value={formState.rg} onChange={e => setFormState({
+                            ...formState,
+                            rg: e.target.value
+                          })} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="birth" className="text-sm font-medium text-foreground">Data de Nascimento</Label>
+                        <Input id="birth" type="date" value={formState.birth_date} onChange={e => setFormState({
+                          ...formState,
+                          birth_date: e.target.value
+                        })} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="address" className="text-sm font-medium text-foreground">Endereço</Label>
+                        <Textarea id="address" value={formState.address} onChange={e => setFormState({
+                          ...formState,
+                          address: e.target.value
+                        })} rows={3} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t pt-6">
+                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-foreground">
+                      <div className="h-2 w-2 rounded-full bg-primary"></div>
+                      Dados Bancários
+                    </h3>
+                    <div className="space-y-4">
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label htmlFor="bank_name" className="text-sm font-medium text-foreground">Banco</Label>
+                          <Input id="bank_name" value={formState.bank_name} onChange={e => setFormState({
+                          ...formState,
+                          bank_name: e.target.value
+                        })} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="bank_agency" className="text-sm font-medium text-foreground">Agência</Label>
+                          <Input id="bank_agency" value={formState.bank_agency} onChange={e => setFormState({
+                          ...formState,
+                          bank_agency: e.target.value
+                        })} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
+                          </div>
+                        </div>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label htmlFor="bank_account" className="text-sm font-medium text-foreground">Conta</Label>
+                          <Input id="bank_account" value={formState.bank_account} onChange={e => setFormState({
+                          ...formState,
+                          bank_account: e.target.value
+                        })} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="bank_pix" className="text-sm font-medium text-foreground">PIX</Label>
+                          <Input id="bank_pix" value={formState.bank_pix} onChange={e => setFormState({
+                          ...formState,
+                          bank_pix: e.target.value
+                        })} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                  {/* Password Change Section */}
+                  <div className="border-t pt-6">
+                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-foreground">
+                      <div className="h-2 w-2 rounded-full bg-primary"></div>
+                      <Lock className="h-4 w-4" />
+                      Alterar Senha
+                    </h3>
+                    <div className="space-y-4 max-w-md">
+                      <div className="space-y-2">
+                        <Label htmlFor="new-password" className="text-sm font-medium text-foreground">Nova Senha</Label>
+                        <div className="relative">
+                          <Input id="new-password" type={showNewPassword ? "text" : "password"} value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Digite a nova senha" className="rounded-lg border border-primary bg-background text-foreground pr-10" />
+                          <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                            {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="confirm-password" className="text-sm font-medium text-foreground">Confirmar Nova Senha</Label>
+                        <div className="relative">
+                          <Input id="confirm-password" type={showConfirmPassword ? "text" : "password"} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Confirme a nova senha" className="rounded-lg border border-primary bg-background text-foreground pr-10" />
+                          <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                            {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+                      </div>
+                      <Button onClick={handlePasswordChange} disabled={isChangingPassword || !newPassword || !confirmPassword} className="flex items-center gap-2">
+                        {isChangingPassword ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}
+                        Alterar Senha
+                      </Button>
+                    </div>
+                  </div>
+
+                  {isEditing && <div className="border-t pt-6 flex gap-3 justify-end">
+                      <Button variant="outline" onClick={() => setIsEditing(false)} disabled={isProfileBusy}>
+                        Cancelar
+                      </Button>
+                      <Button onClick={handleSaveEditableFields} disabled={isProfileBusy} className="flex items-center gap-2">
+                        {isProfileBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                        Salvar
+                      </Button>
                     </div>}
                 </CardContent>
               </Card>
+            </TabsContent>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <span className="text-lg">⭐</span>
-                    Dicas para suas Férias
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-3">
-                    <li className="flex gap-3">
-                      <span className="text-lg">⭐</span>
-                      <span className="text-sm">Planeje suas férias com antecedência</span>
-                    </li>
-                    <li className="flex gap-3">
-                      <span className="text-lg">⭐</span>
-                      <span className="text-sm">Considere os períodos de alta temporada</span>
-                    </li>
-                    <li className="flex gap-3">
-                      <span className="text-lg">⭐</span>
-                      <span className="text-sm">Verifique a escala antes de solicitar</span>
-                    </li>
-                    <li className="flex gap-3">
-                      <span className="text-lg">⭐</span>
-                      <span className="text-sm">Mantenha seus documentos atualizados</span>
-                    </li>
-                    <li className="flex gap-3">
-                      <span className="text-lg">⭐</span>
-                      <span className="text-sm">Considere vender parte das férias se precisar</span>
-                    </li>
-                  </ul>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
+            <TabsContent value="salario">
+              <div className="grid gap-6 lg:grid-cols-2">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Histórico de Pagamentos</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {salaryPayments.length === 0 ? <p className="text-muted-foreground">Sem registros de salário.</p> : <ul className="space-y-3">
+                        {salaryPayments.map((s: any) => {
+                      const descriptions: string[] = [];
+                      if (s.base_salary_holerite) descriptions.push(`Salário: R$ ${Number(s.base_salary_holerite).toFixed(2)}`);
+                      if (s.benefit) descriptions.push(`Benefício: ${s.benefit}`);
+                      if (s.horas_voo) descriptions.push(`Horas de Voo: ${s.horas_voo}`);
+                      if (s.extra) descriptions.push(`Extra: ${s.extra}`);
+                      return <li key={s.id} className="rounded-md border p-3 space-y-2">
+                              <div className="flex items-center justify-between">
+                                <p className="font-medium text-sm">
+                                  {new Date(s.created_at ?? Date.now()).toLocaleDateString("pt-BR", {
+                              month: "long",
+                              year: "numeric"
+                            })}
+                                </p>
+                                <div className="flex gap-2">
+                                  {s.comprovante_url && <a href={s.comprovante_url} target="_blank" rel="noreferrer">
+                                      <Button variant="outline" size="sm" className="h-7 text-xs">
+                                        Comprovante
+                                      </Button>
+                                    </a>}
+                                </div>
+                              </div>
+                              <div className="text-sm text-muted-foreground space-y-1">
+                                {descriptions.map((desc, i) => <p key={i}>{desc}</p>)}
+                                {s.obs && <p className="text-xs italic mt-2">Obs: {s.obs}</p>}
+                              </div>
+                            </li>;
+                    })}
+                      </ul>}
+                  </CardContent>
+                </Card>
 
-          <TabsContent value="documentos">
-            <EmployeeDocumentsManager userId={userId} userName={displayName} isAdmin={isAdmin} isFinanceiroMaster={roles.includes("financeiro_master")} isGestorMaster={isGestorMaster} currentUserId={user?.id} />
-          </TabsContent>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Holerites</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {salaryPayments.filter((s: any) => s.holerite_url).length === 0 ? <p className="text-muted-foreground">Sem holerites enviados.</p> : <ul className="space-y-3">
+                        {salaryPayments.filter((s: any) => s.holerite_url).map((s: any) => <li key={s.id} className="flex items-center justify-between rounded-md border p-3">
+                              <div>
+                                <p className="font-medium">
+                                  {new Date(s.created_at ?? Date.now()).toLocaleDateString("pt-BR", {
+                            month: "long",
+                            year: "numeric"
+                          })}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {s.base_salary_holerite ? `R$ ${Number(s.base_salary_holerite).toFixed(2)}` : ""}
+                                </p>
+                              </div>
+                              <a href={s.holerite_url} target="_blank" rel="noreferrer">
+                                <Button variant="outline" size="sm">Visualizar</Button>
+                              </a>
+                            </li>)}
+                      </ul>}
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
 
-          {showTimeClock && <TabsContent value="ponto">
-              <Card className="border-border shadow-elevated rounded-xl">
-                <CardContent className="pt-6">
-                  <TimeClockTab />
-                </CardContent>
-              </Card>
-            </TabsContent>}
-        </Tabs>
+            <TabsContent value="ferias">
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-2xl font-bold mb-4">Férias</h2>
+                  <p className="text-muted-foreground mb-6">Solicitação e informações sobre suas férias</p>
 
-        {(isLoading || isFetching) && <Card>
-            <CardContent className="flex items-center justify-center gap-2 py-6 text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Carregando informações do perfil...
-            </CardContent>
-          </Card>}
+                  <div className="grid gap-4 md:grid-cols-3 mb-6">
+                    <Card>
+                      <CardContent className="pt-6">
+                        <div className="text-center">
+                          <p className="text-sm text-muted-foreground mb-2">Disponíveis</p>
+                          <p className="text-4xl font-bold text-green-600">{available}</p>
+                          <p className="text-xs text-muted-foreground mt-2">dias</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardContent className="pt-6">
+                        <div className="text-center">
+                          <p className="text-sm text-muted-foreground mb-2">Usadas</p>
+                          <p className="text-4xl font-bold text-blue-600">{approvedTaken}</p>
+                          <p className="text-xs text-muted-foreground mt-2">dias</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardContent className="pt-6">
+                        <div className="text-center">
+                          <p className="text-sm text-muted-foreground mb-2">Agendadas</p>
+                          <p className="text-4xl font-bold text-amber-600">{vacationRequests.filter((r: any) => r.status === 'pending' || r.status === 'approved').length}</p>
+                          <p className="text-xs text-muted-foreground mt-2">dias</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </div>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <span className="text-lg">ℹ️</span>
+                      Regras de Férias
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="space-y-3">
+                      <li className="flex gap-3">
+                        <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                        <span className="text-sm">Direito a 30 dias após 12 meses de trabalho</span>
+                      </li>
+                      <li className="flex gap-3">
+                        <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                        <span className="text-sm">Podem ser fracionadas em até 3 períodos</span>
+                      </li>
+                      <li className="flex gap-3">
+                        <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                        <span className="text-sm">Um período deve ter no mínimo 14 dias</span>
+                      </li>
+                      <li className="flex gap-3">
+                        <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                        <span className="text-sm">Solicitar com 30 dias de antecedência</span>
+                      </li>
+                      <li className="flex gap-3">
+                        <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                        <span className="text-sm">Adicional de 1/3 sobre o salário</span>
+                      </li>
+                    </ul>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Solicitar Férias</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {workingMonths < 12 && <Alert className="border-yellow-500/50 bg-yellow-500/5">
+                        <AlertCircle className="h-4 w-4 text-yellow-600" />
+                        <AlertDescription className="text-yellow-800 dark:text-yellow-200">
+                          <p className="font-semibold mb-2">Período aquisitivo não completado</p>
+                          <p className="text-sm">
+                            Você poderá solicitar férias a partir de{" "}
+                            <span className="font-semibold">
+                              {new Intl.DateTimeFormat("pt-BR", {
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric"
+                          }).format(getEligibilityDateForVacation()!)}
+                            </span>
+                            , quando completar 12 meses de trabalho.
+                          </p>
+                        </AlertDescription>
+                      </Alert>}
+
+                    {workingMonths >= 12 && <>
+                        <div className="space-y-2">
+                          <Label htmlFor="vacation-type">Tipo de Férias</Label>
+                          <Select defaultValue="full">
+                            <SelectTrigger id="vacation-type">
+                              <SelectValue placeholder="Selecione o tipo" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="full">Integral (mínimo 14 dias)</SelectItem>
+                              <SelectItem value="partial">Parcial (customizado)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label htmlFor="start-date">Data de Início</Label>
+                            <Input id="start-date" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} placeholder="dd/mm/aaaa" />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="end-date">Data de Fim</Label>
+                            <Input id="end-date" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} placeholder="dd/mm/aaaa" />
+                          </div>
+                        </div>
+
+                        <Button onClick={handleVacationRequest} className="w-full">Solicitar</Button>
+                        <p className="text-xs text-muted-foreground">Aviso mínimo de 30 dias e pagamento até 2 dias antes do início.</p>
+                      </>}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Histórico de Solicitações</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {vacationRequests.length === 0 ? <p className="text-muted-foreground text-center py-6">Nenhuma solicitação registrada.</p> : <div className="space-y-3">
+                        {(vacationRequests as any[]).map((r: any) => <div key={r.id} className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition">
+                            <div className="flex items-center gap-3">
+                              <Calendar className="h-5 w-5 text-primary" />
+                              <div>
+                                <p className="font-medium">{new Date(r.start_date).toLocaleDateString("pt-BR")} → {new Date(r.end_date).toLocaleDateString("pt-BR")}</p>
+                                <p className="text-sm text-muted-foreground">{r.days} dias</p>
+                              </div>
+                            </div>
+                            <Badge variant={r.status === 'approved' ? 'default' : r.status === 'rejected' ? 'destructive' : 'secondary'}>
+                              {r.status === 'approved' ? 'Aprovado' : r.status === 'rejected' ? 'Rejeitado' : 'Pendente'}
+                            </Badge>
+                          </div>)}
+                      </div>}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <span className="text-lg">⭐</span>
+                      Dicas para suas Férias
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="space-y-3">
+                      <li className="flex gap-3">
+                        <span className="text-lg">⭐</span>
+                        <span className="text-sm">Planeje suas férias com antecedência</span>
+                      </li>
+                      <li className="flex gap-3">
+                        <span className="text-lg">⭐</span>
+                        <span className="text-sm">Considere os períodos de alta temporada</span>
+                      </li>
+                      <li className="flex gap-3">
+                        <span className="text-lg">⭐</span>
+                        <span className="text-sm">Verifique a escala antes de solicitar</span>
+                      </li>
+                      <li className="flex gap-3">
+                        <span className="text-lg">⭐</span>
+                        <span className="text-sm">Mantenha seus documentos atualizados</span>
+                      </li>
+                      <li className="flex gap-3">
+                        <span className="text-lg">⭐</span>
+                        <span className="text-sm">Considere vender parte das férias se precisar</span>
+                      </li>
+                    </ul>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="documentos">
+              <EmployeeDocumentsManager userId={userId} userName={displayName} isAdmin={isAdmin} isFinanceiroMaster={roles.includes("financeiro_master")} isGestorMaster={isGestorMaster} currentUserId={user?.id} />
+            </TabsContent>
+
+            {showTimeClock && <TabsContent value="ponto">
+                <Card className="border-border shadow-elevated rounded-xl">
+                  <CardContent className="pt-6">
+                    <TimeClockTab />
+                  </CardContent>
+                </Card>
+              </TabsContent>}
+          </Tabs>
+
+          {(isLoading || isFetching) && <Card>
+              <CardContent className="flex items-center justify-center gap-2 py-6 text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Carregando informações do perfil...
+              </CardContent>
+            </Card>}
+        </div>
       </div>
     </MobileLayout>;
 }
