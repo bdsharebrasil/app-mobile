@@ -332,7 +332,7 @@ export default function GestaoCTM() {
               const criticalCount = getCriticalCount(ac.id);
 
               return (
-                <motion.button
+                <motion.div
                   key={ac.id}
                   onClick={() => setSelectedAircraftId(ac.id)}
                   className="block w-full text-left"
@@ -354,7 +354,7 @@ export default function GestaoCTM() {
                           <Wrench className="h-12 w-12 text-gray-400" />
                         </div>
                       )}
-                      
+
                       {/* Report indicator badge */}
                       {criticalCount > 0 && (
                         <div className="absolute top-3 right-3 flex items-center justify-center w-10 h-10 rounded-full bg-red-500 text-white shadow-lg font-bold text-sm">
@@ -394,18 +394,14 @@ export default function GestaoCTM() {
                         </div>
                       </div>
 
-                      {/* View button */}
-                      <Button 
-                        variant="outline" 
-                        className="w-full"
-                        onClick={() => setSelectedAircraftId(ac.id)}
-                      >
+                      {/* View indicator */}
+                      <div className="flex items-center justify-center w-full p-2 text-primary font-medium">
                         <ExternalLink className="h-4 w-4 mr-2" />
                         Ver Reports
-                      </Button>
+                      </div>
                     </CardContent>
                   </Card>
-                </motion.button>
+                </motion.div>
               );
             })
           )}
