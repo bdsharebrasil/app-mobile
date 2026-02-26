@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Camera, Loader2, Save, Edit, User as UserIcon, Calendar, AlertCircle, CheckCircle, Clock, Lock, Eye, EyeOff } from "lucide-react";
+import { Camera, Loader2, Save, Edit, User as UserIcon, Calendar, AlertCircle, CheckCircle, Clock, Lock, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { MobileLayout } from "@/components/mobile/MobileLayout";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -24,6 +24,9 @@ import { getShortUserId, getIdBadgeColor } from "@/lib/user-id";
 import { useQuery } from "@tanstack/react-query";
 import { EmployeeDocumentsManager } from "@/components/profile/EmployeeDocumentsManager";
 import { TimeClockTab } from "@/components/profile/TimeClockTab";
+import useHandleStreamResponse from "@/utils/useHandleStreamResponse";
+import KeyboardAvoidingAnimatedView from "@/components/KeyboardAvoidingAnimatedView";
+import GlassContainer from "@/components/GlassContainer";
 
 type ContactType = "Colaboradores" | "Clientes" | "Fornecedores" | "Hoteis";
 type FormState = {
@@ -39,6 +42,7 @@ type FormState = {
   bank_agency: string;
   bank_account: string;
   bank_pix: string;
+  canac: string;
 };
 
 const contactTypeOptions: {
@@ -134,7 +138,8 @@ export default function Perfil() {
     bank_name: "",
     bank_agency: "",
     bank_account: "",
-    bank_pix: ""
+    bank_pix: "",
+    canac: ""
   });
 
   const [avatarUploading, setAvatarUploading] = useState(false);
@@ -188,7 +193,8 @@ export default function Perfil() {
         bank_name: p?.bank_name ?? "",
         bank_agency: p?.bank_agency ?? "",
         bank_account: p?.bank_account ?? "",
-        bank_pix: p?.bank_pix ?? ""
+        bank_pix: p?.bank_pix ?? "",
+        canac: p?.canac ?? ""
       });
     }
   }, [profile]);
@@ -688,6 +694,7 @@ export default function Perfil() {
         bank_agency: formState.bank_agency.trim() || null,
         bank_account: formState.bank_account.trim() || null,
         bank_pix: formState.bank_pix.trim() || null,
+        canac: formState.canac.trim() || null,
         updated_at: new Date().toISOString()
       };
       const {
@@ -836,10 +843,21 @@ export default function Perfil() {
       </Dialog>
 
       <div className="flex flex-col min-h-screen bg-background pb-28">
-        {/* Header with greeting */}
-        <div className="px-6 pt-6 pb-4">
-          <p className="text-sm text-muted-foreground font-medium">Olá,</p>
-          <h1 className="text-3xl font-bold text-foreground">{displayName.split(' ')[0]}!</h1>
+        {/* Header with greeting and back button */}
+        <div className="px-6 pt-6 pb-4 flex items-center justify-between">
+          <div>
+            <p className="text-sm text-muted-foreground font-medium">Olá,</p>
+            <h1 className="text-3xl font-bold text-foreground">{displayName.split(' ')[0]}!</h1>
+          </div>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => navigate('/')}
+            className="rounded-full"
+            title="Voltar ao menu inicial"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
         </div>
 
         {/* Featured Banner Card */}
@@ -888,8 +906,8 @@ export default function Perfil() {
             </Card>
             <Card className="border-border/50 bg-card/50">
               <CardContent className="pt-4">
-                <p className="text-xs text-muted-foreground mb-2 font-medium">CPF</p>
-                <p className="text-sm font-semibold text-foreground">{formState.cpf ? `***${formState.cpf.slice(-4)}` : "Não informado"}</p>
+                <p className="text-xs text-muted-foreground mb-2 font-medium">ANAC</p>
+                <p className="text-sm font-semibold text-foreground">{formState.canac ? `***${formState.canac.slice(-4)}` : "Não informado"}</p>
               </CardContent>
             </Card>
           </div>
@@ -969,12 +987,20 @@ export default function Perfil() {
                           })} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
                           </div>
                           <div className="space-y-2">
-                            <Label htmlFor="rg" className="text-sm font-medium text-foreground">RG</Label>
-                          <Input id="rg" value={formState.rg} onChange={e => setFormState({
+                            <Label htmlFor="canac" className="text-sm font-medium text-foreground">ANAC</Label>
+                          <Input id="canac" value={formState.canac} onChange={e => setFormState({
                             ...formState,
-                            rg: e.target.value
+                            canac: e.target.value
                           })} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
                           </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="rg" className="text-sm font-medium text-foreground">RG</Label>
+                        <Input id="rg" value={formState.rg} onChange={e => setFormState({
+                          ...formState,
+                          rg: e.target.value
+                        })} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
                         </div>
 
                         <div className="space-y-2">
