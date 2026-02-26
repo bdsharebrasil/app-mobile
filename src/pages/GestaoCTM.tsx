@@ -1,270 +1,429 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { MobileLayout } from "@/components/mobile/MobileLayout";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plane, ChevronDown, ChevronRight, Wrench, Clock, CheckCircle2 } from "lucide-react";
-import { CTMAircraftDetail } from "@/components/ctm/CTMAircraftDetail";
-import { motion, AnimatePresence } from "framer-motion";
+import { ArrowLeft, AlertCircle, Plus, Wrench, ExternalLink } from "lucide-react";
+import { motion } from "framer-motion";
+
+interface MaintenanceReport {
+  id: string;
+  aircraft_id: string;
+  reported_by: string;
+  report_date: string;
+  description: string;
+  severity: "low" | "medium" | "high" | "critical";
+  status: "open" | "in_analysis" | "in_maintenance" | "resolved";
+  corrective_action?: string;
+  aircraft?: {
+    id: string;
+    registration: string;
+    model: string;
+    image_url?: string;
+  };
+  reporter?: {
+    full_name: string;
+  };
+}
+
 interface Aircraft {
   id: string;
   registration: string;
   model: string;
-  status?: string | null;
-  image_url?: string | null;
-  cell_hours_current?: number | null;
+  image_url?: string;
+  status?: string;
 }
+
 export default function GestaoCTM() {
+  const navigate = useNavigate();
+  const [reports, setReports] = useState<MaintenanceReport[]>([]);
   const [aircraft, setAircraft] = useState<Aircraft[]>([]);
-  const [selectedAircraft, setSelectedAircraft] = useState<string>("");
+  const [selectedAircraftId, setSelectedAircraftId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showInactive, setShowInactive] = useState(false);
+
   useEffect(() => {
-    loadAircraft();
+    loadData();
   }, []);
-  const loadAircraft = async () => {
+
+  const loadData = async () => {
+    setLoading(true);
     try {
-      const {
-        data,
-        error
-      } = await supabase.from("aircraft").select("id, registration, model, status, image_url, cell_hours_current").order("registration");
-      if (error) throw error;
-      setAircraft(data || []);
+      // Load maintenance reports
+      const { data: reportsData, error: reportsError } = await supabase
+        .from("maintenance_reports")
+        .select(`
+          *,
+          aircraft:aircraft_id(id, registration, model, image_url),
+          reporter:reported_by(full_name)
+        `)
+        .order("report_date", { ascending: false });
+
+      if (reportsError) throw reportsError;
+      if (reportsData) setReports(reportsData as MaintenanceReport[]);
+
+      // Load aircraft
+      const { data: aircraftData, error: aircraftError } = await supabase
+        .from("aircraft")
+        .select("id, registration, model, image_url, status")
+        .order("registration");
+
+      if (aircraftError) throw aircraftError;
+      if (aircraftData) setAircraft(aircraftData as Aircraft[]);
     } catch (error: any) {
-      toast.error("Erro ao carregar aeronaves: " + error.message);
+      toast.error("Erro ao carregar dados: " + error.message);
     } finally {
       setLoading(false);
     }
   };
-  const handleSelectAircraft = (aircraftId: string) => {
-    setSelectedAircraft(aircraftId);
+
+  const getSeverityColor = (severity: string) => {
+    switch (severity) {
+      case "low":
+        return "bg-blue-100 text-blue-700";
+      case "medium":
+        return "bg-yellow-100 text-yellow-700";
+      case "high":
+        return "bg-orange-100 text-orange-700";
+      case "critical":
+        return "bg-red-100 text-red-700";
+      default:
+        return "bg-gray-100 text-gray-700";
+    }
   };
-  const handleBack = () => {
-    setSelectedAircraft("");
+
+  const getSeverityLabel = (severity: string) => {
+    switch (severity) {
+      case "low":
+        return "Baixa";
+      case "medium":
+        return "Média";
+      case "high":
+        return "Alta";
+      case "critical":
+        return "Crítica";
+      default:
+        return severity;
+    }
   };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "open":
+        return "bg-red-100 text-red-700";
+      case "in_analysis":
+        return "bg-yellow-100 text-yellow-700";
+      case "in_maintenance":
+        return "bg-blue-100 text-blue-700";
+      case "resolved":
+        return "bg-green-100 text-green-700";
+      default:
+        return "bg-gray-100 text-gray-700";
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case "open":
+        return "Aberto";
+      case "in_analysis":
+        return "Em Análise";
+      case "in_maintenance":
+        return "Em Manutenção";
+      case "resolved":
+        return "Resolvido";
+      default:
+        return status;
+    }
+  };
+
+  // Get reports for selected aircraft
+  const filteredReports = selectedAircraftId
+    ? reports.filter((r) => r.aircraft_id === selectedAircraftId)
+    : reports;
+
+  // Count reports by aircraft
+  const getAircraftReportCount = (aircraftId: string) => {
+    return reports.filter((r) => r.aircraft_id === aircraftId).length;
+  };
+
+  // Count critical/high severity reports
+  const getCriticalCount = (aircraftId: string) => {
+    return reports.filter(
+      (r) => r.aircraft_id === aircraftId && (r.severity === "critical" || r.severity === "high")
+    ).length;
+  };
+
   if (loading) {
-    return <MobileLayout>
+    return (
+      <MobileLayout>
         <div className="p-6 flex items-center justify-center min-h-[400px]">
-          <motion.div animate={{
-          rotate: 360
-        }} transition={{
-          duration: 2,
-          repeat: Infinity,
-          ease: "linear"
-        }}>
-            <Plane className="h-12 w-12 text-primary" />
+          <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }}>
+            <Wrench className="h-12 w-12 text-primary" />
           </motion.div>
         </div>
-      </MobileLayout>;
+      </MobileLayout>
+    );
   }
 
-  // If aircraft is selected, show the detail view
-  if (selectedAircraft) {
-    const selectedAircraftData = aircraft.find(ac => ac.id === selectedAircraft);
-    if (!selectedAircraftData) return null;
-    return <MobileLayout>
-        <div className="p-6">
-          <CTMAircraftDetail aircraft={selectedAircraftData} onBack={handleBack} />
-        </div>
-      </MobileLayout>;
-  }
+  // Show selected aircraft reports
+  if (selectedAircraftId) {
+    const selectedAircraft = aircraft.find((a) => a.id === selectedAircraftId);
 
-  // Otherwise, show the aircraft selection view
-  const normalizeStatus = (s: string | null | undefined) => (s ?? "").toString().trim().toLowerCase();
-  const isActiveStatus = (s: string | null | undefined) => ["ativo", "ativa", "active"].includes(normalizeStatus(s));
-  const isInactiveStatus = (s: string | null | undefined) => ["inativo", "inativa", "inactive"].includes(normalizeStatus(s));
-  const activeAircraft = aircraft.filter(a => isActiveStatus(a.status));
-  const inactiveAircraft = aircraft.filter(a => isInactiveStatus(a.status));
-  return <MobileLayout>
-      <div className="p-6 space-y-8">
-        {/* Hero Header */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-background p-8 border border-primary/20">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-          <div className="absolute bottom-0 left-0 w-48 h-48 bg-primary/10 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2" />
-          
-          <div className="relative z-10 flex items-center gap-6">
-            <div className="p-4 bg-primary/20 rounded-2xl backdrop-blur-sm border border-primary/30">
-              <Wrench className="h-10 w-10 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-4xl font-black text-foreground tracking-tight">
-                Gestão CTM
-              </h1>
-              <p className="text-lg text-muted-foreground mt-1">
-                Controle Técnico de Manutenção
-              </p>
+    return (
+      <MobileLayout>
+        <div className="p-4 sm:p-6 space-y-6 pb-28">
+          {/* Back button */}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSelectedAircraftId(null)}
+              className="rounded-full"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <h1 className="text-2xl font-bold">{selectedAircraft?.registration}</h1>
+          </div>
+
+          {/* Aircraft info banner */}
+          <div className="relative h-32 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 overflow-hidden shadow-lg">
+            {selectedAircraft?.image_url && (
+              <img
+                src={selectedAircraft.image_url}
+                alt={selectedAircraft.registration}
+                className="w-full h-full object-cover opacity-40"
+              />
+            )}
+            <div className="absolute inset-0 p-4 flex flex-col justify-between">
+              <h2 className="text-white font-bold text-lg">{selectedAircraft?.model}</h2>
+              <p className="text-white text-sm">{selectedAircraft?.registration}</p>
             </div>
           </div>
 
-          <div className="relative z-10 mt-6 flex gap-6">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <CheckCircle2 className="h-4 w-4 text-green-500" />
-              <span><strong className="text-foreground">{activeAircraft.length}</strong> aeronaves ativas</span>
+          {/* Reports list */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold">Reports ({filteredReports.length})</h2>
+              <Button size="sm" onClick={() => toast.info("Criar novo report em breve")} className="bg-primary">
+                <Plus className="h-4 w-4 mr-2" />
+                Novo
+              </Button>
             </div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Clock className="h-4 w-4 text-orange-500" />
-              <span><strong className="text-foreground">{inactiveAircraft.length}</strong> inativas</span>
-            </div>
-          </div>
-        </div>
 
-        {/* Active Aircraft Grid */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="h-8 w-1 bg-gradient-to-b from-green-500 to-green-600 rounded-full" />
-            <h2 className="text-xl font-bold text-foreground">Aeronaves Ativas</h2>
-          </div>
-
-          {activeAircraft.length === 0 ? <Card className="border-dashed">
-              <CardContent className="py-12 text-center">
-                <Plane className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-                <p className="text-muted-foreground">Nenhuma aeronave ativa encontrada</p>
-              </CardContent>
-            </Card> : <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              <AnimatePresence>
-                {activeAircraft.map((ac, index) => <motion.div key={ac.id} initial={{
-              opacity: 0,
-              scale: 0.9
-            }} animate={{
-              opacity: 1,
-              scale: 1
-            }} transition={{
-              delay: index * 0.05
-            }} whileHover={{
-              scale: 1.02,
-              y: -4
-            }} whileTap={{
-              scale: 0.98
-            }}>
-                    <Card className="group cursor-pointer overflow-hidden border-border/50 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10 transition-all duration-300 bg-gradient-to-br from-background to-muted/30" onClick={() => handleSelectAircraft(ac.id)}>
-                      <CardContent className="p-0">
-                        {/* Aircraft Image or Placeholder */}
-                        <div className="relative h-32 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent overflow-hidden">
-                          {ac.image_url ? <img src={ac.image_url} alt={ac.registration} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" /> : <div className="absolute inset-0 flex items-center justify-center">
-                              <motion.div className="relative" whileHover={{
-                        rotate: -10
-                      }} transition={{
-                        type: "spring",
-                        stiffness: 300
-                      }}>
-                                <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl scale-150" />
-                                <Plane className="h-16 w-16 text-primary/60 relative z-10 -rotate-12" />
-                              </motion.div>
-                            </div>}
-                          
-                          {/* Status Badge */}
-                          <div className="absolute top-3 right-3">
-                            <Badge className="bg-green-500/90 text-white border-0 shadow-lg backdrop-blur-sm">
-                              <span className="relative flex h-2 w-2 mr-1.5">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
-                              </span>
-                              ATIVO
-                            </Badge>
+            {filteredReports.length === 0 ? (
+              <Card>
+                <CardContent className="pt-6 text-center text-gray-500">
+                  Nenhum report de manutenção para esta aeronave
+                </CardContent>
+              </Card>
+            ) : (
+              filteredReports.map((report) => (
+                <Card key={report.id} className="hover:shadow-md transition-shadow">
+                  <CardContent className="pt-6">
+                    <div className="space-y-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`p-2 rounded-full ${
+                              report.severity === "critical"
+                                ? "bg-red-100"
+                                : report.severity === "high"
+                                  ? "bg-orange-100"
+                                  : report.severity === "medium"
+                                    ? "bg-yellow-100"
+                                    : "bg-blue-100"
+                            }`}
+                          >
+                            <AlertCircle
+                              className={`h-5 w-5 ${
+                                report.severity === "critical"
+                                  ? "text-red-600"
+                                  : report.severity === "high"
+                                    ? "text-orange-600"
+                                    : report.severity === "medium"
+                                      ? "text-yellow-600"
+                                      : "text-blue-600"
+                              }`}
+                            />
                           </div>
-                        </div>
-
-                        {/* Aircraft Info */}
-                        <div className="p-4 space-y-3">
                           <div>
-                            <h3 className="text-xl font-black text-foreground group-hover:text-primary transition-colors">
-                              {ac.registration}
-                            </h3>
-                            <p className="text-sm text-muted-foreground">{ac.model}</p>
-                          </div>
-
-                          <div className="flex items-center justify-between pt-2 border-t border-border/50">
-                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                              
-                              
-                            </div>
-                            <div className="text-xs font-medium text-primary opacity-0 group-hover:opacity-100 transition-opacity">
-                              Ver detalhes →
-                            </div>
+                            <p className="font-bold text-sm">Report #{report.id.slice(0, 8)}</p>
+                            <p className="text-xs text-gray-500">
+                              {new Date(report.report_date).toLocaleDateString("pt-BR")}
+                            </p>
                           </div>
                         </div>
-                      </CardContent>
-                    </Card>
-                  </motion.div>)}
-              </AnimatePresence>
-            </div>}
+                        <div className="flex flex-col gap-1 items-end">
+                          <Badge className={getSeverityColor(report.severity)}>
+                            {getSeverityLabel(report.severity)}
+                          </Badge>
+                          <Badge className={getStatusColor(report.status)}>
+                            {getStatusLabel(report.status)}
+                          </Badge>
+                        </div>
+                      </div>
+
+                      <p className="text-sm text-gray-700">{report.description}</p>
+
+                      <div className="flex items-center justify-between text-xs text-gray-500">
+                        <span>Reportado por: {report.reporter?.full_name || "Desconhecido"}</span>
+                      </div>
+
+                      {report.corrective_action && (
+                        <div className="p-2 bg-green-50 rounded text-sm border border-green-200">
+                          <p className="font-medium text-green-900">Ação Corretiva:</p>
+                          <p className="text-green-700">{report.corrective_action}</p>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+        </div>
+      </MobileLayout>
+    );
+  }
+
+  // Show aircraft selection view
+  return (
+    <MobileLayout>
+      <div className="p-4 sm:p-6 space-y-6 pb-28">
+        {/* Back button */}
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate("/")}
+            className="rounded-full"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="text-2xl font-bold">Reports de Manutenção</h1>
         </div>
 
-        {/* Inactive Aircraft Section */}
-        <div className="space-y-4">
-          <motion.button className="flex items-center gap-3 w-full text-left group" onClick={() => setShowInactive(s => !s)} whileTap={{
-          scale: 0.99
-        }}>
-            <div className="h-8 w-1 bg-gradient-to-b from-orange-500 to-orange-600 rounded-full" />
-            <h2 className="text-xl font-bold text-foreground flex-1">Aeronaves Inativas</h2>
-            <Badge variant="secondary" className="mr-2">
-              {inactiveAircraft.length}
-            </Badge>
-            <motion.div animate={{
-            rotate: showInactive ? 180 : 0
-          }} transition={{
-            duration: 0.2
-          }} className="p-2 rounded-lg bg-muted/50 group-hover:bg-muted transition-colors">
-              <ChevronDown className="h-4 w-4" />
-            </motion.div>
-          </motion.button>
+        {/* Search header */}
+        <div className="bg-gradient-to-br from-yellow-300 to-yellow-200 rounded-2xl p-4">
+          <div className="flex items-center gap-3 bg-white rounded-full px-4 py-2">
+            <span className="text-lg">🔍</span>
+            <input
+              type="text"
+              placeholder="Buscar aeronave"
+              className="w-full bg-transparent outline-none text-sm"
+            />
+          </div>
+        </div>
 
-          <AnimatePresence>
-            {showInactive && <motion.div initial={{
-            opacity: 0,
-            height: 0
-          }} animate={{
-            opacity: 1,
-            height: "auto"
-          }} exit={{
-            opacity: 0,
-            height: 0
-          }} transition={{
-            duration: 0.3
-          }} className="overflow-hidden">
-                {inactiveAircraft.length === 0 ? <Card className="border-dashed bg-muted/30">
-                    <CardContent className="py-8 text-center">
-                      <p className="text-muted-foreground">Nenhuma aeronave inativa</p>
+        {/* Aircraft cards grid */}
+        <div className="grid gap-4">
+          {aircraft.length === 0 ? (
+            <Card>
+              <CardContent className="pt-6 text-center text-gray-500">
+                Nenhuma aeronave encontrada
+              </CardContent>
+            </Card>
+          ) : (
+            aircraft.map((ac) => {
+              const reportCount = getAircraftReportCount(ac.id);
+              const criticalCount = getCriticalCount(ac.id);
+
+              return (
+                <motion.button
+                  key={ac.id}
+                  onClick={() => setSelectedAircraftId(ac.id)}
+                  className="block w-full text-left"
+                  whileHover={{ y: -2 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Card className="hover:shadow-lg transition-all cursor-pointer overflow-hidden">
+                    {/* Aircraft image section */}
+                    <div className="relative h-40 bg-gradient-to-b from-blue-400 to-blue-600 overflow-hidden">
+                      {ac.image_url && (
+                        <img
+                          src={ac.image_url}
+                          alt={ac.registration}
+                          className="w-full h-full object-cover"
+                        />
+                      )}
+                      {!ac.image_url && (
+                        <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                          <Wrench className="h-12 w-12 text-gray-400" />
+                        </div>
+                      )}
+                      
+                      {/* Report indicator badge */}
+                      {criticalCount > 0 && (
+                        <div className="absolute top-3 right-3 flex items-center justify-center w-10 h-10 rounded-full bg-red-500 text-white shadow-lg font-bold text-sm">
+                          {criticalCount}
+                        </div>
+                      )}
+                    </div>
+
+                    <CardContent className="pt-4 space-y-3">
+                      {/* Aircraft name */}
+                      <div>
+                        <h3 className="font-bold text-lg text-foreground">{ac.registration}</h3>
+                        <p className="text-sm text-gray-600">{ac.model}</p>
+                      </div>
+
+                      {/* Stats */}
+                      <div className="grid grid-cols-3 gap-2 text-xs">
+                        <div className="text-center p-2 bg-blue-50 rounded">
+                          <p className="text-blue-700 font-bold">{reportCount}</p>
+                          <p className="text-blue-600">Reports</p>
+                        </div>
+                        <div className={`text-center p-2 rounded ${
+                          criticalCount > 0 ? "bg-red-50" : "bg-green-50"
+                        }`}>
+                          <p className={`font-bold ${criticalCount > 0 ? "text-red-700" : "text-green-700"}`}>
+                            {criticalCount}
+                          </p>
+                          <p className={criticalCount > 0 ? "text-red-600" : "text-green-600"}>
+                            Críticos
+                          </p>
+                        </div>
+                        <div className="text-center p-2 bg-gray-100 rounded">
+                          <p className="text-gray-700 font-bold">
+                            {ac.status === "ativo" || ac.status === "Ativo" ? "✓" : "✕"}
+                          </p>
+                          <p className="text-gray-600">Status</p>
+                        </div>
+                      </div>
+
+                      {/* View button */}
+                      <Button 
+                        variant="outline" 
+                        className="w-full"
+                        onClick={() => setSelectedAircraftId(ac.id)}
+                      >
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        Ver Reports
+                      </Button>
                     </CardContent>
-                  </Card> : <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {inactiveAircraft.map((ac, index) => <motion.div key={ac.id} initial={{
-                opacity: 0,
-                y: 20
-              }} animate={{
-                opacity: 1,
-                y: 0
-              }} transition={{
-                delay: index * 0.05
-              }} whileHover={{
-                scale: 1.02
-              }} whileTap={{
-                scale: 0.98
-              }}>
-                        <Card className="cursor-pointer border-border/30 hover:border-orange-500/50 hover:shadow-lg hover:shadow-orange-500/10 transition-all duration-300 opacity-70 hover:opacity-100 bg-muted/20" onClick={() => handleSelectAircraft(ac.id)}>
-                          <CardContent className="p-4">
-                            <div className="flex items-center gap-4">
-                              <div className="p-3 bg-orange-500/10 rounded-xl">
-                                <Plane className="h-8 w-8 text-orange-500/70 -rotate-12" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <h3 className="text-lg font-bold text-foreground truncate">
-                                  {ac.registration}
-                                </h3>
-                                <p className="text-sm text-muted-foreground truncate">{ac.model}</p>
-                              </div>
-                              <Badge variant="outline" className="border-orange-500/30 text-orange-500 shrink-0">
-                                INATIVO
-                              </Badge>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </motion.div>)}
-                  </div>}
-              </motion.div>}
-          </AnimatePresence>
+                  </Card>
+                </motion.button>
+              );
+            })
+          )}
         </div>
+
+        {/* Info card */}
+        <Card className="bg-blue-50 border-blue-200">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+              <div className="text-sm text-blue-700">
+                <p className="font-bold mb-1">Total de Reports: {reports.length}</p>
+                <p>Selecione uma aeronave para ver seus reports de manutenção em detalhes.</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
-    </MobileLayout>;
+    </MobileLayout>
+  );
 }
