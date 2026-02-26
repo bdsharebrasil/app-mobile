@@ -362,8 +362,8 @@ export default function GestaoCTM() {
                         )}
 
                         {/* Report indicator badge - circular on top right */}
-                        <div className="absolute top-2 right-2 flex items-center justify-center w-8 h-8 rounded-full bg-white border-2 border-teal-600 shadow-md hover:bg-teal-50 transition">
-                          <Navigation className="h-4 w-4 text-teal-600" />
+                        <div className="absolute top-2 right-2 flex items-center justify-center w-8 h-8 rounded-full bg-white border-2 border-teal-600 shadow-md hover:bg-teal-50 transition text-lg">
+                          ➤
                         </div>
                       </div>
 
