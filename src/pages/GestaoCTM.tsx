@@ -375,21 +375,12 @@ export default function GestaoCTM() {
                           <p className="text-xs text-gray-500 truncate">{ac.model}</p>
                         </div>
 
-                        {/* Stats - compact icons */}
-                        <div className="flex items-center justify-between text-xs text-gray-600">
-                          <div className="flex items-center gap-1">
-                            <span className="text-lg">👥</span>
-                            <span className="font-semibold">{reportCount}</span>
+                        {/* Status indicator - only show if not active */}
+                        {(ac.status !== "ativo" && ac.status !== "Ativo") && (
+                          <div className="text-xs font-medium text-orange-600 bg-orange-50 px-2 py-1 rounded">
+                            Em Manutenção
                           </div>
-                          <div className="flex items-center gap-1">
-                            <span className="text-lg">🎯</span>
-                            <span className="font-semibold">{criticalCount}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <span className="text-lg">✓</span>
-                            <span className="font-semibold text-green-600">{ac.status === "ativo" || ac.status === "Ativo" ? "Ativo" : "Inativo"}</span>
-                          </div>
-                        </div>
+                        )}
                       </div>
                     </div>
                   </div>
