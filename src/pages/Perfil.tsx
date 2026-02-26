@@ -25,7 +25,6 @@ import { useQuery } from "@tanstack/react-query";
 // Payslips hook removed - using pagamento_salario_funcionario directly
 import { EmployeeDocumentsManager } from "@/components/profile/EmployeeDocumentsManager";
 import { TimeClockTab } from "@/components/profile/TimeClockTab";
-import EmployeeBankStatement from "@/components/financeiro/EmployeeBankStatement";
 type ContactType = "Colaboradores" | "Clientes" | "Fornecedores" | "Hoteis";
 type FormState = {
   full_name: string;
@@ -831,7 +830,6 @@ export default function Perfil() {
             {showTimeClock && <TabsTrigger value="ponto" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200">Ponto</TabsTrigger>}
             <TabsTrigger value="salario" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200">Salário</TabsTrigger>
             <TabsTrigger value="ferias" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200">Férias</TabsTrigger>
-            <TabsTrigger value="extrato" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200">Extrato</TabsTrigger>
             <TabsTrigger value="documentos" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200">Documentos</TabsTrigger>
           </TabsList>
 
@@ -1276,10 +1274,6 @@ export default function Perfil() {
                 </CardContent>
               </Card>
             </div>
-          </TabsContent>
-
-          <TabsContent value="extrato">
-            <EmployeeBankStatement employeeId={userId} employeeName={displayName} />
           </TabsContent>
 
           <TabsContent value="documentos">
