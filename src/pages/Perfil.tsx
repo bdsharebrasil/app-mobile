@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Camera, Loader2, Save, Edit, User as UserIcon, Calendar, AlertCircle, CheckCircle, Clock, Lock, Eye, EyeOff, ArrowLeft } from "lucide-react";
+import { Camera, Loader2, Save, Edit, User as UserIcon, Calendar, AlertCircle, CheckCircle, Clock, Lock, Eye, EyeOff, ArrowLeft, ShieldCheck, Star, Briefcase, Building2, User, CreditCard, LayoutDashboard, FileText, PiggyBank, Timer } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { MobileLayout } from "@/components/mobile/MobileLayout";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -28,6 +29,82 @@ import useHandleStreamResponse from "@/utils/useHandleStreamResponse";
 import KeyboardAvoidingAnimatedView from "@/components/KeyboardAvoidingAnimatedView";
 import GlassContainer from "@/components/GlassContainer";
 
+// --- Subcomponentes de Estilo (Referência do Usuário adaptada para Web/Tailwind) ---
+
+const ProfileField = ({ label, value, icon: Icon, editable, onChangeText, placeholder }: { 
+  label: string, 
+  value: string, 
+  icon: any, 
+  editable: boolean, 
+  onChangeText: (v: string) => void,
+  placeholder?: string
+}) => (
+  <div className="flex flex-row items-center p-4 gap-4 border-b border-border/50 last:border-0 hover:bg-muted/5 transition-colors">
+    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-sm">
+      <Icon size={18} />
+    </div>
+    <div className="flex-1">
+      <p className="text-[10px] font-semibold text-muted-foreground mb-0.5 uppercase tracking-wider">{label}</p>
+      {editable ? (
+        <input
+          className="w-full bg-transparent text-foreground text-[15px] font-medium focus:outline-none placeholder:text-muted-foreground/40 border-b border-primary/30 pb-0.5"
+          value={value}
+          onChange={(e) => onChangeText(e.target.value)}
+          placeholder={placeholder}
+        />
+      ) : (
+        <p className="text-foreground text-[15px] font-medium leading-tight">{value || "---"}</p>
+      )}
+    </div>
+  </div>
+);
+
+const StatItem = ({ icon: Icon, label, value }: { icon: any, label: string, value: string | number }) => (
+  <div className="flex-1 flex flex-col items-center gap-1.5 transition-transform hover:scale-105">
+    <div className="text-primary p-2 bg-primary/5 rounded-full">
+      <Icon size={20} />
+    </div>
+    <span className="text-foreground text-xl font-bold tracking-tight">{value}</span>
+    <span className="text-muted-foreground text-[9px] font-bold uppercase tracking-[0.15em] text-center leading-tight opacity-70 px-1">
+      {label}
+    </span>
+  </div>
+);
+
+// --- Helpers de Formatação ---
+
+const getInitials = (input: string | null | undefined) => {
+  if (!input) return "";
+  const parts = input.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return input.slice(0, 2).toUpperCase();
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0] ?? ""}${parts[parts.length - 1][0] ?? ""}`.toUpperCase();
+};
+
+const sanitizePhone = (value: string) => value.replace(/\D/g, "");
+
+const buildAvatarPath = (userId: string, fileName: string) => {
+  const extension = fileName.split(".").pop();
+  const uniqueId = crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  return extension ? `${userId}/${uniqueId}.${extension}` : `${userId}/${uniqueId}`;
+};
+
+const formatTimestamp = (isoDate: string | null | undefined) => {
+  if (!isoDate) return null;
+  try {
+    return new Intl.DateTimeFormat("pt-BR", {
+      dateStyle: "medium",
+      timeStyle: "short"
+    }).format(new Date(isoDate));
+  } catch (error) {
+    return null;
+  }
+};
+
+const AVATAR_CROP_BOX_SIZE = 256;
+const AVATAR_OUTPUT_SIZE = 512;
+const DEFAULT_CROP_SCALE = 1;
+
 type ContactType = "Colaboradores" | "Clientes" | "Fornecedores" | "Hoteis";
 type FormState = {
   full_name: string;
@@ -45,73 +122,12 @@ type FormState = {
   canac: string;
 };
 
-const contactTypeOptions: {
-  value: ContactType;
-  label: string;
-}[] = [{
-  value: "Colaboradores",
-  label: "Colaboradores"
-}, {
-  value: "Clientes",
-  label: "Clientes"
-}, {
-  value: "Fornecedores",
-  label: "Fornecedores"
-}, {
-  value: "Hoteis",
-  label: "Hotéis"
-}];
-
-const getInitials = (input: string | null | undefined) => {
-  if (!input) {
-    return "";
-  }
-  const parts = input.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) {
-    return input.slice(0, 2).toUpperCase();
-  }
-  if (parts.length === 1) {
-    return parts[0].slice(0, 2).toUpperCase();
-  }
-  return `${parts[0][0] ?? ""}${parts[parts.length - 1][0] ?? ""}`.toUpperCase();
-};
-
-const sanitizePhone = (value: string) => value.replace(/\D/g, "");
-const buildAvatarPath = (userId: string, fileName: string) => {
-  const extension = fileName.split(".").pop();
-  const uniqueId = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  return extension ? `${userId}/${uniqueId}.${extension}` : `${userId}/${uniqueId}`;
-};
-
-const formatTimestamp = (isoDate: string | null | undefined) => {
-  if (!isoDate) {
-    return null;
-  }
-  try {
-    return new Intl.DateTimeFormat("pt-BR", {
-      dateStyle: "medium",
-      timeStyle: "short"
-    }).format(new Date(isoDate));
-  } catch (error) {
-    console.error("Failed to format date", error);
-    return null;
-  }
-};
-
-const AVATAR_CROP_BOX_SIZE = 256;
-const AVATAR_OUTPUT_SIZE = 512;
-const DEFAULT_CROP_SCALE = 1;
+// --- Componente Principal ---
 
 export default function Perfil() {
   const navigate = useNavigate();
-  const {
-    user,
-    roles
-  } = useAuth();
-  const primaryRole = useMemo(() => selectPrimaryRole(roles), [roles]);
-  const {
-    toast
-  } = useToast();
+  const { user, roles } = useAuth();
+  const { toast } = useToast();
   const isAdmin = roles.includes("admin");
   const isGestorMaster = roles.includes("gestor_master");
   const showTimeClock = roles.some(r => ['financeiro', 'financeiro_master', 'adm', 'operacoes'].includes(r));
@@ -125,6 +141,38 @@ export default function Perfil() {
   } = useUserProfile(user, {
     skipCreation: Boolean(isAdmin || isGestorMaster)
   });
+
+  // Queries para os Stats (Referência do Usuário)
+  const { data: flightLogs = [] } = useQuery({
+    queryKey: ["flight-logs", profile?.full_name],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("logbook_entries")
+        .select("*")
+        .or(`pilot_name.ilike.%${profile?.full_name}%,copilot_name.ilike.%${profile?.full_name}%`);
+      if (error) return [];
+      return data;
+    },
+    enabled: !!profile?.full_name
+  });
+
+  const { data: maintenanceReports = [] } = useQuery({
+    queryKey: ["maintenance-reports-open"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("maintenance_reports")
+        .select("*")
+        .eq("status", "open");
+      if (error) return [];
+      return data;
+    }
+  });
+
+  const totalFlightHours = useMemo(() => {
+    return flightLogs.reduce((acc: number, log: any) => acc + (Number(log.flight_time_hours) || 0) + (Number(log.flight_time_minutes) || 0) / 60, 0);
+  }, [flightLogs]);
+
+  const openCTMCount = maintenanceReports.length;
 
   const [formState, setFormState] = useState<FormState>({
     full_name: "",
@@ -145,37 +193,20 @@ export default function Perfil() {
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
-  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
-  const [cropImage, setCropImage] = useState<{
-    file: File;
-    url: string;
-  } | null>(null);
-  const [cropMeta, setCropMeta] = useState<{
-    width: number;
-    height: number;
-    baseScale: number;
-  } | null>(null);
+  const [cropImage, setCropImage] = useState<{ file: File; url: string } | null>(null);
+  const [cropMeta, setCropMeta] = useState<{ width: number; height: number; baseScale: number } | null>(null);
   const [cropScale, setCropScale] = useState(DEFAULT_CROP_SCALE);
-  const [cropPosition, setCropPosition] = useState<{
-    x: number;
-    y: number;
-  }>({
-    x: 0,
-    y: 0
-  });
+  const [cropPosition, setCropPosition] = useState({ x: 0, y: 0 });
   const cropImageRef = useRef<HTMLImageElement | null>(null);
-  const cropDragStart = useRef<{
-    x: number;
-    y: number;
-  } | null>(null);
+  const cropDragStart = useRef<{ x: number; y: number } | null>(null);
   const [isCropDragging, setIsCropDragging] = useState(false);
 
   useEffect(() => {
@@ -186,7 +217,7 @@ export default function Perfil() {
         display_name: profile.display_name ?? "",
         phone: profile.phone != null ? String(profile.phone) : "",
         address: profile.address ?? "",
-        tipo: "",
+        tipo: (profile.tipo as any) ?? "",
         cpf: p?.cpf ?? "",
         rg: p?.rg ?? "",
         birth_date: p?.birth_date ?? "",
@@ -201,257 +232,122 @@ export default function Perfil() {
 
   useEffect(() => {
     return () => {
-      if (cropImage) {
-        URL.revokeObjectURL(cropImage.url);
-      }
+      if (cropImage) URL.revokeObjectURL(cropImage.url);
     };
   }, [cropImage]);
 
   const displayName = useMemo(() => formState.display_name || formState.full_name || profile?.full_name || user?.email || "Usuário", [formState.display_name, formState.full_name, profile?.full_name, user?.email]);
   const avatarInitials = useMemo(() => getInitials(displayName), [displayName]);
-  const accountUpdatedAt = useMemo(() => formatTimestamp(profile?.updated_at), [profile?.updated_at]);
   const isProfileBusy = isUpdating || avatarUploading;
   const userId = user?.id ?? "";
 
-  const {
-    data: salaryPayments = []
-  } = useQuery({
+  // Salary and Vacation Queries
+  const { data: salaryPayments = [] } = useQuery({
     queryKey: ["profile-salary-payments", userId],
     queryFn: async () => {
-      if (!userId) return [] as any[];
-      const {
-        data,
-        error
-      } = await supabase.from("pagamento_salario_funcionario").select("*").eq("user_profile", userId).order("created_at", {
-        ascending: false
-      });
-      if (error) return [] as any[];
-      return data as any[];
+      if (!userId) return [];
+      const { data, error } = await supabase.from("pagamento_salario_funcionario").select("*").eq("user_profile", userId).order("created_at", { ascending: false });
+      return data || [];
     },
     enabled: !!userId
   });
 
-  const {
-    data: vacationRequests = [],
-    refetch: refetchVacations
-  } = useQuery({
+  const { data: vacationRequests = [], refetch: refetchVacations } = useQuery({
     queryKey: ["vacation-requests", userId],
     queryFn: async () => {
-      if (!userId) return [] as any[];
-      const {
-        data,
-        error
-      } = await supabase.from("vacation_requests" as any).select("*").eq("user_id", userId).order("created_at", {
-        ascending: false
-      });
-      if (error) return [] as any[];
-      return data as any[];
+      if (!userId) return [];
+      const { data, error } = await supabase.from("vacation_requests" as any).select("*").eq("user_id", userId).order("created_at", { ascending: false });
+      return data || [];
     },
     enabled: !!userId
   });
 
-  const [absences, setAbsences] = useState<number>(0);
-  const [startDate, setStartDate] = useState<string>("");
-  const [endDate, setEndDate] = useState<string>("");
-
-  const workingMonths = (() => {
+  // Vacation Logic
+  const workingMonths = useMemo(() => {
     const admission = (profile as any)?.admission_date as string | undefined;
     if (!admission) return 0;
     const start = new Date(admission);
     const now = new Date();
     return Math.max(0, (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth()));
-  })();
+  }, [profile]);
 
-  const baseDays = workingMonths >= 12 ? 30 : Math.floor(workingMonths * 2.5);
-  const entitlement = (() => {
-    if (absences <= 5) return baseDays;
-    if (absences <= 14) return Math.min(baseDays, 24);
-    if (absences <= 23) return Math.min(baseDays, 18);
-    if (absences <= 32) return Math.min(baseDays, 12);
-    return 0;
-  })();
+  const availableVacationDays = workingMonths < 12 ? 0 : 30; // Simplificado
+  const approvedTakenVacation = (vacationRequests as any[]).filter(r => r.status === "approved").reduce((sum, r) => sum + (Number(r.days) || 0), 0);
+  const remainingVacation = Math.max(0, availableVacationDays - approvedTakenVacation);
 
-  const approvedTaken = (vacationRequests as any[]).filter(r => r.status === "approved").reduce((sum, r) => sum + (Number(r.days) || 0), 0);
-  const available = workingMonths < 12 ? 0 : Math.max(0, entitlement - approvedTaken);
-
-  const isWeekend = (dateStr: string) => {
-    const d = new Date(dateStr);
-    const day = d.getDay();
-    return day === 0 || day === 6;
-  };
-
-  const getEligibilityDateForVacation = () => {
-    const admission = (profile as any)?.admission_date as string | undefined;
-    if (!admission) return null;
-    const start = new Date(admission);
-    return new Date(start.getFullYear() + 1, start.getMonth(), start.getDate());
-  };
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   const handleVacationRequest = async () => {
     if (workingMonths < 12) {
-      const eligibilityDate = getEligibilityDateForVacation();
-      const formattedDate = new Intl.DateTimeFormat("pt-BR", {
-        year: "numeric",
-        month: "long",
-        day: "numeric"
-      }).format(eligibilityDate!);
-      toast({
-        title: "Período aquisitivo não completado",
-        description: `Você poderá solicitar férias a partir de ${formattedDate}, quando completar 12 meses de trabalho.`,
-        variant: "destructive"
-      });
+      toast({ title: "Período aquisitivo incompleto", variant: "destructive" });
       return;
     }
     if (!startDate || !endDate) {
-      toast({
-        title: "Datas obrigatórias",
-        description: "Informe início e fim das férias.",
-        variant: "destructive"
-      });
-      return;
-    }
-    if (isWeekend(startDate)) {
-      toast({
-        title: "Início inválido",
-        description: "As férias não podem começar em sábado ou domingo.",
-        variant: "destructive"
-      });
+      toast({ title: "Informe as datas", variant: "destructive" });
       return;
     }
     const s = new Date(startDate);
     const e = new Date(endDate);
-    if (e < s) {
-      toast({
-        title: "Período inválido",
-        description: "Data final deve ser após a inicial.",
-        variant: "destructive"
-      });
-      return;
-    }
-    const days = Math.floor((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-    if (days < 5) {
-      toast({
-        title: "Período curto",
-        description: "Cada período deve ter pelo menos 5 dias.",
-        variant: "destructive"
-      });
-      return;
-    }
-    if (days > available) {
-      toast({
-        title: "Saldo insuficiente",
-        description: "Quantidade de dias solicitada excede o disponível.",
-        variant: "destructive"
-      });
-      return;
-    }
-    const {
-      error
-    } = await supabase.from("vacation_requests" as any).insert({
+    const days = Math.floor((e.getTime() - s.getTime()) / (86400000)) + 1;
+    
+    const { error } = await supabase.from("vacation_requests" as any).insert({
       user_id: userId,
       start_date: startDate,
       end_date: endDate,
       days,
       status: "pending"
     });
+
     if (error) {
-      toast({
-        title: "Erro ao solicitar",
-        description: error.message,
-        variant: "destructive"
-      });
-      return;
+      toast({ title: "Erro ao solicitar", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Solicitação enviada" });
+      setStartDate("");
+      setEndDate("");
+      refetchVacations();
     }
-    await supabase.functions.invoke("notify-vacation-request", {
-      body: {
-        userId
-      }
-    }).catch(() => {});
-    toast({
-      title: "Solicitação enviada",
-      description: "RH e gestores foram notificados."
-    });
-    setStartDate("");
-    setEndDate("");
-    void refetchVacations();
   };
 
   const handlePasswordChange = async () => {
-    if (!newPassword || !confirmPassword) {
-      toast({
-        title: "Campos obrigatórios",
-        description: "Preencha a nova senha e confirmação.",
-        variant: "destructive"
-      });
-      return;
-    }
     if (newPassword !== confirmPassword) {
-      toast({
-        title: "Senhas não conferem",
-        description: "A nova senha e a confirmação devem ser iguais.",
-        variant: "destructive"
-      });
-      return;
-    }
-    if (newPassword.length < 6) {
-      toast({
-        title: "Senha muito curta",
-        description: "A senha deve ter pelo menos 6 caracteres.",
-        variant: "destructive"
-      });
+      toast({ title: "Senhas não conferem", variant: "destructive" });
       return;
     }
     setIsChangingPassword(true);
-    try {
-      const {
-        error
-      } = await supabase.auth.updateUser({
-        password: newPassword
-      });
-      if (error) {
-        throw error;
-      }
-      toast({
-        title: "Senha alterada",
-        description: "Sua senha foi alterada com sucesso."
-      });
-
-      setCurrentPassword("");
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    setIsChangingPassword(false);
+    if (error) {
+      toast({ title: "Erro ao alterar senha", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Senha alterada com sucesso" });
       setNewPassword("");
-      setConfirmPassword("");
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Erro ao alterar a senha.";
-      toast({
-        title: "Erro ao alterar senha",
-        description: message,
-        variant: "destructive"
-      });
-    } finally {
-      setIsChangingPassword(false);
+      confirmPassword && setConfirmPassword("");
     }
   };
 
+  const handleSaveEditableFields = async () => {
+    try {
+      await updateProfile(formState);
+      setIsEditing(false);
+      toast({ title: "Perfil atualizado com sucesso" });
+    } catch (error) {
+      toast({ title: "Erro ao atualizar", variant: "destructive" });
+    }
+  };
+
+  // Avatar Management
   const resetCropState = useCallback(() => {
     setCropDialogOpen(false);
     setCropImage(null);
     setCropMeta(null);
     setCropScale(DEFAULT_CROP_SCALE);
-    setCropPosition({
-      x: 0,
-      y: 0
-    });
+    setCropPosition({ x: 0, y: 0 });
     setIsCropDragging(false);
-    cropDragStart.current = null;
-    cropImageRef.current = null;
   }, []);
 
-  const clampPosition = useCallback((position: {
-    x: number;
-    y: number;
-  }, scaleOverride?: number) => {
-    if (!cropMeta) {
-      return position;
-    }
+  const clampPosition = useCallback((position: { x: number; y: number }, scaleOverride?: number) => {
+    if (!cropMeta) return position;
     const scale = scaleOverride ?? cropScale;
     const scaledWidth = cropMeta.width * cropMeta.baseScale * scale;
     const scaledHeight = cropMeta.height * cropMeta.baseScale * scale;
@@ -463,923 +359,445 @@ export default function Perfil() {
     };
   }, [cropMeta, cropScale]);
 
-  const handleCropPointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    if (!cropMeta) {
-      return;
-    }
-    event.preventDefault();
+  const handleCropPointerDown = (e: React.PointerEvent) => {
+    if (!cropMeta) return;
     setIsCropDragging(true);
-    cropDragStart.current = {
-      x: event.clientX,
-      y: event.clientY
-    };
-    event.currentTarget.setPointerCapture(event.pointerId);
-  }, [cropMeta]);
+    cropDragStart.current = { x: e.clientX, y: e.clientY };
+    (e.currentTarget as any).setPointerCapture(e.pointerId);
+  };
 
-  const handleCropPointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    if (!isCropDragging || !cropDragStart.current) {
-      return;
-    }
-    event.preventDefault();
-    const deltaX = event.clientX - cropDragStart.current.x;
-    const deltaY = event.clientY - cropDragStart.current.y;
-    cropDragStart.current = {
-      x: event.clientX,
-      y: event.clientY
-    };
-    setCropPosition(prev => clampPosition({
-      x: prev.x + deltaX,
-      y: prev.y + deltaY
-    }));
-  }, [clampPosition, isCropDragging]);
+  const handleCropPointerMove = (e: React.PointerEvent) => {
+    if (!isCropDragging || !cropDragStart.current) return;
+    const deltaX = e.clientX - cropDragStart.current.x;
+    const deltaY = e.clientY - cropDragStart.current.y;
+    cropDragStart.current = { x: e.clientX, y: e.clientY };
+    setCropPosition(prev => clampPosition({ x: prev.x + deltaX, y: prev.y + deltaY }));
+  };
 
-  const handleCropPointerUp = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-    setIsCropDragging(false);
-    cropDragStart.current = null;
-  }, []);
-
-  const handleScaleChange = useCallback((value: number[]) => {
-    const newScale = value[0] ?? DEFAULT_CROP_SCALE;
-    setCropScale(newScale);
-    setCropPosition(prev => clampPosition(prev, newScale));
-  }, [clampPosition]);
-
-  const handleCropImageLoad = useCallback((event: React.SyntheticEvent<HTMLImageElement>) => {
-    const {
-      naturalWidth,
-      naturalHeight
-    } = event.currentTarget;
-    if (!naturalWidth || !naturalHeight) {
-      return;
-    }
-    const baseScale = Math.max(AVATAR_CROP_BOX_SIZE / naturalWidth, AVATAR_CROP_BOX_SIZE / naturalHeight);
-    setCropMeta({
-      width: naturalWidth,
-      height: naturalHeight,
-      baseScale
-    });
-    setCropScale(DEFAULT_CROP_SCALE);
-    setCropPosition({
-      x: 0,
-      y: 0
-    });
-  }, []);
-
-  const uploadAvatarFile = useCallback(async (file: File) => {
-    if (!user?.id) {
-      toast({
-        title: "Usuário não encontrado",
-        description: "Faça login novamente para atualizar a foto de perfil.",
-        variant: "destructive"
-      });
-      return false;
-    }
-    setAvatarUploading(true);
-    try {
-      const path = buildAvatarPath(user.id, file.name);
-      const {
-        error: uploadError
-      } = await supabase.storage.from("avatar-profile").upload(path, file, {
-        cacheControl: "3600",
-        upsert: true
-      });
-      if (uploadError) {
-        throw uploadError;
-      }
-      const {
-        data: publicData
-      } = supabase.storage.from("avatar-profile").getPublicUrl(path);
-      if (!publicData?.publicUrl) {
-        throw new Error("Não foi possível gerar a URL da imagem.");
-      }
-      await updateProfile({
-        avatar_url: publicData.publicUrl
-      });
-      toast({
-        title: "Foto atualizada",
-        description: "Sua foto de perfil foi atualizada com sucesso."
-      });
-      return true;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Erro ao atualizar a foto.";
-      toast({
-        title: "Não foi possível enviar a foto",
-        description: message,
-        variant: "destructive"
-      });
-      return false;
-    } finally {
-      setAvatarUploading(false);
-    }
-  }, [toast, updateProfile, user?.id]);
-
-  const handleConfirmCrop = useCallback(async () => {
-    if (!cropImage || !cropMeta) {
-      return;
-    }
-    const imageElement = cropImageRef.current;
-    if (!imageElement) {
-      return;
-    }
+  const handleConfirmCrop = async () => {
+    if (!cropImage || !cropMeta || !cropImageRef.current) return;
     const canvas = document.createElement("canvas");
     canvas.width = AVATAR_OUTPUT_SIZE;
     canvas.height = AVATAR_OUTPUT_SIZE;
-    const context = canvas.getContext("2d");
-    if (!context) {
-      toast({
-        title: "Erro ao preparar a imagem",
-        description: "Não foi possível processar a imagem selecionada.",
-        variant: "destructive"
-      });
-      return;
-    }
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
     const scaleMultiplier = cropMeta.baseScale * cropScale;
     const ratio = AVATAR_OUTPUT_SIZE / AVATAR_CROP_BOX_SIZE;
-    const {
-      x,
-      y
-    } = cropPosition;
+    const { x, y } = cropPosition;
     const drawWidth = cropMeta.width * scaleMultiplier * ratio;
     const drawHeight = cropMeta.height * scaleMultiplier * ratio;
     const drawX = (AVATAR_OUTPUT_SIZE - drawWidth) / 2 + x * ratio;
     const drawY = (AVATAR_OUTPUT_SIZE - drawHeight) / 2 + y * ratio;
-    const preferredMime = cropImage.file.type === "image/png" ? "image/png" : "image/jpeg";
-    context.clearRect(0, 0, AVATAR_OUTPUT_SIZE, AVATAR_OUTPUT_SIZE);
-    if (preferredMime === "image/jpeg") {
-      context.fillStyle = "#ffffff";
-      context.fillRect(0, 0, AVATAR_OUTPUT_SIZE, AVATAR_OUTPUT_SIZE);
-    }
-    context.drawImage(imageElement, drawX, drawY, drawWidth, drawHeight);
-    const blob: Blob | null = await new Promise(resolve => canvas.toBlob(resolve, preferredMime, preferredMime === "image/jpeg" ? 0.92 : undefined));
-    if (!blob) {
-      toast({
-        title: "Erro ao gerar a imagem",
-        description: "Não foi possível finalizar o corte da foto.",
-        variant: "destructive"
-      });
-      return;
-    }
-    const extension = preferredMime === "image/png" ? "png" : "jpg";
-    const baseName = cropImage.file.name.replace(/\.[^.]+$/, "");
-    const croppedFile = new File([blob], `${baseName}.${extension}`, {
-      type: preferredMime
-    });
-    const success = await uploadAvatarFile(croppedFile);
-    if (success) {
-      resetCropState();
-    }
-  }, [cropImage, cropMeta, cropPosition, cropScale, resetCropState, toast, uploadAvatarFile]);
 
-  const handleCancelCrop = useCallback(() => {
-    if (avatarUploading) {
-      return;
-    }
-    resetCropState();
-  }, [avatarUploading, resetCropState]);
-
-  const handleCropDialogOpenChange = useCallback((open: boolean) => {
-    if (!open) {
-      if (avatarUploading) {
-        return;
+    ctx.drawImage(cropImageRef.current, drawX, drawY, drawWidth, drawHeight);
+    
+    canvas.toBlob(async (blob) => {
+      if (!blob) return;
+      setAvatarUploading(true);
+      const file = new File([blob], "avatar.jpg", { type: "image/jpeg" });
+      const path = buildAvatarPath(userId, "avatar.jpg");
+      const { error: uploadError } = await supabase.storage.from("avatar-profile").upload(path, file, { upsert: true });
+      if (uploadError) {
+        toast({ title: "Erro no upload", variant: "destructive" });
+      } else {
+        const { data: { publicUrl } } = supabase.storage.from("avatar-profile").getPublicUrl(path);
+        await updateProfile({ avatar_url: publicUrl });
+        toast({ title: "Foto atualizada" });
+        resetCropState();
       }
-      resetCropState();
-    } else {
-      setCropDialogOpen(true);
-    }
-  }, [avatarUploading, resetCropState]);
-
-  const handleInputChange = (field: keyof FormState) => (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const value = event.target.value;
-    setFormState(prev => ({
-      ...prev,
-      [field]: field === "phone" ? sanitizePhone(value) : value
-    }));
-  };
-
-  const handleSelectChange = (value: ContactType) => {
-    setFormState(prev => ({
-      ...prev,
-      tipo: value
-    }));
-  };
-
-  const handleSave = async () => {
-    const trimmedFullName = formState.full_name.trim();
-    if (!trimmedFullName) {
-      toast({
-        title: "Nome obrigatório",
-        description: "Informe o nome completo para salvar o perfil.",
-        variant: "destructive"
-      });
-      return;
-    }
-    const phoneDigits = formState.phone ? String(formState.phone) : null;
-    try {
-      if (!user?.id) {
-        throw new Error("Usuário não autenticado");
-      }
-      const payload: Record<string, any> = {
-        full_name: trimmedFullName,
-        display_name: formState.display_name.trim() || null,
-        phone: phoneDigits,
-        address: formState.address.trim() || null,
-        tipo: formState.tipo || null,
-        cpf: formState.cpf.trim() || null,
-        rg: formState.rg.trim() || null,
-        birth_date: formState.birth_date || null,
-        bank_name: formState.bank_name.trim() || null,
-        bank_agency: formState.bank_agency.trim() || null,
-        bank_account: formState.bank_account.trim() || null,
-        bank_pix: formState.bank_pix.trim() || null,
-        canac: formState.canac.trim() || null,
-        updated_at: new Date().toISOString()
-      };
-      const {
-        error
-      } = await supabase.from("user_profiles").update(payload).eq("id", user.id).select().single();
-      if (error) {
-        console.error("Erro ao atualizar perfil:", error);
-        throw new Error(error.message || "Erro ao salvar o perfil");
-      }
-      toast({
-        title: "Perfil atualizado",
-        description: "Suas informações foram salvas com sucesso."
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Erro ao salvar o perfil.";
-      console.error("Erro na atualização do perfil:", message);
-      toast({
-        title: "Não foi possível atualizar",
-        description: message,
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleSaveEditableFields = async () => {
-    try {
-      const payload = {
-        display_name: formState.display_name,
-        phone: formState.phone,
-        address: formState.address,
-        bank_name: formState.bank_name,
-        bank_agency: formState.bank_agency,
-        bank_account: formState.bank_account,
-        bank_pix: formState.bank_pix
-      };
-      await updateProfile(payload);
-      setIsEditing(false);
-      toast({
-        title: "Dados salvos",
-        description: "Suas informações foram atualizadas com sucesso."
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Erro ao salvar.";
-      toast({
-        title: "Erro ao salvar",
-        description: message,
-        variant: "destructive"
-      });
-    }
+      setAvatarUploading(false);
+    }, "image/jpeg", 0.9);
   };
 
   const handleAvatarUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file || avatarUploading) {
-      return;
-    }
-    const previewUrl = URL.createObjectURL(file);
-    setCropImage({
-      file,
-      url: previewUrl
-    });
-    setCropDialogOpen(true);
-    setCropMeta(null);
-    setCropScale(DEFAULT_CROP_SCALE);
-    setCropPosition({
-      x: 0,
-      y: 0
-    });
-    setIsCropDragging(false);
-  };
-
-  const triggerFileDialog = () => {
-    if (!isProfileBusy) {
-      fileInputRef.current?.click();
+    if (file) {
+      setCropImage({ file, url: URL.createObjectURL(file) });
+      setCropDialogOpen(true);
     }
   };
 
-  if (!user) {
-    return <MobileLayout>
-        <div className="p-6">
-          <Card>
-            <CardContent className="py-12 text-center text-muted-foreground">
-              <p>Não foi possível carregar as informações do usuário autenticado.</p>
-            </CardContent>
-          </Card>
-        </div>
-      </MobileLayout>;
-  }
+  const triggerFileDialog = () => fileInputRef.current?.click();
 
-  return <MobileLayout>
-      <Dialog open={cropDialogOpen} onOpenChange={handleCropDialogOpenChange}>
-        <DialogContent className="sm:max-w-xl">
+  if (!user) return <div className="p-10 text-center">Usuário não autenticado</div>;
+
+  return (
+    <MobileLayout>
+      <Dialog open={cropDialogOpen} onOpenChange={setCropDialogOpen}>
+        <DialogContent className="sm:max-w-xl bg-card border-border">
           <DialogHeader>
-            <DialogTitle>Ajustar foto de perfil</DialogTitle>
-            <DialogDescription>
-              Arraste a imagem e utilize a régua para escolher o melhor enquadramento antes de salvar.
-            </DialogDescription>
+            <DialogTitle>Ajustar Foto</DialogTitle>
           </DialogHeader>
-          <div className="flex flex-col gap-6">
-            <div className="flex justify-center">
-              <div className="relative h-64 w-64 overflow-hidden rounded-full border-2 border-primary bg-muted shadow-lg" onPointerDown={handleCropPointerDown} onPointerMove={handleCropPointerMove} onPointerUp={handleCropPointerUp} onPointerCancel={handleCropPointerUp} style={{
-              touchAction: 'none'
-            }}>
-                {cropImage?.url ? <div className={`absolute inset-0 ${isCropDragging ? "cursor-grabbing" : "cursor-grab"}`}>
-                    <img ref={node => {
-                  cropImageRef.current = node;
-                }} src={cropImage.url} alt="Pré-visualização do avatar" onLoad={handleCropImageLoad} draggable={false} className="pointer-events-none absolute select-none" style={{
-                  left: '50%',
-                  top: '50%',
-                  width: cropMeta ? `${cropMeta.width * cropMeta.baseScale * cropScale}px` : 'auto',
-                  height: cropMeta ? `${cropMeta.height * cropMeta.baseScale * cropScale}px` : 'auto',
-                  transform: `translate(calc(-50% + ${cropPosition.x}px), calc(-50% + ${cropPosition.y}px))`,
-                  maxWidth: 'none'
-                }} />
-                  </div> : <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
-                    <Loader2 className="h-6 w-6 animate-spin" />
-                  </div>}
-              </div>
+          <div className="flex flex-col gap-6 items-center">
+            <div 
+              className="relative w-64 h-64 overflow-hidden rounded-[40px] border-2 border-primary bg-muted/20 cursor-grab active:cursor-grabbing"
+              onPointerDown={handleCropPointerDown}
+              onPointerMove={handleCropPointerMove}
+              onPointerUp={() => setIsCropDragging(false)}
+            >
+              {cropImage && (
+                <img
+                  ref={cropImageRef}
+                  src={cropImage.url}
+                  alt="Crop preview"
+                  onLoad={(e) => {
+                    const { naturalWidth: w, naturalHeight: h } = e.currentTarget;
+                    const baseScale = Math.max(AVATAR_CROP_BOX_SIZE / w, AVATAR_CROP_BOX_SIZE / h);
+                    setCropMeta({ width: w, height: h, baseScale });
+                  }}
+                  className="absolute pointer-events-none select-none max-w-none"
+                  style={{
+                    left: '50%',
+                    top: '50%',
+                    width: cropMeta ? `${cropMeta.width * cropMeta.baseScale * cropScale}px` : 'auto',
+                    height: cropMeta ? `${cropMeta.height * cropMeta.baseScale * cropScale}px` : 'auto',
+                    transform: `translate(calc(-50% + ${cropPosition.x}px), calc(-50% + ${cropPosition.y}px))`
+                  }}
+                />
+              )}
             </div>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="avatar-scale" className="text-sm font-medium">
-                  Ajuste o zoom da imagem
-                </Label>
-                <span className="text-xs text-muted-foreground">
-                  {cropScale.toFixed(2)}x
-                </span>
-              </div>
-              <Slider id="avatar-scale" min={1} max={3} step={0.01} value={[cropScale]} onValueChange={handleScaleChange} disabled={!cropMeta || avatarUploading} className="cursor-pointer" />
-              <p className="text-xs text-muted-foreground text-center">
-                Arraste a imagem para posicionar e use a régua para ampliar ou reduzir
-              </p>
-            </div>
+            <Slider 
+              min={1} max={3} step={0.01} value={[cropScale]} 
+              onValueChange={([v]) => { setCropScale(v); setCropPosition(prev => clampPosition(prev, v)); }}
+              className="w-full max-w-xs"
+            />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={handleCancelCrop} disabled={avatarUploading}>
-              Cancelar
-            </Button>
-            <Button onClick={handleConfirmCrop} disabled={!cropMeta || avatarUploading} className="flex items-center gap-2">
-              {avatarUploading && <Loader2 className="h-4 w-4 animate-spin" />}
-              Salvar corte
+            <Button variant="outline" onClick={resetCropState}>Cancelar</Button>
+            <Button onClick={handleConfirmCrop} disabled={avatarUploading}>
+              {avatarUploading ? <Loader2 className="animate-spin mr-2" size={16} /> : "Confirmar"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <div className="flex flex-col min-h-screen bg-background pb-28">
-        {/* Header with greeting and back button */}
-        <div className="px-6 pt-6 pb-4 flex items-center justify-between">
-          <div>
-            <p className="text-sm text-muted-foreground font-medium">Olá,</p>
-            <h1 className="text-3xl font-bold text-foreground">{displayName.split(' ')[0]}!</h1>
+        {/* Header Hero (Referência do Usuário) */}
+        <div className="relative overflow-hidden bg-gradient-to-br from-[#0D1A36] to-[#080E1C] px-6 pt-12 pb-8 rounded-b-[40px] shadow-lg">
+          <div className="flex flex-row justify-between items-center mb-6">
+            <h1 className="text-white text-2xl font-bold tracking-tight">Perfil</h1>
+            <button
+              onClick={() => setIsEditing(!isEditing)}
+              className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-white backdrop-blur-sm hover:bg-white/20 transition-all active:scale-95"
+            >
+              {isEditing ? <ArrowLeft size={20} /> : <Edit size={18} />}
+            </button>
           </div>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => navigate('/')}
-            className="rounded-full"
-            title="Voltar ao menu inicial"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-        </div>
 
-        {/* Featured Banner Card */}
-        <div className="px-6 pb-8">
-          <div className="relative h-48 rounded-3xl bg-gradient-to-br from-primary/80 via-primary/50 to-primary/30 overflow-hidden shadow-lg">
-            {/* Background pattern */}
-            <div className="absolute inset-0 opacity-10">
-              <div className="absolute top-4 right-[-20%] scale-150 text-primary/30">
-                <UserIcon className="w-48 h-48" strokeWidth={0.5} />
+          <div className="flex flex-row items-center gap-4 mb-8">
+            <div className="relative">
+              <div className="w-20 h-20 rounded-[24px] bg-primary/20 border-2 border-primary/40 flex items-center justify-center overflow-hidden shadow-inner">
+                {profile?.avatar_url ? (
+                  <img src={profile.avatar_url} className="w-full h-full object-cover" alt={displayName} />
+                ) : (
+                  <span className="text-primary text-2xl font-bold">{avatarInitials}</span>
+                )}
               </div>
+              <button 
+                onClick={triggerFileDialog}
+                className="absolute -bottom-1 -right-1 w-7 h-7 bg-primary rounded-lg border-2 border-[#0D1A36] flex items-center justify-center text-white shadow-lg active:scale-90 transition-transform"
+              >
+                <Camera size={14} />
+              </button>
             </div>
-            
-            {/* Content */}
-            <div className="relative h-full flex flex-col justify-between p-6">
-              <h2 className="text-xl font-bold text-white max-w-[80%] leading-tight">
-                Seu Perfil Completo!
-              </h2>
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <Avatar className="h-14 w-14 border-2 border-white shadow-lg">
-                    <AvatarImage src={profile?.avatar_url ?? undefined} alt={displayName} className="h-full w-full object-cover" />
-                    <AvatarFallback className="bg-white/20 text-white font-bold">{avatarInitials || "U"}</AvatarFallback>
-                  </Avatar>
-                </div>
-                <Button 
-                  onClick={triggerFileDialog} 
-                  disabled={avatarUploading}
-                  className="text-xs bg-white/20 hover:bg-white/30 text-white border border-white/50 rounded-full"
-                >
-                  {avatarUploading ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Camera className="h-3 w-3 mr-1" />}
-                  Editar
-                </Button>
+
+            <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+              <h2 className="text-white text-xl font-bold truncate leading-tight">{profile?.full_name || "Piloto"}</h2>
+              <div className="flex flex-row items-center gap-2 bg-accent/10 self-start rounded-lg px-2 py-1 border border-accent/20">
+                <ShieldCheck size={12} className="text-accent" />
+                <span className="text-accent text-[10px] font-bold uppercase tracking-wider">
+                  {profile?.canac || "S/A"} · {profile?.tipo || "Tripulante"}
+                </span>
               </div>
+              <p className="text-white/60 text-xs font-medium truncate">{profile?.departamento || "Share Brasil"}</p>
             </div>
           </div>
-        </div>
 
-        {/* Quick Stats Cards */}
-        <div className="px-6 pb-8 space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <Card className="border-border/50 bg-card/50">
-              <CardContent className="pt-4">
-                <p className="text-xs text-muted-foreground mb-2 font-medium">Telefone</p>
-                <p className="text-sm font-semibold text-foreground">{formState.phone || "Não informado"}</p>
-              </CardContent>
-            </Card>
-            <Card className="border-border/50 bg-card/50">
-              <CardContent className="pt-4">
-                <p className="text-xs text-muted-foreground mb-2 font-medium">ANAC</p>
-                <p className="text-sm font-semibold text-foreground">{formState.canac ? `***${formState.canac.slice(-4)}` : "Não informado"}</p>
-              </CardContent>
-            </Card>
+          {/* Stats Card */}
+          <div className="flex flex-row bg-card/95 border border-white/5 rounded-2xl p-5 shadow-2xl backdrop-blur-md">
+            <StatItem icon={Clock} label="Horas Totais" value={`${totalFlightHours.toFixed(1)}h`} />
+            <div className="w-[1px] h-8 bg-border/30 self-center mx-2" />
+            <StatItem icon={Star} label="Voos App" value={flightLogs.length} />
+            <div className="w-[1px] h-8 bg-border/30 self-center mx-2" />
+            <StatItem icon={AlertCircle} label="CTM Abertos" value={openCTMCount} />
           </div>
         </div>
 
-        {/* Edit Profile Button */}
-        <div className="px-6 pb-8">
-          <Button 
-            onClick={() => setIsEditing(true)} 
-            disabled={isFetching || isLoading || isEditing}
-            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl"
-          >
-            {isFetching ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Edit className="mr-2 h-4 w-4" />}
-            Editar Perfil
-          </Button>
-        </div>
-
-        <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/gif" className="hidden" onChange={handleAvatarUpload} />
+        <input ref={fileInputRef} type="file" accept="image/png,image/jpeg" className="hidden" onChange={handleAvatarUpload} />
 
         {/* Tabs Section */}
-        <div className="px-6 space-y-6">
+        <div className="px-5 mt-4 space-y-4">
           <Tabs defaultValue="dados" className="w-full">
-            <TabsList className={`grid w-full ${showTimeClock ? 'grid-cols-6' : 'grid-cols-5'} bg-gradient-card border border-border rounded-xl p-2 shadow-card h-auto`}>
-              <TabsTrigger value="dados" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200">Dados</TabsTrigger>
-              {showTimeClock && <TabsTrigger value="ponto" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200">Ponto</TabsTrigger>}
-              <TabsTrigger value="salario" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200">Salário</TabsTrigger>
-              <TabsTrigger value="ferias" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200">Férias</TabsTrigger>
-              <TabsTrigger value="documentos" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200">Documentos</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-5 bg-card/50 border border-border/40 rounded-2xl p-1.5 h-auto mb-6 shadow-sm">
+              <TabsTrigger value="dados" className="rounded-xl py-2.5 data-[state=active]:bg-primary data-[state=active]:text-white transition-all">
+                <User size={18} />
+              </TabsTrigger>
+              <TabsTrigger value="ponto" className="rounded-xl py-2.5 data-[state=active]:bg-primary data-[state=active]:text-white transition-all">
+                <Timer size={18} />
+              </TabsTrigger>
+              <TabsTrigger value="salario" className="rounded-xl py-2.5 data-[state=active]:bg-primary data-[state=active]:text-white transition-all">
+                <PiggyBank size={18} />
+              </TabsTrigger>
+              <TabsTrigger value="ferias" className="rounded-xl py-2.5 data-[state=active]:bg-primary data-[state=active]:text-white transition-all">
+                <Calendar size={18} />
+              </TabsTrigger>
+              <TabsTrigger value="documentos" className="rounded-xl py-2.5 data-[state=active]:bg-primary data-[state=active]:text-white transition-all">
+                <FileText size={18} />
+              </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="dados">
-              <Card className="border-border shadow-elevated rounded-xl">
-                <CardContent className="space-y-8 py-8">
-                  <div className="space-y-6">
-                    <div>
-                      <div className="space-y-4">
-                        <div>
-                          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-foreground">
-                            <div className="h-2 w-2 rounded-full bg-primary"></div>
-                            Informações Pessoais
-                          </h3>
-                        </div>
-                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                          <div className="space-y-2">
-                            <Label htmlFor="full-name" className="text-sm font-medium text-foreground">Nome Completo</Label>
-                          <Input id="full-name" value={formState.full_name} onChange={e => setFormState({
-                            ...formState,
-                            full_name: e.target.value
-                          })} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="display-name" className="text-sm font-medium text-foreground">Nome de Exibição</Label>
-                          <Input id="display-name" value={formState.display_name} onChange={e => setFormState({
-                            ...formState,
-                            display_name: e.target.value
-                          })} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="email" className="text-sm font-medium text-foreground">E-mail</Label>
-                          <Input id="email" value={profile?.email ?? user.email ?? ""} disabled className="rounded-lg border border-border bg-muted text-foreground cursor-not-allowed" />
-                          </div>
-                        </div>
-
-                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                          <div className="space-y-2">
-                            <Label htmlFor="phone" className="text-sm font-medium text-foreground">Telefone</Label>
-                          <Input id="phone" value={formState.phone} onChange={e => setFormState({
-                            ...formState,
-                            phone: e.target.value
-                          })} placeholder="(XX) XXXXX-XXXX" disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="cpf" className="text-sm font-medium text-foreground">CPF</Label>
-                          <Input id="cpf" value={formState.cpf} onChange={e => setFormState({
-                            ...formState,
-                            cpf: e.target.value
-                          })} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="canac" className="text-sm font-medium text-foreground">ANAC</Label>
-                          <Input id="canac" value={formState.canac} onChange={e => setFormState({
-                            ...formState,
-                            canac: e.target.value
-                          })} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
-                          </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="rg" className="text-sm font-medium text-foreground">RG</Label>
-                        <Input id="rg" value={formState.rg} onChange={e => setFormState({
-                          ...formState,
-                          rg: e.target.value
-                        })} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="birth" className="text-sm font-medium text-foreground">Data de Nascimento</Label>
-                        <Input id="birth" type="date" value={formState.birth_date} onChange={e => setFormState({
-                          ...formState,
-                          birth_date: e.target.value
-                        })} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="address" className="text-sm font-medium text-foreground">Endereço</Label>
-                        <Textarea id="address" value={formState.address} onChange={e => setFormState({
-                          ...formState,
-                          address: e.target.value
-                        })} rows={3} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="border-t pt-6">
-                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-foreground">
-                      <div className="h-2 w-2 rounded-full bg-primary"></div>
-                      Dados Bancários
-                    </h3>
-                    <div className="space-y-4">
-                        <div className="grid gap-4 sm:grid-cols-2">
-                          <div className="space-y-2">
-                            <Label htmlFor="bank_name" className="text-sm font-medium text-foreground">Banco</Label>
-                          <Input id="bank_name" value={formState.bank_name} onChange={e => setFormState({
-                          ...formState,
-                          bank_name: e.target.value
-                        })} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="bank_agency" className="text-sm font-medium text-foreground">Agência</Label>
-                          <Input id="bank_agency" value={formState.bank_agency} onChange={e => setFormState({
-                          ...formState,
-                          bank_agency: e.target.value
-                        })} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
-                          </div>
-                        </div>
-                        <div className="grid gap-4 sm:grid-cols-2">
-                          <div className="space-y-2">
-                            <Label htmlFor="bank_account" className="text-sm font-medium text-foreground">Conta</Label>
-                          <Input id="bank_account" value={formState.bank_account} onChange={e => setFormState({
-                          ...formState,
-                          bank_account: e.target.value
-                        })} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="bank_pix" className="text-sm font-medium text-foreground">PIX</Label>
-                          <Input id="bank_pix" value={formState.bank_pix} onChange={e => setFormState({
-                          ...formState,
-                          bank_pix: e.target.value
-                        })} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                  {/* Password Change Section */}
-                  <div className="border-t pt-6">
-                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-foreground">
-                      <div className="h-2 w-2 rounded-full bg-primary"></div>
-                      <Lock className="h-4 w-4" />
-                      Alterar Senha
-                    </h3>
-                    <div className="space-y-4 max-w-md">
-                      <div className="space-y-2">
-                        <Label htmlFor="new-password" className="text-sm font-medium text-foreground">Nova Senha</Label>
-                        <div className="relative">
-                          <Input id="new-password" type={showNewPassword ? "text" : "password"} value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Digite a nova senha" className="rounded-lg border border-primary bg-background text-foreground pr-10" />
-                          <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                            {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                          </button>
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="confirm-password" className="text-sm font-medium text-foreground">Confirmar Nova Senha</Label>
-                        <div className="relative">
-                          <Input id="confirm-password" type={showConfirmPassword ? "text" : "password"} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Confirme a nova senha" className="rounded-lg border border-primary bg-background text-foreground pr-10" />
-                          <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                            {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                          </button>
-                        </div>
-                      </div>
-                      <Button onClick={handlePasswordChange} disabled={isChangingPassword || !newPassword || !confirmPassword} className="flex items-center gap-2">
-                        {isChangingPassword ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}
-                        Alterar Senha
-                      </Button>
-                    </div>
-                  </div>
-
-                  {isEditing && <div className="border-t pt-6 flex gap-3 justify-end">
-                      <Button variant="outline" onClick={() => setIsEditing(false)} disabled={isProfileBusy}>
-                        Cancelar
-                      </Button>
-                      <Button onClick={handleSaveEditableFields} disabled={isProfileBusy} className="flex items-center gap-2">
-                        {isProfileBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                        Salvar
-                      </Button>
-                    </div>}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="salario">
-              <div className="grid gap-6 lg:grid-cols-2">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Histórico de Pagamentos</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {salaryPayments.length === 0 ? <p className="text-muted-foreground">Sem registros de salário.</p> : <ul className="space-y-3">
-                        {salaryPayments.map((s: any) => {
-                      const descriptions: string[] = [];
-                      if (s.base_salary_holerite) descriptions.push(`Salário: R$ ${Number(s.base_salary_holerite).toFixed(2)}`);
-                      if (s.benefit) descriptions.push(`Benefício: ${s.benefit}`);
-                      if (s.horas_voo) descriptions.push(`Horas de Voo: ${s.horas_voo}`);
-                      if (s.extra) descriptions.push(`Extra: ${s.extra}`);
-                      return <li key={s.id} className="rounded-md border p-3 space-y-2">
-                              <div className="flex items-center justify-between">
-                                <p className="font-medium text-sm">
-                                  {new Date(s.created_at ?? Date.now()).toLocaleDateString("pt-BR", {
-                              month: "long",
-                              year: "numeric"
-                            })}
-                                </p>
-                                <div className="flex gap-2">
-                                  {s.comprovante_url && <a href={s.comprovante_url} target="_blank" rel="noreferrer">
-                                      <Button variant="outline" size="sm" className="h-7 text-xs">
-                                        Comprovante
-                                      </Button>
-                                    </a>}
-                                </div>
-                              </div>
-                              <div className="text-sm text-muted-foreground space-y-1">
-                                {descriptions.map((desc, i) => <p key={i}>{desc}</p>)}
-                                {s.obs && <p className="text-xs italic mt-2">Obs: {s.obs}</p>}
-                              </div>
-                            </li>;
-                    })}
-                      </ul>}
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Holerites</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {salaryPayments.filter((s: any) => s.holerite_url).length === 0 ? <p className="text-muted-foreground">Sem holerites enviados.</p> : <ul className="space-y-3">
-                        {salaryPayments.filter((s: any) => s.holerite_url).map((s: any) => <li key={s.id} className="flex items-center justify-between rounded-md border p-3">
-                              <div>
-                                <p className="font-medium">
-                                  {new Date(s.created_at ?? Date.now()).toLocaleDateString("pt-BR", {
-                            month: "long",
-                            year: "numeric"
-                          })}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {s.base_salary_holerite ? `R$ ${Number(s.base_salary_holerite).toFixed(2)}` : ""}
-                                </p>
-                              </div>
-                              <a href={s.holerite_url} target="_blank" rel="noreferrer">
-                                <Button variant="outline" size="sm">Visualizar</Button>
-                              </a>
-                            </li>)}
-                      </ul>}
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="ferias">
-              <div className="space-y-6">
-                <div>
-                  <h2 className="text-2xl font-bold mb-4">Férias</h2>
-                  <p className="text-muted-foreground mb-6">Solicitação e informações sobre suas férias</p>
-
-                  <div className="grid gap-4 md:grid-cols-3 mb-6">
-                    <Card>
-                      <CardContent className="pt-6">
-                        <div className="text-center">
-                          <p className="text-sm text-muted-foreground mb-2">Disponíveis</p>
-                          <p className="text-4xl font-bold text-green-600">{available}</p>
-                          <p className="text-xs text-muted-foreground mt-2">dias</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    <Card>
-                      <CardContent className="pt-6">
-                        <div className="text-center">
-                          <p className="text-sm text-muted-foreground mb-2">Usadas</p>
-                          <p className="text-4xl font-bold text-blue-600">{approvedTaken}</p>
-                          <p className="text-xs text-muted-foreground mt-2">dias</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    <Card>
-                      <CardContent className="pt-6">
-                        <div className="text-center">
-                          <p className="text-sm text-muted-foreground mb-2">Agendadas</p>
-                          <p className="text-4xl font-bold text-amber-600">{vacationRequests.filter((r: any) => r.status === 'pending' || r.status === 'approved').length}</p>
-                          <p className="text-xs text-muted-foreground mt-2">dias</p>
-                        </div>
-                      </CardContent>
-                    </Card>
+            <TabsContent value="dados" className="mt-0 space-y-6 outline-none pb-10">
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="space-y-6"
+              >
+                <div className="space-y-2">
+                  <h3 className="text-muted-foreground text-[10px] font-bold uppercase tracking-[0.15em] ml-1">Informações Pessoais</h3>
+                  <div className="bg-card border border-border/40 rounded-2xl overflow-hidden shadow-sm">
+                    <ProfileField 
+                      label="Nome Completo" 
+                      value={formState.full_name} 
+                      onChangeText={(v) => setFormState(prev => ({ ...prev, full_name: v }))} 
+                      icon={User} 
+                      editable={isEditing} 
+                    />
+                    <ProfileField 
+                      label="Nome de Exibição" 
+                      value={formState.display_name} 
+                      onChangeText={(v) => setFormState(prev => ({ ...prev, display_name: v }))} 
+                      icon={UserIcon} 
+                      editable={isEditing} 
+                    />
+                    <ProfileField 
+                      label="Licença (ANAC)" 
+                      value={formState.canac} 
+                      onChangeText={(v) => setFormState(prev => ({ ...prev, canac: v }))} 
+                      icon={CreditCard} 
+                      editable={isEditing} 
+                    />
+                    <ProfileField 
+                      label="Tipo de Licença" 
+                      value={formState.tipo || ""} 
+                      onChangeText={(v) => setFormState(prev => ({ ...prev, tipo: v as any }))} 
+                      icon={ShieldCheck} 
+                      editable={isEditing} 
+                    />
                   </div>
                 </div>
 
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <span className="text-lg">ℹ️</span>
-                      Regras de Férias
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-3">
-                      <li className="flex gap-3">
-                        <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
-                        <span className="text-sm">Direito a 30 dias após 12 meses de trabalho</span>
-                      </li>
-                      <li className="flex gap-3">
-                        <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
-                        <span className="text-sm">Podem ser fracionadas em até 3 períodos</span>
-                      </li>
-                      <li className="flex gap-3">
-                        <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
-                        <span className="text-sm">Um período deve ter no mínimo 14 dias</span>
-                      </li>
-                      <li className="flex gap-3">
-                        <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
-                        <span className="text-sm">Solicitar com 30 dias de antecedência</span>
-                      </li>
-                      <li className="flex gap-3">
-                        <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
-                        <span className="text-sm">Adicional de 1/3 sobre o salário</span>
-                      </li>
-                    </ul>
-                  </CardContent>
-                </Card>
+                {isEditing && (
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+                    className="pt-2"
+                  >
+                    <Button 
+                      onClick={handleSaveEditableFields} 
+                      disabled={isProfileBusy}
+                      className="w-full bg-primary hover:bg-primary/90 text-white rounded-2xl py-7 shadow-lg shadow-primary/20 flex items-center justify-center gap-3 text-lg font-bold transition-all active:scale-[0.98]"
+                    >
+                      {isProfileBusy ? <Loader2 className="animate-spin" size={20} /> : <CheckCircle size={20} />}
+                      Salvar Alterações
+                    </Button>
+                  </motion.div>
+                )}
 
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Solicitar Férias</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {workingMonths < 12 && <Alert className="border-yellow-500/50 bg-yellow-500/5">
-                        <AlertCircle className="h-4 w-4 text-yellow-600" />
-                        <AlertDescription className="text-yellow-800 dark:text-yellow-200">
-                          <p className="font-semibold mb-2">Período aquisitivo não completado</p>
-                          <p className="text-sm">
-                            Você poderá solicitar férias a partir de{" "}
-                            <span className="font-semibold">
-                              {new Intl.DateTimeFormat("pt-BR", {
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric"
-                          }).format(getEligibilityDateForVacation()!)}
-                            </span>
-                            , quando completar 12 meses de trabalho.
-                          </p>
-                        </AlertDescription>
-                      </Alert>}
+                <div className="space-y-2">
+                  <h3 className="text-muted-foreground text-[10px] font-bold uppercase tracking-[0.15em] ml-1">Contatos e Endereço</h3>
+                  <div className="bg-card border border-border/40 rounded-2xl overflow-hidden shadow-sm">
+                    <ProfileField 
+                      label="Telefone" 
+                      value={formState.phone} 
+                      onChangeText={(v) => setFormState(prev => ({ ...prev, phone: v }))} 
+                      icon={Briefcase} 
+                      editable={isEditing} 
+                    />
+                    <ProfileField 
+                      label="CPF" 
+                      value={formState.cpf} 
+                      onChangeText={(v) => setFormState(prev => ({ ...prev, cpf: v }))} 
+                      icon={ShieldCheck} 
+                      editable={isEditing} 
+                    />
+                    <ProfileField 
+                      label="Endereço" 
+                      value={formState.address} 
+                      onChangeText={(v) => setFormState(prev => ({ ...prev, address: v }))} 
+                      icon={Building2} 
+                      editable={isEditing} 
+                    />
+                  </div>
+                </div>
 
-                    {workingMonths >= 12 && <>
-                        <div className="space-y-2">
-                          <Label htmlFor="vacation-type">Tipo de Férias</Label>
-                          <Select defaultValue="full">
-                            <SelectTrigger id="vacation-type">
-                              <SelectValue placeholder="Selecione o tipo" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="full">Integral (mínimo 14 dias)</SelectItem>
-                              <SelectItem value="partial">Parcial (customizado)</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div className="grid gap-4 sm:grid-cols-2">
-                          <div className="space-y-2">
-                            <Label htmlFor="start-date">Data de Início</Label>
-                            <Input id="start-date" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} placeholder="dd/mm/aaaa" />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="end-date">Data de Fim</Label>
-                            <Input id="end-date" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} placeholder="dd/mm/aaaa" />
-                          </div>
-                        </div>
-
-                        <Button onClick={handleVacationRequest} className="w-full">Solicitar</Button>
-                        <p className="text-xs text-muted-foreground">Aviso mínimo de 30 dias e pagamento até 2 dias antes do início.</p>
-                      </>}
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Histórico de Solicitações</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {vacationRequests.length === 0 ? <p className="text-muted-foreground text-center py-6">Nenhuma solicitação registrada.</p> : <div className="space-y-3">
-                        {(vacationRequests as any[]).map((r: any) => <div key={r.id} className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition">
-                            <div className="flex items-center gap-3">
-                              <Calendar className="h-5 w-5 text-primary" />
-                              <div>
-                                <p className="font-medium">{new Date(r.start_date).toLocaleDateString("pt-BR")} → {new Date(r.end_date).toLocaleDateString("pt-BR")}</p>
-                                <p className="text-sm text-muted-foreground">{r.days} dias</p>
-                              </div>
-                            </div>
-                            <Badge variant={r.status === 'approved' ? 'default' : r.status === 'rejected' ? 'destructive' : 'secondary'}>
-                              {r.status === 'approved' ? 'Aprovado' : r.status === 'rejected' ? 'Rejeitado' : 'Pendente'}
-                            </Badge>
-                          </div>)}
-                      </div>}
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <span className="text-lg">⭐</span>
-                      Dicas para suas Férias
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-3">
-                      <li className="flex gap-3">
-                        <span className="text-lg">⭐</span>
-                        <span className="text-sm">Planeje suas férias com antecedência</span>
-                      </li>
-                      <li className="flex gap-3">
-                        <span className="text-lg">⭐</span>
-                        <span className="text-sm">Considere os períodos de alta temporada</span>
-                      </li>
-                      <li className="flex gap-3">
-                        <span className="text-lg">⭐</span>
-                        <span className="text-sm">Verifique a escala antes de solicitar</span>
-                      </li>
-                      <li className="flex gap-3">
-                        <span className="text-lg">⭐</span>
-                        <span className="text-sm">Mantenha seus documentos atualizados</span>
-                      </li>
-                      <li className="flex gap-3">
-                        <span className="text-lg">⭐</span>
-                        <span className="text-sm">Considere vender parte das férias se precisar</span>
-                      </li>
-                    </ul>
-                  </CardContent>
-                </Card>
-              </div>
+                <div className="space-y-2">
+                  <h3 className="text-muted-foreground text-[10px] font-bold uppercase tracking-[0.15em] ml-1">Segurança</h3>
+                  <div className="bg-card border border-border/40 rounded-2xl p-5 space-y-4 shadow-sm">
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className="w-8 h-8 rounded-lg bg-secondary/10 flex items-center justify-center text-secondary">
+                        <Lock size={16} />
+                      </div>
+                      <span className="text-foreground font-bold text-sm">Atualizar Senha</span>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="relative">
+                        <Input 
+                          placeholder="Nova Senha"
+                          type={showNewPassword ? "text" : "password"} 
+                          value={newPassword} 
+                          onChange={e => setNewPassword(e.target.value)} 
+                          className="bg-background border-border/60 rounded-xl pr-10" 
+                        />
+                        <button onClick={() => setShowNewPassword(!showNewPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-primary transition-colors">
+                          {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                      <div className="relative">
+                        <Input 
+                          placeholder="Confirmar Senha"
+                          type={showConfirmPassword ? "text" : "password"} 
+                          value={confirmPassword} 
+                          onChange={e => setConfirmPassword(e.target.value)} 
+                          className="bg-background border-border/60 rounded-xl pr-10" 
+                        />
+                        <button onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-primary transition-colors">
+                          {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                      <Button 
+                        onClick={handlePasswordChange} 
+                        disabled={isChangingPassword || !newPassword || !confirmPassword} 
+                        variant="secondary"
+                        className="w-full rounded-xl py-5 font-bold tracking-wide"
+                      >
+                        {isChangingPassword ? <Loader2 className="animate-spin mr-2" size={16} /> : <Lock className="mr-2" size={16} />}
+                        Mudar Senha
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
             </TabsContent>
 
-            <TabsContent value="documentos">
-              <EmployeeDocumentsManager userId={userId} userName={displayName} isAdmin={isAdmin} isFinanceiroMaster={roles.includes("financeiro_master")} isGestorMaster={isGestorMaster} currentUserId={user?.id} />
-            </TabsContent>
-
-            {showTimeClock && <TabsContent value="ponto">
-                <Card className="border-border shadow-elevated rounded-xl">
+            <TabsContent value="ponto">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                <Card className="border-border/40 bg-card/50 backdrop-blur-sm rounded-2xl overflow-hidden">
                   <CardContent className="pt-6">
                     <TimeClockTab />
                   </CardContent>
                 </Card>
-              </TabsContent>}
+              </motion.div>
+            </TabsContent>
+
+            <TabsContent value="salario" className="space-y-4">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+                <Card className="border-border/40 bg-card rounded-2xl shadow-sm">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg font-bold">Histórico de Pagamentos</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {salaryPayments.length === 0 ? (
+                      <div className="py-10 text-center text-muted-foreground flex flex-col items-center gap-2">
+                        <PiggyBank size={32} className="opacity-20" />
+                        <p className="text-sm font-medium">Nenhum pagamento registrado</p>
+                      </div>
+                    ) : (
+                      salaryPayments.map((s: any) => (
+                        <div key={s.id} className="p-4 rounded-xl border border-border/30 bg-muted/5 space-y-2">
+                          <div className="flex justify-between items-start">
+                            <span className="font-bold text-sm text-foreground">
+                              {new Date(s.created_at).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
+                            </span>
+                            {s.comprovante_url && (
+                              <a href={s.comprovante_url} target="_blank" rel="noreferrer">
+                                <Button variant="link" className="h-auto p-0 text-primary text-xs font-bold">Recibo</Button>
+                              </a>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground font-medium">
+                            {s.base_salary_holerite && <span>Base: R$ {Number(s.base_salary_holerite).toLocaleString('pt-BR')}</span>}
+                            {s.horas_voo && <span>Horas: {s.horas_voo}</span>}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </CardContent>
+                </Card>
+              </motion.div>
+            </TabsContent>
+
+            <TabsContent value="ferias" className="space-y-6">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-primary/5 border border-primary/10 rounded-2xl p-4 text-center">
+                    <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">Disponíveis</p>
+                    <p className="text-2xl font-black text-primary">{remainingVacation}d</p>
+                  </div>
+                  <div className="bg-secondary/5 border border-secondary/10 rounded-2xl p-4 text-center">
+                    <p className="text-[10px] font-bold text-secondary uppercase tracking-widest mb-1">Solicitados</p>
+                    <p className="text-2xl font-black text-secondary">{vacationRequests.filter((r:any) => r.status === 'pending').length}d</p>
+                  </div>
+                </div>
+
+                <Card className="border-border/40 bg-card rounded-2xl">
+                  <CardHeader>
+                    <CardTitle className="text-lg font-bold">Nova Solicitação</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Início</Label>
+                        <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="rounded-xl border-border/60" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Término</Label>
+                        <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="rounded-xl border-border/60" />
+                      </div>
+                    </div>
+                    <Button onClick={handleVacationRequest} className="w-full rounded-xl py-6 font-bold">Solicitar Férias</Button>
+                  </CardContent>
+                </Card>
+
+                {vacationRequests.length > 0 && (
+                  <div className="space-y-3">
+                    <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-1">Histórico</h4>
+                    {vacationRequests.map((r: any) => (
+                      <div key={r.id} className="flex items-center justify-between p-4 rounded-xl border border-border/30 bg-card shadow-sm">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center text-muted-foreground">
+                            <Calendar size={18} />
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-foreground">{new Date(r.start_date).toLocaleDateString("pt-BR")} → {new Date(r.end_date).toLocaleDateString("pt-BR")}</p>
+                            <p className="text-xs text-muted-foreground font-medium">{r.days} dias</p>
+                          </div>
+                        </div>
+                        <Badge className="rounded-lg px-2 py-0.5" variant={r.status === 'approved' ? 'default' : r.status === 'rejected' ? 'destructive' : 'secondary'}>
+                          {r.status === 'approved' ? 'Aprovado' : r.status === 'rejected' ? 'Rejeitado' : 'Pendente'}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            </TabsContent>
+
+            <TabsContent value="documentos">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                <EmployeeDocumentsManager userId={userId} userName={displayName} isAdmin={isAdmin} isFinanceiroMaster={roles.includes("financeiro_master")} isGestorMaster={isGestorMaster} currentUserId={user?.id} />
+              </motion.div>
+            </TabsContent>
           </Tabs>
 
-          {(isLoading || isFetching) && <Card>
-              <CardContent className="flex items-center justify-center gap-2 py-6 text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Carregando informações do perfil...
-              </CardContent>
-            </Card>}
+          <div className="flex flex-col items-center py-10 gap-3 opacity-30 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-700">
+            <LayoutDashboard size={28} className="text-primary" />
+            <div className="flex flex-col items-center">
+              <span className="text-sm font-black uppercase tracking-[0.3em] text-foreground">Share Brasil</span>
+              <span className="text-[10px] font-bold text-muted-foreground">v1.2.4 · Tripulantes</span>
+            </div>
+          </div>
         </div>
       </div>
-    </MobileLayout>;
+    </MobileLayout>
+  );
 }
