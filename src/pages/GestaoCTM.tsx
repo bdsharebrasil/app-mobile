@@ -54,11 +54,7 @@ export default function GestaoCTM() {
       // Load maintenance reports
       const { data: reportsData, error: reportsError } = await supabase
         .from("maintenance_reports")
-        .select(`
-          *,
-          aircraft:aircraft_id(id, registration, model, image_url),
-          reporter:reported_by(full_name)
-        `)
+        .select(`*`)
         .order("report_date", { ascending: false });
 
       if (reportsError) throw reportsError;
