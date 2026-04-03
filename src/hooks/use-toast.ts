@@ -1,18 +1,45 @@
-// Re-export from sonner for backwards compatibility
-import { toast } from "sonner";
+// Backwards-compatible toast wrapper around sonner
+import { toast as sonnerToast } from "sonner";
 
-// Wrapper hook for components that use useToast pattern
+type ToastInput =
+  | string
+  | { title?: string; description?: string; variant?: string };
+
+function toast(input: ToastInput) {
+  if (typeof input === "string") {
+    sonnerToast(input);
+    return;
+  }
+
+  const { title, description, variant } = input;
+  const message = title || "Notificação";
+
+  if (variant === "destructive") {
+    sonnerToast.error(message, { description });
+  } else {
+    sonnerToast.success(message, { description });
+  }
+}
+
+// Also expose sonner's direct methods
+toast.success = sonnerToast.success;
+toast.error = sonnerToast.error;
+toast.info = sonnerToast.info;
+toast.warning = sonnerToast.warning;
+toast.dismiss = sonnerToast.dismiss;
+toast.message = sonnerToast.message;
+
 function useToast() {
   return {
     toast,
     dismiss: (id?: string | number) => {
       if (id) {
-        toast.dismiss(id);
+        sonnerToast.dismiss(id);
       } else {
-        toast.dismiss();
+        sonnerToast.dismiss();
       }
     },
-    toasts: [] as any[], // Legacy compat - not used with sonner
+    toasts: [] as any[],
   };
 }
 
