@@ -95,7 +95,7 @@ export const draftStorage = {
  * Hook para auto-salvamento de rascunho
  */
 export const useAutoSaveDraft = (draft: TravelReportDraft | null, enabled: boolean = true) => {
-  const autoSaveRef = React.useRef<NodeJS.Timeout | null>(null);
+  const autoSaveRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   React.useEffect(() => {
     if (!enabled || !draft) {

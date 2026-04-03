@@ -1,4 +1,7 @@
-import { type METARData } from '@/hooks/useAviationWeather';
+// METARData type for mock data - matches actual data shape
+interface METARData {
+  [key: string]: any;
+}
 
 // Mock data for Brazilian airports - realistic METAR data
 // This is used as fallback when API is unavailable

@@ -106,6 +106,9 @@ export interface NOTAMData {
 export interface ROTAERData {
   icao: string;
   name: string;
+  city?: string;
+  state?: string;
+  country?: string;
   type: string;
   coordinates: { lat: number; lng: number };
   elevation: number;
@@ -115,10 +118,12 @@ export interface ROTAERData {
     width: number;
     surface: string;
     strength: string;
+    lighting?: boolean;
   }>;
   frequencies: Array<{
     type: string;
     frequency: string;
+    name?: string;
   }>;
   navaids: Array<{
     type: string;
@@ -127,12 +132,17 @@ export interface ROTAERData {
   }>;
   services: {
     fuel: boolean;
+    fuelTypes?: string[];
     hangar: boolean;
     maintenance: boolean;
     customs: boolean;
   };
   operatingHours: string;
   restrictions: string[];
+  contact?: {
+    phone?: string;
+    email?: string;
+  };
 }
 
 export interface AirspaceRestriction {

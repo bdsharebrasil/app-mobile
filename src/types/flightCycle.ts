@@ -90,6 +90,14 @@ export const EXPENSE_STATUS_CONFIG: Record<ExpenseStatus, { label: string; icon:
   nao_aplicavel: { label: 'Não Aplicável', icon: '❌', color: 'text-muted-foreground', bgColor: 'bg-muted/20' },
 };
 
+export interface CrewMember {
+  id: string;
+  name: string;
+  role: string;
+  license_number?: string;
+  email?: string;
+}
+
 export const EXPENSE_TYPES = {
   // Imediatas
   hospedagem: { name: 'Hospedagem', category: 'imediata' as ExpenseCategory },
