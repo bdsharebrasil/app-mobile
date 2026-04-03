@@ -1,32 +1,32 @@
-import { NavLink } from "react-router-dom";
-import { Home, BookOpen, Navigation, Bell, User } from "lucide-react";
-import { cn } from "@/lib/utils";
-const tabs = [{
-  icon: Home,
-  label: "Início",
-  href: "/"
-}, {
-  icon: BookOpen,
-  label: "Diário",
-  href: "/diario-bordo"
-}, {
-  icon: Navigation,
-  label: "Plano Voo",
-  href: "/plano-voo"
-}, {
-  icon: Bell,
-  label: "CTM",
-  href: "/manutencao/ctm"
-}, {
-  icon: User,
-  label: "Perfil",
-  href: "/perfil"
-}];
+import { useNavigate } from "react-router-dom";
+import { Home, Plane, Wrench, BarChart3, User } from "lucide-react";
+import { ExpandableTabs, type Tab } from "@/components/ui/expandable-tabs";
+
+const navItems: Tab[] = [
+  { title: "Home", icon: Home, href: "/" },
+  { title: "Voos", icon: Plane, href: "/diario-bordo" },
+  { title: "Manutenções", icon: Wrench, href: "/manutencao/ctm" },
+  { title: "Relatórios", icon: BarChart3, href: "/financeiro/viagem" },
+  { title: "Perfil", icon: User, href: "/perfil" },
+];
+
 export const MobileTabBar = () => {
-  return <nav className="fixed bottom-0 left-0 right-0 z-50">
-      {/* Frosted glass background */}
-      <div className="bg-card/80 backdrop-blur-2xl border-t border-border/50 safe-area-bottom">
-        
-      </div>
-    </nav>;
+  const navigate = useNavigate();
+
+  const handleNavigate = (index: number | null) => {
+    if (index !== null) {
+      navigate(navItems[index].href);
+    }
+  };
+
+  return (
+    <div className="fixed bottom-4 left-4 right-4 md:bottom-6 md:left-1/2 md:-translate-x-1/2 md:max-w-lg z-50">
+      <ExpandableTabs
+        tabs={navItems}
+        className="bg-[#0d1e38]/90 backdrop-blur-md border border-white/20 shadow-xl w-full"
+        activeColor="text-[#0abf53]"
+        onChange={handleNavigate}
+      />
+    </div>
+  );
 };
