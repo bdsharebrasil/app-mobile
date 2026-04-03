@@ -1,4 +1,17 @@
-import { type METARData } from '@/hooks/useAviationWeather';
+// METARData type for mock data
+interface METARData {
+  raw: string;
+  station: string;
+  time: string;
+  wind?: { direction: number; speed: number; gust?: number };
+  visibility?: number;
+  clouds?: Array<{ cover: string; base: number }>;
+  temperature?: number;
+  dewpoint?: number;
+  altimeter?: number;
+  flight_category?: string;
+  [key: string]: any;
+}
 
 // Mock data for Brazilian airports - realistic METAR data
 // This is used as fallback when API is unavailable
