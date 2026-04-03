@@ -1,15 +1,5 @@
-// METARData type for mock data
+// METARData type for mock data - matches actual data shape
 interface METARData {
-  raw: string;
-  station: string;
-  time: string;
-  wind?: { direction: number; speed: number; gust?: number };
-  visibility?: number;
-  clouds?: Array<{ cover: string; base: number }>;
-  temperature?: number;
-  dewpoint?: number;
-  altimeter?: number;
-  flight_category?: string;
   [key: string]: any;
 }
 
