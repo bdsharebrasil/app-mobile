@@ -1,147 +1,204 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { BookOpen, FileText, Bell, Navigation, User, Plane } from "lucide-react";
+import {
+  Plane,
+  DollarSign,
+  Wrench,
+  CreditCard,
+  Bell,
+  User,
+  LogOut,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { MobileLayout } from "./MobileLayout";
-interface MenuOption {
+
+interface NavigationItem {
   id: string;
+  title: string;
   icon: React.ElementType;
-  label: string;
   route: string;
+  color: "white" | "green" | "navy";
   coordinatorOnly?: boolean;
 }
-const MENU_OPTIONS: MenuOption[] = [{
-  id: "logbook",
-  icon: BookOpen,
-  label: "DIÁRIO DE BORDO",
-  route: "/diario-bordo"
-}, {
-  id: "report",
-  icon: FileText,
-  label: "RELATÓRIO",
-  route: "/financeiro/viagem"
-}, {
-  id: "ctm",
-  icon: Bell,
-  label: "REPORTE CTM",
-  route: "/manutencao/ctm"
-}, {
-  id: "flight-plan",
-  icon: Navigation,
-  label: "PLANO VOO",
-  route: "/plano-voo"
-}, {
-  id: "profile",
-  icon: User,
-  label: "PERFIL",
-  route: "/perfil"
-}];
+
+const NAV_ITEMS: NavigationItem[] = [
+  {
+    id: "flights",
+    title: "Voos",
+    icon: Plane,
+    route: "/diario-bordo",
+    color: "white",
+  },
+  {
+    id: "payroll",
+    title: "Folha de Pagamento",
+    icon: DollarSign,
+    route: "/financeiro/viagem",
+    color: "green",
+  },
+  {
+    id: "maintenance",
+    title: "Manutenção",
+    icon: Wrench,
+    route: "/manutencao/ctm",
+    color: "navy",
+  },
+  {
+    id: "reports",
+    title: "Relatórios",
+    icon: CreditCard,
+    route: "/financeiro/viagem",
+    color: "white",
+  },
+  {
+    id: "notifications",
+    title: "Notificações",
+    icon: Bell,
+    route: "/plano-voo",
+    color: "green",
+  },
+  {
+    id: "profile",
+    title: "Perfil",
+    icon: User,
+    route: "/perfil",
+    color: "navy",
+  },
+];
+
+const colorStyles = {
+  white: {
+    bg: "bg-white",
+    text: "text-[#1a2844]",
+    icon: "text-[#1a2844]",
+  },
+  green: {
+    bg: "bg-[#089a43]",
+    text: "text-white",
+    icon: "text-white",
+  },
+  navy: {
+    bg: "bg-[#1a2844]",
+    text: "text-white",
+    icon: "text-white",
+  },
+};
+
 export function MobileDashboard() {
-  const {
-    user,
-    roles
-  } = useAuth();
+  const { user, roles, signOut } = useAuth();
   const navigate = useNavigate();
   const [displayName, setDisplayName] = useState("");
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
   useEffect(() => {
     const fetchProfile = async () => {
       if (!user) return;
-      const {
-        data
-      } = await supabase.from("user_profiles").select("display_name, full_name, avatar_url").eq("id", user.id).single();
+      const { data } = await supabase
+        .from("user_profiles")
+        .select("display_name, full_name")
+        .eq("id", user.id)
+        .single();
       setDisplayName(data?.display_name || data?.full_name || "");
-      setAvatarUrl(data?.avatar_url || null);
     };
     fetchProfile();
   }, [user]);
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return "Bom dia";
-    if (hour < 18) return "Boa tarde";
-    return "Boa noite";
-  };
-  const getInitials = (name: string) => {
-    const parts = name.trim().split(/\s+/);
-    if (parts.length === 0) return "";
-    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
-  };
-  return <MobileLayout>
-      <div className="flex flex-col min-h-screen bg-background">
-        {/* Hero Header with gradient */}
-        <div className="relative pt-14 pb-28 px-8 bg-gradient-to-b from-[hsl(222,40%,18%)] via-[hsl(222,30%,12%)] to-background overflow-hidden">
-          {/* Airplane watermark */}
-          <div className="absolute top-8 right-[-10%] opacity-[0.06] pointer-events-none scale-150 rotate-[-15deg]">
-            <Plane size={240} strokeWidth={0.5} className="text-primary" />
-          </div>
 
-          {/* Profile Section */}
-          <motion.div className="flex items-center gap-4 relative z-20" initial={{
-          opacity: 0,
-          y: 20
-        }} animate={{
-          opacity: 1,
-          y: 0
-        }} transition={{
-          duration: 0.5,
-          ease: "easeOut"
-        }}>
-            <div className="relative">
-              <div className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-primary/30 shadow-2xl bg-card">
-                {avatarUrl ? <img alt="Piloto" src={avatarUrl} className="w-full h-full object-cover rounded-lg" /> : <div className="w-full h-full flex items-center justify-center bg-primary/20 text-primary font-bold text-lg">
-                    {getInitials(displayName || "U")}
-                  </div>}
-              </div>
-              
-            </div>
-            <div>
-              <p className="text-muted-foreground text-xs font-medium uppercase tracking-[0.2em]">
-                {getGreeting()},
-              </p>
-              <h1 className="text-foreground text-2xl font-bold tracking-tight">
-                {displayName || "Comandante"}
-              </h1>
-            </div>
+  const handleLogout = async () => {
+    await signOut();
+    navigate("/login");
+  };
+
+  const filteredItems = NAV_ITEMS.filter(
+    (o) =>
+      !o.coordinatorOnly ||
+      roles.includes("coordenador_de_voo") ||
+      roles.includes("admin") ||
+      roles.includes("gestor_master") ||
+      roles.includes("piloto_chefe")
+  );
+
+  return (
+    <MobileLayout>
+      <div
+        className="min-h-screen p-6 pb-24 relative overflow-hidden"
+        style={{
+          backgroundColor: "#001122",
+          backgroundImage: `url('https://cdn.builder.io/api/v1/image/assets%2F7a90d07cace9451eb9eff4bb0d5bcc31%2F2fedfc9aa51d4632b60e4a81a7349aab?format=webp&width=800')`,
+          backgroundPosition: "center",
+          backgroundSize: "400px",
+          backgroundRepeat: "no-repeat",
+          backgroundAttachment: "fixed",
+        }}
+      >
+        {/* Overlay */}
+        <div className="absolute inset-0 bg-[#001122]/85 pointer-events-none" />
+
+        <div className="max-w-2xl mx-auto relative z-10">
+          {/* Header */}
+          <motion.div
+            className="text-center mb-8"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <h1 className="text-4xl font-bold text-white mb-2">Share Brasil</h1>
+            <p className="text-gray-300">
+              Sistema de Compartilhamento de Aeronaves
+            </p>
           </motion.div>
-        </div>
 
-        {/* Menu Grid - Overlapping hero */}
-        <div className="flex-1 px-6 -mt-20 relative z-30 pb-10">
-          <div className="grid grid-cols-2 gap-y-10 gap-x-6 max-w-sm mx-auto">
-            {MENU_OPTIONS.filter(o => !o.coordinatorOnly || roles.includes('coordenador_de_voo') || roles.includes('admin') || roles.includes('gestor_master') || roles.includes('piloto_chefe')).map((option, index) => <motion.button key={option.id} className="flex flex-col items-center gap-3 group" onClick={() => navigate(option.route)} initial={{
-            opacity: 0,
-            y: 30
-          }} animate={{
-            opacity: 1,
-            y: 0
-          }} transition={{
-            duration: 0.4,
-            delay: index * 0.08,
-            ease: "easeOut"
-          }} whileTap={{
-            scale: 0.92
-          }}>
-                {/* Icon Circle */}
-                <div className="relative">
-                  <div className="w-[72px] h-[72px] rounded-full bg-card border-2 border-border/60 flex items-center justify-center shadow-lg group-hover:border-primary/50 group-hover:shadow-primary/10 group-hover:shadow-xl transition-all duration-300">
-                    <option.icon className="h-7 w-7 text-primary transition-transform duration-300 group-hover:scale-110" strokeWidth={1.5} />
+          {/* Navigation Grid */}
+          <div className="grid grid-cols-2 gap-4 mb-8">
+            {filteredItems.map((item, index) => {
+              const style = colorStyles[item.color];
+              return (
+                <motion.button
+                  key={item.id}
+                  className="group"
+                  onClick={() => navigate(item.route)}
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{
+                    duration: 0.4,
+                    delay: index * 0.08,
+                    ease: "easeOut",
+                  }}
+                  whileTap={{ scale: 0.95 }}
+                  whileHover={{ scale: 1.05 }}
+                >
+                  <div
+                    className={`${style.bg} h-32 rounded-3xl flex flex-col items-center justify-center cursor-pointer transition-all duration-300 shadow-lg hover:shadow-xl`}
+                  >
+                    <item.icon
+                      className={`w-12 h-12 ${style.icon} mb-2`}
+                      strokeWidth={1.5}
+                    />
+                    <span
+                      className={`${style.text} text-xs font-semibold text-center px-2 line-clamp-2`}
+                    >
+                      {item.title}
+                    </span>
                   </div>
-                  {/* Subtle glow ring on hover */}
-                  <div className="absolute inset-0 rounded-full bg-primary/5 scale-110 opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10" />
-                </div>
-                {/* Label */}
-                <span className="text-[11px] font-semibold tracking-[0.08em] text-muted-foreground group-hover:text-foreground transition-colors duration-200 text-center leading-tight">
-                  {option.label}
-                </span>
-              </motion.button>)}
+                </motion.button>
+              );
+            })}
           </div>
 
-          {/* AI Insight Card */}
-          
+          {/* Logout Button */}
+          <motion.button
+            onClick={handleLogout}
+            className="w-full text-white font-semibold py-3 px-6 rounded-2xl transition-all duration-300 flex items-center justify-center gap-2"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <LogOut className="w-5 h-5" />
+            Sair
+          </motion.button>
         </div>
       </div>
-    </MobileLayout>;
+    </MobileLayout>
+  );
 }
