@@ -1,8 +1,5 @@
-// Configuração para comunicação com o backend remoto (Cloudflare Workers)
-//
-// O cliente API faz fallback automático para Supabase quando o backend estiver inacessível.
-// Erros de rede como "Failed to fetch" são tratados e usados para ativar o fallback.
-// Alterar a URL via variável de ambiente `VITE_BACKEND_URL` se necessário.
+// Cliente centralizado para comunicação autenticada com o Cloudflare Worker/D1.
+import { supabase } from '@/integrations/supabase/client';
 
 const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'https://api-workers.sharebrasil.workers.dev';
 
@@ -22,57 +19,21 @@ class ApiClient {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
-    const url = `${this.baseUrl}${endpoint}`;
-
-    const config: RequestInit = {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-    };
-
-    try {
-      const response = await fetch(url, config);
-
-      // Se a resposta não é JSON válido, trata como erro de conexão
-      const contentType = response.headers.get('content-type');
-      let data;
-
-      if (contentType && contentType.includes('application/json')) {
-        try {
-          data = await response.json();
-        } catch (parseError) {
-          throw new Error(`Failed to parse JSON response: ${response.statusText}`);
-        }
-      } else {
-        throw new Error(`Invalid response format from API: ${response.statusText}`);
-      }
-
-      if (!response.ok) {
-        throw new Error(data.error || `API Error: ${response.statusText}`);
-      }
-
-      return data;
-    } catch (error: any) {
-      // Verificar se é erro de rede/conexão (não logar no console para erros esperados)
-      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
-        // Este é um erro esperado de conexão - apenas re-lançar silenciosamente
-        throw error;
-      }
-
-      // Para outros erros, logar e re-lançar
-      if (!(error instanceof TypeError) || !error.message.includes('Failed to fetch')) {
-        console.warn('API Request Error:', error.message);
-      }
-      throw error;
-    }
+    const { data: { session } } = await supabase.auth.getSession();
+    const headers = new Headers(options.headers);
+    headers.set('Content-Type', 'application/json');
+    if (session?.access_token) headers.set('Authorization', `Bearer ${session.access_token}`);
+    const response = await fetch(`${this.baseUrl}${endpoint}`, { ...options, headers });
+    const contentType = response.headers.get('content-type') || '';
+    const data = contentType.includes('application/json') ? await response.json() : null;
+    if (!response.ok) throw new Error(data?.error || `API Error: ${response.statusText}`);
+    return data as T;
   }
 
   // Métodos HTTP básicos
-  async get<T>(endpoint: string, params?: Record<string, string>): Promise<T> {
+  async get<T>(endpoint: string, params?: Record<string, string | number>): Promise<T> {
     const queryString = params
-      ? '?' + new URLSearchParams(params).toString()
+      ? '?' + new URLSearchParams(Object.entries(params).map(([key, value]) => [key, String(value)])).toString()
       : '';
     return this.request<T>(`${endpoint}${queryString}`);
   }
@@ -283,6 +244,23 @@ class ApiClient {
 
   async createLogbookEntry(payload: any) {
     return this.post('/api/logbook', payload);
+  }
+
+  // ========== DIÁRIO DE BORDO (D1) ==========
+  async getDiarioOpcoes() {
+    return this.get<{ clientes: any[]; holdings: any[]; socios: any[]; tripulantes: any[]; aerodromos: any[] }>('/api/interno/diario-bordo/opcoes');
+  }
+
+  async getDiarioResumo(ano: number) {
+    return this.get<{ ano: number; aeronaves: any[] }>('/api/interno/diario-bordo/resumo', { ano });
+  }
+
+  async getDiarioDetalhes(aeronaveId: string, ano: number, mes: number) {
+    return this.get<{ aeronave: any; diario_mes: any | null; lancamentos: any[]; meses_disponiveis: any[] }>('/api/interno/diario-bordo/detalhes', { aeronave_id: aeronaveId, ano, mes });
+  }
+
+  async criarLancamentoDiario(payload: Record<string, unknown>) {
+    return this.post<Record<string, unknown>>('/api/interno/diario-bordo/lancamentos', payload);
   }
 
   // ========== CONSOLIDATION ==========

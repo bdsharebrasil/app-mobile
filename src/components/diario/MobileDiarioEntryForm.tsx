@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Progress } from '@/components/ui/progress';
-import { supabase } from '@/integrations/supabase/client';
+import { apiClient } from '@/lib/api-client';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -70,81 +70,27 @@ export const MobileDiarioEntryForm: React.FC<Props> = ({
   const { user } = useAuth();
   const { profile } = useUserProfile(user);
 
-  // Fetch aerodromes
-  const { data: aerodromes = [] } = useQuery({
-    queryKey: ['aerodromes'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('aerodromes')
-        .select('id, designativo, name, coordenadas')
-        .order('designativo');
-      if (error) throw error;
-      return data as Aerodrome[];
-    },
+  // Todas as opções e dados do diário vêm do Worker/D1.
+  const { data: options } = useQuery({
+    queryKey: ['diario-opcoes'],
+    queryFn: () => apiClient.getDiarioOpcoes(),
   });
-
-  // Fetch clients linked to aircraft
-  const { data: clients = [] } = useQuery({
-    queryKey: ['aircraft-clients', aircraftId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('client_aircraft')
-        .select('client_id, clients:client_id (id, company_name)')
-        .eq('aircraft_id', aircraftId);
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!aircraftId,
+  const aerodromes = (options?.aerodromos || []).map((a: any) => ({
+    id: a.id, designativo: a.designativo, name: a.nome, coordenadas: a.coordenadas,
+  })) as Aerodrome[];
+  const clients = (options?.clientes || []).map((client: any) => ({
+    client_id: client.id, clients: { id: client.id, company_name: client.nome },
+  }));
+  const tripulantes = options?.tripulantes || [];
+  const selectedDate = new Date(`${date}T00:00:00Z`);
+  const { data: diarioDetails } = useQuery({
+    queryKey: ['diario-detalhes', aircraftId, selectedDate.getUTCFullYear(), selectedDate.getUTCMonth() + 1],
+    queryFn: () => apiClient.getDiarioDetalhes(aircraftId, selectedDate.getUTCFullYear(), selectedDate.getUTCMonth() + 1),
+    enabled: Boolean(aircraftId && date),
   });
-
-  // Fetch logbook month for this aircraft
-  const { data: logbookMonth } = useQuery({
-    queryKey: ['current-logbook-month', aircraftId, date],
-    queryFn: async () => {
-      const d = new Date(date);
-      const { data } = await supabase
-        .from('logbook_months')
-        .select('*')
-        .eq('aircraft_id', aircraftId)
-        .eq('month', d.getMonth() + 1)
-        .eq('year', d.getFullYear())
-        .single();
-      return data;
-    },
-    enabled: !!aircraftId && !!date,
-  });
-
-  // Fetch last entry for pre-filling departure
-  const { data: lastEntry } = useQuery({
-    queryKey: ['last-logbook-entry', aircraftId],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('logbook_entries')
-        .select('arrival_aerodrome')
-        .eq('aircraft_id', aircraftId)
-        .order('entry_date', { ascending: false })
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-      return data;
-    },
-    enabled: !!aircraftId,
-  });
-
-  // Fetch crew member for PIC
-  const { data: crewMember } = useQuery({
-    queryKey: ['crew-member-pic', user?.id],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('crew_members')
-        .select('id, full_name, canac')
-        .eq('user_id', user!.id)
-        .single();
-      return data;
-    },
-    enabled: !!user?.id,
-  });
-
+  const logbookMonth = diarioDetails?.diario_mes || null;
+  const lastEntry = diarioDetails?.lancamentos?.[diarioDetails.lancamentos.length - 1] || null;
+  const crewMember = tripulantes.find((member: any) => member.id === user?.id || member.canac === profile?.canac) || null;
   const { formData, updateField, updateFields, resetForm } = useLogbookForm(aerodromes);
 
   // Pre-fill departure from last arrival
@@ -192,110 +138,34 @@ export const MobileDiarioEntryForm: React.FC<Props> = ({
       toast.error('Nenhum diário aberto para este mês/aeronave. Abra o diário primeiro.');
       return;
     }
-
     setSaving(true);
     try {
       const fH = parseFloat(getFlightTimeHours()) || 0;
       const fM = parseFloat(getFlightTimeMinutes()) || 0;
       const flightTime = fH + fM / 60;
-
-      const [acH, acM] = formData.ac_time.split(':').map(Number);
-      const [corH, corM] = formData.cor_time.split(':').map(Number);
-      let blockMin = (corH * 60 + corM) - (acH * 60 + acM);
-      if (blockMin < 0) blockMin += 24 * 60;
-      const totalBlockTime = blockMin / 60;
-
-      const nightH = parseFloat(formData.night_time_hours) || 0;
-      const nightM = parseFloat(formData.night_time_minutes) || 0;
-      const totalNight = nightH + nightM / 60;
-      const totalDay = Math.max(0, totalBlockTime - totalNight);
-
-      let celula = 0;
-      if (logbookMonth?.celula_atual) {
-        celula = parseFloat((logbookMonth.celula_atual + totalBlockTime).toFixed(2));
-      }
-
-      const trecho = `${formData.departure_airport}-${formData.arrival_airport}`;
-
-      const { data: insertedEntry, error } = await supabase.from('logbook_entries').insert([{
-        logbook_month_id: logbookMonth.id,
-        aircraft_id: aircraftId,
-        entry_date: date,
-        departure_aerodrome: formData.departure_airport,
-        arrival_aerodrome: formData.arrival_airport,
-        trecho,
-        flight_nature: flightNature,
-        client_id: !isEqualSplit && clientId ? clientId : null,
-        is_equal_split: isEqualSplit,
-        pic_canac: crewMember?.id || user?.id || '',
-        sic_name: sicName || null,
-        sic_canac: sicCanac || null,
-        ac_time: `${date}T${formData.ac_time}:00`,
-        dep_time: `${date}T${formData.departure_time}:00`,
-        pou_time: `${date}T${formData.pou_time}:00`,
-        cor_time: `${date}T${formData.cor_time}:00`,
-        crew_checkin_time: formData.crew_checkin_time ? `${date}T${formData.crew_checkin_time}:00` : null,
-        time: flightTime,
-        total_time: totalBlockTime,
-        day_time: totalDay,
-        night_hours: totalNight,
-        ifr_time: parseFloat(formData.ifr_count) || 0,
-        pousos: parseInt(pousos) || 1,
-        fuel_added: fuelToggle ? (parseFloat(fuelAdded) || 0) : 0,
-        fuel_liters: fuelToggle ? (parseFloat(fuelLiters) || 0) : 0,
-        fuel_price_per_liter: fuelToggle ? (parseFloat(fuelPricePerLiter) || 0) : null,
-        fuel_location: fuelToggle ? (fuelLocation || null) : null,
-        refueled: fuelToggle,
-        celula: celula || parseFloat(formData.fuel_cell) || 0,
-        distance_nm: parseFloat(formData.distance_nm) || 0,
-        passengers: parseInt(passengers) || 0,
-        occurrences: observations || null,
-        pilot_signature_date: new Date().toISOString(),
-        created_by: user?.id || null,
-      }]).select('id').single();
-
-      if (error) throw error;
-
-      // Insert into abastecimentos if fuel detailed
-      if (fuelToggle && detailFuel && insertedEntry?.id) {
-        const litros = parseFloat(fuelLiters) || 0;
-        const valorUnit = parseFloat(fuelPricePerLiter) || 0;
-        if (litros > 0) {
-          await supabase.from('abastecimentos').insert([{
-            aeronave_id: aircraftId,
-            client_id: !isEqualSplit && clientId ? clientId : null,
-            data: date,
-            trecho,
-            local: fuelLocation || formData.arrival_airport || '',
-            litros,
-            valor_unitario: valorUnit,
-            abastecedor: fuelSupplier || null,
-          }]);
-        }
-      }
-
-      // Update logbook_months celula_atual
-      if (logbookMonth?.id) {
-        await supabase
-          .from('logbook_months')
-          .update({
-            celula_atual: celula || logbookMonth.celula_atual,
-            celula_disponivel: parseFloat(((logbookMonth.celula_prox_revisao ?? 0) - (celula || logbookMonth.celula_atual)).toFixed(2)),
-          })
-          .eq('id', logbookMonth.id);
-      }
-
+      const payload: Record<string, unknown> = {
+        diario_mes_id: logbookMonth.id, aeronave_id: aircraftId, data_registro: date,
+        natureza_voo: flightNature, cliente_id: !isEqualSplit && clientId ? clientId : null,
+        aerodromo_partida: formData.departure_airport, aerodromo_chegada: formData.arrival_airport,
+        pic_canac: crewMember?.canac || profile?.canac || user?.id || '',
+        sic_canac: sicCanac || null, sic_nome: sicName || null,
+        tempo_ac: formData.ac_time, tempo_dep: formData.departure_time, tempo_pou: formData.pou_time, tempo_cor: formData.cor_time,
+        tempo_voo: flightTime, tempo_total: (() => { const [ah, am] = formData.ac_time.split(':').map(Number); const [ch, cm] = formData.cor_time.split(':').map(Number); let minutes = ch * 60 + cm - (ah * 60 + am); if (minutes < 0) minutes += 1440; return minutes / 60; })(),
+        horas_noturnas: (parseFloat(formData.night_time_hours) || 0) + (parseFloat(formData.night_time_minutes) || 0) / 60,
+        tempo_ifr: parseFloat(formData.ifr_count) || 0, pousos_total: parseInt(pousos) || 1, distancia_nm: parseFloat(formData.distance_nm) || 0,
+        passageiros: parseInt(passengers) || 0, ocorrencias: observations || null, confirmado: false,
+        abastecido: fuelToggle, local_combustivel: fuelToggle ? fuelLocation || formData.arrival_airport : null,
+        abastecimento: fuelToggle && detailFuel ? { litros: parseFloat(fuelLiters) || 0, valor_unitario: parseFloat(fuelPricePerLiter) || 0, local: fuelLocation || formData.arrival_airport, numero_comanda: fuelAdded || null } : undefined,
+      };
+      await apiClient.criarLancamentoDiario(payload);
       setSaved(true);
       toast.success('Lançamento salvo com sucesso!');
       setTimeout(() => onSaved(), 1200);
     } catch (err: any) {
       console.error('Erro ao salvar:', err);
       toast.error(err.message || 'Erro ao salvar lançamento');
-    } finally {
-      setSaving(false);
-    }
+    } finally { setSaving(false); }
   };
-
   if (saved) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[80vh] gap-4 px-6">
