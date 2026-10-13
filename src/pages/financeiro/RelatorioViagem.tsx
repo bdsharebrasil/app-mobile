@@ -10,12 +10,14 @@ import {
   Eye,
   FileImage,
   FileText,
+  ImagePlus,
   Info,
   Loader2,
   Plane,
   ReceiptText,
   RefreshCw,
   ShieldCheck,
+  Trash2,
   X,
   XCircle,
 } from 'lucide-react';
@@ -53,6 +55,9 @@ interface ExpenseAttachment {
   criado_em?: string | null;
 }
 
+type PreviewAttachment = Pick<ExpenseAttachment, 'id' | 'nome_arquivo' | 'url_arquivo' | 'tipo_arquivo'>;
+type RejectionAttachment = PreviewAttachment & Pick<ExpenseAttachment, 'tamanho_arquivo' | 'criado_em'>;
+
 interface TravelReport {
   id: string;
   numero_relatorio: string;
@@ -68,6 +73,7 @@ interface TravelReport {
   observacoes?: string | null;
   despesas: TravelExpense[] | string | null;
   anexos?: ExpenseAttachment[] | null;
+  anexos_rejeicao?: RejectionAttachment[] | string | null;
   total_valor?: number | string;
   status: string;
   status_aprovacao_tripulante?: string | null;
@@ -98,6 +104,17 @@ function parseExpenses(value: TravelReport['despesas']): TravelExpense[] {
   try {
     const parsed: unknown = JSON.parse(value);
     return Array.isArray(parsed) ? parsed as TravelExpense[] : [];
+  } catch {
+    return [];
+  }
+}
+
+function parseRejectionAttachments(value: TravelReport['anexos_rejeicao']): RejectionAttachment[] {
+  if (Array.isArray(value)) return value.filter((item) => Boolean(item?.id && item.url_arquivo));
+  if (typeof value !== 'string') return [];
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return Array.isArray(parsed) ? (parsed as RejectionAttachment[]).filter((item) => Boolean(item?.id && item.url_arquivo)) : [];
   } catch {
     return [];
   }
@@ -183,18 +200,22 @@ function ReportReviewScreen({
   report: TravelReport;
   accessToken?: string;
   onClose: () => void;
-  onDecide: (report: TravelReport, approved: boolean, reason: string) => Promise<boolean>;
+  onDecide: (report: TravelReport, approved: boolean, reason: string, rejectionImage?: File) => Promise<boolean>;
   busy: boolean;
 }) {
   const expenses = useMemo(() => parseExpenses(report.despesas), [report.despesas]);
   const attachments = useMemo(() => Array.isArray(report.anexos) ? report.anexos : [], [report.anexos]);
+  const rejectionAttachments = useMemo(() => parseRejectionAttachments(report.anexos_rejeicao), [report.anexos_rejeicao]);
   const [group, setGroup] = useState<ExpenseGroup>('tripulante');
   const [reviewedGroups, setReviewedGroups] = useState<Exclude<ExpenseGroup, 'total'>[]>([]);
   const [decision, setDecision] = useState<Decision>(null);
   const [reason, setReason] = useState('');
-  const [preview, setPreview] = useState<{ attachment: ExpenseAttachment; url: string } | null>(null);
+  const [preview, setPreview] = useState<{ attachment: PreviewAttachment; url: string } | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState('');
+  const [rejectionImage, setRejectionImage] = useState<File | null>(null);
+  const [rejectionImagePreview, setRejectionImagePreview] = useState('');
+  const rejectionImageInput = useRef<HTMLInputElement | null>(null);
   const scrollRef = useRef<HTMLElement | null>(null);
   const canDecide = isPending(report);
   const status = reportStatus(report);
@@ -270,12 +291,22 @@ function ReportReviewScreen({
     if (preview?.url) URL.revokeObjectURL(preview.url);
   }, [preview?.url]);
 
+  useEffect(() => {
+    if (!rejectionImage) {
+      setRejectionImagePreview('');
+      return;
+    }
+    const url = URL.createObjectURL(rejectionImage);
+    setRejectionImagePreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [rejectionImage]);
+
   const selectGroup = (selected: ExpenseGroup) => {
     setGroup(selected);
     requestAnimationFrame(() => scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' }));
   };
 
-  const openAttachment = async (attachment: ExpenseAttachment) => {
+  const openAttachment = async (attachment: PreviewAttachment) => {
     if (!accessToken) {
       toast.error('Sessão expirada. Entre novamente.');
       return;
@@ -308,11 +339,33 @@ function ReportReviewScreen({
       toast.error('Informe o motivo da rejeição.');
       return;
     }
-    const saved = await onDecide(report, approvedDecision, reason.trim());
+    const saved = await onDecide(report, approvedDecision, reason.trim(), rejectionImage || undefined);
     if (saved) {
       setDecision(null);
       setReason('');
+      setRejectionImage(null);
     }
+  };
+
+  const closeDecision = () => {
+    setDecision(null);
+    setRejectionImage(null);
+  };
+
+  const handleRejectionImage = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = '';
+    if (!file) return;
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+    if (!allowedTypes.includes(file.type.toLowerCase())) {
+      toast.error('Escolha uma imagem JPG, PNG, WebP ou HEIC.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('A imagem deve ter no máximo 5 MB.');
+      return;
+    }
+    setRejectionImage(file);
   };
 
   const approvalReason = report.tripulante_pos === 1
@@ -364,7 +417,7 @@ function ReportReviewScreen({
           const element = event.currentTarget;
           if (element.scrollTop + element.clientHeight >= element.scrollHeight - 48) markGroupReviewed();
         }}
-        className="absolute inset-0 overflow-y-auto overscroll-y-contain"
+        className="absolute inset-0 overflow-y-auto overscroll-y-contain pt-[env(safe-area-inset-top)]"
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
         <div className="mx-auto w-full max-w-4xl px-3 pb-48 pt-3 sm:px-6 sm:pb-52 sm:pt-6">
@@ -428,6 +481,7 @@ function ReportReviewScreen({
               {approved ? <CheckCircle2 className="mt-0.5 shrink-0 text-emerald-300" size={23} /> : rejected ? <XCircle className="mt-0.5 shrink-0 text-rose-300" size={23} /> : <Clock3 className="mt-0.5 shrink-0 text-slate-400" size={23} />}
               <div className="min-w-0"><p className={`text-base font-extrabold ${approved ? 'text-emerald-200' : rejected ? 'text-rose-200' : 'text-slate-200'}`}>{approved ? 'Sua aprovação foi registrada' : rejected ? 'Este relatório foi rejeitado' : `Status: ${status}`}</p>
                 {rejected && approvalReason && <p className="mt-2 break-words rounded-xl border border-white/10 bg-black/10 p-3 text-xs leading-relaxed text-rose-100"><strong>Motivo:</strong> {approvalReason}</p>}
+                {rejected && rejectionAttachments.length > 0 && <div className="mt-3 space-y-2"><p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Imagem(ns) anexada(s) à rejeição</p><div className="flex flex-wrap gap-2">{rejectionAttachments.map((attachment) => <button key={attachment.id} type="button" onClick={() => void openAttachment(attachment)} className="inline-flex min-h-11 max-w-full items-center gap-2 rounded-2xl border border-white/10 bg-black/10 px-3 py-2 text-left text-xs font-bold text-rose-100"><FileImage size={15} className="shrink-0 text-rose-200" /><span className="max-w-[190px] truncate">{attachment.nome_arquivo || 'Imagem da rejeição'}</span><Eye size={14} className="shrink-0 text-slate-400" /></button>)}</div></div>}
                 <p className="mt-2 text-xs leading-relaxed text-slate-500">Este relatório não está mais disponível para uma nova decisão.</p>
               </div>
             </div>
@@ -439,17 +493,21 @@ function ReportReviewScreen({
         <div className="mx-auto w-full max-w-4xl px-3 pb-[calc(0.85rem+env(safe-area-inset-bottom))] pt-3 sm:px-6 sm:pb-4">
           <div className="mb-2 flex items-center justify-between gap-3 px-1 text-[10px] font-extrabold uppercase tracking-wider"><span className={allGroupsReviewed ? 'text-emerald-300' : 'text-amber-300'}>{allGroupsReviewed ? 'Todos os grupos foram revisados' : 'Revise cada grupo até o final para liberar a aprovação'}</span><span className="text-slate-400">{currency(totals.tripulante)}</span></div>
           <div className="grid grid-cols-2 gap-2.5">
-            <button type="button" disabled={busy} onClick={() => { setReason(''); setDecision('rejeitar'); }} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-rose-400/20 bg-white/[0.03] px-3 text-sm font-extrabold text-rose-200 transition disabled:opacity-50"><X size={17} />Rejeitar</button>
-            <button type="button" disabled={busy || !allGroupsReviewed} onClick={() => { setReason(''); setDecision('aprovar'); }} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-3 text-sm font-extrabold text-[#04120c] shadow-[0_8px_24px_rgba(16,185,129,0.22)] transition disabled:cursor-not-allowed disabled:opacity-35"><Check size={17} />Aprovar relatório</button>
+            <button type="button" disabled={busy} onClick={() => { setReason(''); setRejectionImage(null); setDecision('rejeitar'); }} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-rose-400/20 bg-white/[0.03] px-3 text-sm font-extrabold text-rose-200 transition disabled:opacity-50"><X size={17} />Rejeitar</button>
+            <button type="button" disabled={busy || !allGroupsReviewed} onClick={() => { setReason(''); setRejectionImage(null); setDecision('aprovar'); }} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-3 text-sm font-extrabold text-[#04120c] shadow-[0_8px_24px_rgba(16,185,129,0.22)] transition disabled:cursor-not-allowed disabled:opacity-35"><Check size={17} />Aprovar relatório</button>
           </div>
         </div>
       </div>}
 
       {decision && <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/70 p-0 backdrop-blur-sm sm:items-center sm:p-4">
-        <section role="dialog" aria-modal="true" aria-labelledby="travel-decision-title" className="w-full max-w-lg rounded-t-3xl border border-white/10 bg-[#0b111c] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] text-white shadow-2xl sm:rounded-3xl sm:p-6">
-          <div className="flex items-start justify-between gap-4"><div><p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-500">Confirmação</p><h2 id="travel-decision-title" className="mt-1 text-lg font-black tracking-tight">{decision === 'aprovar' ? 'Aprovar este relatório?' : 'Rejeitar este relatório?'}</h2></div><button type="button" onClick={() => setDecision(null)} aria-label="Fechar" className="grid size-10 shrink-0 place-items-center rounded-xl bg-white/[0.06] text-slate-300"><X size={18} /></button></div>
-          {decision === 'aprovar' ? <div className="mt-4 rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.06] p-4"><div className="flex items-start gap-3"><CheckCircle2 className="mt-0.5 shrink-0 text-emerald-300" size={20} /><p className="text-sm leading-relaxed text-emerald-100">Você confirma a aprovação do relatório no valor de <strong>{currency(totals.tripulante)}</strong> atribuídos a você.</p></div></div> : <div className="mt-4"><div className="rounded-2xl border border-rose-300/15 bg-rose-300/[0.06] p-4 text-xs leading-relaxed text-rose-100">Para rejeitar, informe o que precisa ser corrigido no relatório.</div><Textarea value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Ex.: Despesa de alimentação informada com valor incorreto." className="mt-3 min-h-28 resize-y rounded-2xl border-white/10 bg-white/[0.04] text-sm text-white placeholder:text-slate-500" autoFocus /></div>}
-          <div className="mt-4 grid grid-cols-2 gap-2.5"><button type="button" disabled={busy} onClick={() => setDecision(null)} className="min-h-12 rounded-2xl border border-white/10 bg-white/[0.03] px-3 text-sm font-extrabold text-slate-200 disabled:opacity-50">Cancelar</button><button type="button" disabled={busy || (decision === 'rejeitar' && !reason.trim())} onClick={() => void confirmDecision()} className={`min-h-12 rounded-2xl px-3 text-sm font-extrabold disabled:cursor-not-allowed disabled:opacity-50 ${decision === 'aprovar' ? 'bg-emerald-500 text-[#04120c]' : 'bg-rose-500 text-white'}`}>{busy ? <Loader2 className="mx-auto animate-spin" size={18} /> : decision === 'aprovar' ? 'Confirmar aprovação' : 'Confirmar rejeição'}</button></div>
+        <section role="dialog" aria-modal="true" aria-labelledby="travel-decision-title" className="max-h-[min(92dvh,760px)] w-full max-w-lg overflow-y-auto overscroll-contain rounded-t-3xl border border-white/10 bg-[#0b111c] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] text-white shadow-2xl sm:rounded-3xl sm:p-6" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <div className="flex items-start justify-between gap-4"><div><p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-500">Confirmação</p><h2 id="travel-decision-title" className="mt-1 text-lg font-black tracking-tight">{decision === 'aprovar' ? 'Aprovar este relatório?' : 'Rejeitar este relatório?'}</h2></div><button type="button" onClick={closeDecision} aria-label="Fechar" className="grid size-11 shrink-0 place-items-center rounded-xl bg-white/[0.06] text-slate-300"><X size={18} /></button></div>
+          {decision === 'aprovar' ? <div className="mt-4 rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.06] p-4"><div className="flex items-start gap-3"><CheckCircle2 className="mt-0.5 shrink-0 text-emerald-300" size={20} /><p className="text-sm leading-relaxed text-emerald-100">Você confirma a aprovação do relatório no valor de <strong>{currency(totals.tripulante)}</strong> atribuídos a você.</p></div></div> : <div className="mt-4"><div className="rounded-2xl border border-rose-300/15 bg-rose-300/[0.06] p-4 text-xs leading-relaxed text-rose-100">Para rejeitar, informe o que precisa ser corrigido. A imagem é opcional.</div><Textarea value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Ex.: Despesa de alimentação informada com valor incorreto." className="mt-3 min-h-28 resize-y rounded-2xl border-white/10 bg-white/[0.04] text-sm text-white placeholder:text-slate-500" />
+            <input ref={rejectionImageInput} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" className="sr-only" onChange={handleRejectionImage} aria-label="Selecionar imagem para anexar à rejeição" />
+            {!rejectionImage ? <button type="button" onClick={() => rejectionImageInput.current?.click()} className="mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-rose-300/25 bg-rose-300/[0.04] px-4 text-sm font-extrabold text-rose-100 transition active:bg-rose-300/[0.10]"><ImagePlus size={18} />Adicionar imagem (opcional)</button> : <div className="mt-3 flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3"><img src={rejectionImagePreview} alt="Prévia da imagem anexada" className="size-14 shrink-0 rounded-xl bg-black/20 object-cover" /><span className="min-w-0 flex-1 truncate text-xs font-bold text-slate-200">{rejectionImage.name}</span><button type="button" onClick={() => setRejectionImage(null)} aria-label="Remover imagem anexada" className="grid size-11 shrink-0 place-items-center rounded-xl bg-white/[0.06] text-slate-300"><Trash2 size={17} /></button></div>}
+            <p className="mt-2 text-[11px] text-slate-500">JPG, PNG, WebP ou HEIC · até 5 MB</p>
+          </div>}
+          <div className="mt-4 grid grid-cols-2 gap-2.5"><button type="button" disabled={busy} onClick={closeDecision} className="min-h-12 rounded-2xl border border-white/10 bg-white/[0.03] px-3 text-sm font-extrabold text-slate-200 disabled:opacity-50">Cancelar</button><button type="button" disabled={busy || (decision === 'rejeitar' && !reason.trim())} onClick={() => void confirmDecision()} className={`min-h-12 rounded-2xl px-3 text-sm font-extrabold disabled:cursor-not-allowed disabled:opacity-50 ${decision === 'aprovar' ? 'bg-emerald-500 text-[#04120c]' : 'bg-rose-500 text-white'}`}>{busy ? <Loader2 className="mx-auto animate-spin" size={18} /> : decision === 'aprovar' ? 'Confirmar aprovação' : 'Confirmar rejeição'}</button></div>
         </section>
       </div>}
 
@@ -486,7 +544,7 @@ export default function RelatorioViagem() {
       headers: {
         Authorization: `Bearer ${session.access_token}`,
         apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_DEFAULT_KEY,
-        ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
+        ...(init?.body && !(init.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}),
         ...init?.headers,
       },
     });
@@ -521,12 +579,17 @@ export default function RelatorioViagem() {
     paid: reports.filter((report) => report.pagamento_status === 'PAGO').length,
   }), [reports]);
 
-  const decide = async (report: TravelReport, approved: boolean, reason: string) => {
+  const decide = async (report: TravelReport, approved: boolean, reason: string, rejectionImage?: File) => {
     setBusyId(report.id);
     try {
+      const body = new FormData();
+      body.set('tripulante_pos', String(report.tripulante_pos));
+      body.set('aprovado', String(approved));
+      body.set('observacoes', reason);
+      if (rejectionImage) body.set('anexo_rejeicao', rejectionImage, rejectionImage.name);
       await request(`/api/financeiro/relatorios-despesa-viagem/${encodeURIComponent(report.id)}/aprovacao`, {
         method: 'POST',
-        body: JSON.stringify({ tripulante_pos: report.tripulante_pos, aprovado: approved, observacoes: reason }),
+        body,
       });
       toast.success(approved ? 'Relatório aprovado.' : 'Relatório rejeitado e enviado para ajuste.');
       await loadReports();
