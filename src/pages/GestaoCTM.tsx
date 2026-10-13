@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { MobileLayout } from "@/components/mobile/MobileLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { supabase } from "@/integrations/supabase/client";
+import { apiClient } from "@/lib/api-client";
 import { toast } from "sonner";
-import { ArrowLeft, AlertCircle, Plus, Wrench, ExternalLink } from "lucide-react";
+import { ArrowLeft, AlertCircle, Plus, Wrench } from "lucide-react";
 import { motion } from "framer-motion";
 
 interface MaintenanceReport {
@@ -42,6 +42,7 @@ export default function GestaoCTM() {
   const [reports, setReports] = useState<MaintenanceReport[]>([]);
   const [aircraft, setAircraft] = useState<Aircraft[]>([]);
   const [selectedAircraftId, setSelectedAircraftId] = useState<string | null>(null);
+  const [aircraftSearch, setAircraftSearch] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -51,23 +52,9 @@ export default function GestaoCTM() {
   const loadData = async () => {
     setLoading(true);
     try {
-      // Load maintenance reports
-      const { data: reportsData, error: reportsError } = await supabase
-        .from("maintenance_reports")
-        .select(`*`)
-        .order("report_date", { ascending: false });
-
-      if (reportsError) throw reportsError;
-      if (reportsData) setReports(reportsData as MaintenanceReport[]);
-
-      // Load aircraft
-      const { data: aircraftData, error: aircraftError } = await supabase
-        .from("aircraft")
-        .select("id, registration, model, image_url, status")
-        .order("registration");
-
-      if (aircraftError) throw aircraftError;
-      if (aircraftData) setAircraft(aircraftData as Aircraft[]);
+      const response = await apiClient.getCTMMaintenanceReports();
+      setReports((response.data || []) as MaintenanceReport[]);
+      setAircraft((response.aeronaves || []) as Aircraft[]);
     } catch (error: any) {
       toast.error("Erro ao carregar dados: " + error.message);
     } finally {
@@ -140,17 +127,10 @@ export default function GestaoCTM() {
     ? reports.filter((r) => r.aircraft_id === selectedAircraftId)
     : reports;
 
-  // Count reports by aircraft
-  const getAircraftReportCount = (aircraftId: string) => {
-    return reports.filter((r) => r.aircraft_id === aircraftId).length;
-  };
-
-  // Count critical/high severity reports
-  const getCriticalCount = (aircraftId: string) => {
-    return reports.filter(
-      (r) => r.aircraft_id === aircraftId && (r.severity === "critical" || r.severity === "high")
-    ).length;
-  };
+  const visibleAircraft = aircraft.filter((ac) => {
+    const search = aircraftSearch.trim().toLowerCase();
+    return !search || `${ac.registration} ${ac.model}`.toLowerCase().includes(search);
+  });
 
   if (loading) {
     return (
@@ -176,7 +156,7 @@ export default function GestaoCTM() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setSelectedAircraftId(null)}
+              onClick={() => { setSelectedAircraftId(null); setAircraftSearch(""); }}
               className="rounded-full"
             >
               <ArrowLeft className="h-5 w-5" />
@@ -309,6 +289,8 @@ export default function GestaoCTM() {
             <input
               type="text"
               placeholder="Buscar aeronave"
+              value={aircraftSearch}
+              onChange={(event) => setAircraftSearch(event.target.value)}
               className="w-full bg-transparent outline-none text-sm"
             />
           </div>
@@ -316,17 +298,14 @@ export default function GestaoCTM() {
 
         {/* Aircraft cards grid - Folder style */}
         <div className="grid grid-cols-2 gap-4">
-          {aircraft.length === 0 ? (
+          {visibleAircraft.length === 0 ? (
             <Card className="col-span-2">
               <CardContent className="pt-6 text-center text-gray-500">
                 Nenhuma aeronave encontrada
               </CardContent>
             </Card>
           ) : (
-            aircraft.map((ac) => {
-              const reportCount = getAircraftReportCount(ac.id);
-              const criticalCount = getCriticalCount(ac.id);
-
+            visibleAircraft.map((ac) => {
               return (
                 <motion.div
                   key={ac.id}

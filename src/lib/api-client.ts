@@ -259,6 +259,10 @@ class ApiClient {
     return this.get<{ aeronave: any; diario_mes: any | null; lancamentos: any[]; meses_disponiveis: any[] }>('/api/interno/diario-bordo/detalhes', { aeronave_id: aeronaveId, ano, mes });
   }
 
+  async getCTMMaintenanceReports(aeronaveId?: string) {
+    return this.get<{ data: any[]; aeronaves: any[] }>('/api/ctm/relatorios-manutencao', aeronaveId ? { aeronave_id: aeronaveId } : undefined);
+  }
+
   async criarLancamentoDiario(payload: Record<string, unknown>) {
     return this.post<Record<string, unknown>>('/api/interno/diario-bordo/lancamentos', payload);
   }
