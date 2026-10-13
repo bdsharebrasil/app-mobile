@@ -26,6 +26,7 @@ import { MobileLayout } from '@/components/mobile/MobileLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useAuth } from '@/contexts/AuthContext';
 import { BACKEND } from '@/config/api';
 
@@ -57,6 +58,13 @@ interface ExpenseAttachment {
 
 type PreviewAttachment = Pick<ExpenseAttachment, 'id' | 'nome_arquivo' | 'url_arquivo' | 'tipo_arquivo'>;
 type RejectionAttachment = PreviewAttachment & Pick<ExpenseAttachment, 'tamanho_arquivo' | 'criado_em'>;
+interface AdjustmentRequest {
+  id: string;
+  tripulante_pos?: number | string;
+  motivo: string;
+  criado_em?: string | null;
+  anexos?: RejectionAttachment[] | null;
+}
 
 interface TravelReport {
   id: string;
@@ -74,6 +82,7 @@ interface TravelReport {
   despesas: TravelExpense[] | string | null;
   anexos?: ExpenseAttachment[] | null;
   anexos_rejeicao?: RejectionAttachment[] | string | null;
+  historico_ajustes?: AdjustmentRequest[] | string | null;
   total_valor?: number | string;
   status: string;
   status_aprovacao_tripulante?: string | null;
@@ -120,6 +129,17 @@ function parseRejectionAttachments(value: TravelReport['anexos_rejeicao']): Reje
   }
 }
 
+function parseAdjustmentHistory(value: TravelReport['historico_ajustes']): AdjustmentRequest[] {
+  if (Array.isArray(value)) return value.filter((item) => Boolean(item?.id && item.motivo?.trim()));
+  if (typeof value !== 'string') return [];
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return Array.isArray(parsed) ? (parsed as AdjustmentRequest[]).filter((item) => Boolean(item?.id && item.motivo?.trim())) : [];
+  } catch {
+    return [];
+  }
+}
+
 function normalizedPayer(expense: TravelExpense) {
   return String(expense.pago_por || expense.paid_by || '')
     .trim()
@@ -149,13 +169,13 @@ function payerLabel(expense: TravelExpense) {
 
 function isPending(report: TravelReport) {
   const approval = normalize(report.tripulante_pos === 1 ? report.status_aprovacao_tripulante : report.status_aprovacao_tripulante_2);
-  return normalize(report.status) === 'aguardando_aprovacao' && !['aprovado', 'reprovado', 'rejeitado'].includes(approval);
+  return ['aguardando_aprovacao', 'ajuste_concluido'].includes(normalize(report.status)) && !['aprovado', 'reprovado', 'rejeitado'].includes(approval);
 }
 
 function reportLabel(report: TravelReport) {
   const approval = normalize(report.tripulante_pos === 1 ? report.status_aprovacao_tripulante : report.status_aprovacao_tripulante_2);
   if (report.pagamento_status === 'PAGO') return 'Pago';
-  if (isPending(report)) return 'Pendente de aprovação';
+  if (isPending(report)) return normalize(report.status) === 'ajuste_concluido' ? 'Ajuste concluído · nova aprovação' : 'Pendente de aprovação';
   if (approval === 'aprovado' || ['aprovado', 'enviado_cliente'].includes(normalize(report.status))) return 'Aprovado';
   if (approval === 'reprovado' || approval === 'rejeitado' || report.status === 'ajuste_necessario') return 'Rejeitado / ajuste necessário';
   return String(report.status || '').replace(/_/g, ' ');
@@ -185,7 +205,7 @@ function reportStatus(report: TravelReport) {
   const approval = normalize(report.tripulante_pos === 1 ? report.status_aprovacao_tripulante : report.status_aprovacao_tripulante_2);
   if (approval === 'aprovado') return 'Aprovado';
   if (approval === 'reprovado' || approval === 'rejeitado') return 'Reprovado';
-  if (isPending(report)) return 'Pendente';
+  if (isPending(report)) return normalize(report.status) === 'ajuste_concluido' ? 'Ajuste concluído · aprove a nova versão' : 'Pendente';
   if (report.status === 'ajuste_necessario') return 'Ajuste necessário';
   return String(report.status || 'Pendente').replace(/_/g, ' ');
 }
@@ -205,7 +225,21 @@ function ReportReviewScreen({
 }) {
   const expenses = useMemo(() => parseExpenses(report.despesas), [report.despesas]);
   const attachments = useMemo(() => Array.isArray(report.anexos) ? report.anexos : [], [report.anexos]);
-  const rejectionAttachments = useMemo(() => parseRejectionAttachments(report.anexos_rejeicao), [report.anexos_rejeicao]);
+  const adjustmentRequests = useMemo(() => {
+    const history = parseAdjustmentHistory(report.historico_ajustes);
+    if (history.length) return history;
+    const legacy = [
+      { position: 1, reason: report.motivo_reprovacao_tripulante_1 },
+      { position: 2, reason: report.motivo_reprovacao_tripulante_2 },
+    ].filter((item) => Boolean(item.reason?.trim()));
+    return legacy.map((item, index) => ({
+      id: `legacy-${report.id}-${item.position}`,
+      tripulante_pos: item.position,
+      motivo: item.reason!.trim(),
+      criado_em: null,
+      anexos: index === legacy.length - 1 ? parseRejectionAttachments(report.anexos_rejeicao) : [],
+    }));
+  }, [report]);
   const [group, setGroup] = useState<ExpenseGroup>('tripulante');
   const [reviewedGroups, setReviewedGroups] = useState<Exclude<ExpenseGroup, 'total'>[]>([]);
   const [decision, setDecision] = useState<Decision>(null);
@@ -368,10 +402,6 @@ function ReportReviewScreen({
     setRejectionImage(file);
   };
 
-  const approvalReason = report.tripulante_pos === 1
-    ? report.motivo_reprovacao_tripulante_1
-    : report.motivo_reprovacao_tripulante_2;
-
   const statusClasses = canDecide
     ? 'border-amber-300/20 bg-amber-300/10 text-amber-200'
     : approved
@@ -466,6 +496,25 @@ function ReportReviewScreen({
 
           {report.pdf_url && <a href={report.pdf_url} target="_blank" rel="noreferrer" className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-2xl border border-white/10 bg-[#0b111c] px-4 text-sm font-bold text-sky-200"><FileText size={16} />Abrir relatório PDF<ExternalLink size={14} /></a>}
 
+          {adjustmentRequests.length > 0 && <section className="mt-4 overflow-hidden rounded-3xl border border-rose-300/15 bg-[#0b111c] shadow-[0_18px_60px_rgba(0,0,0,0.18)]">
+            <Accordion type="single" collapsible>
+              <AccordionItem value="adjustment-history" className="border-0">
+                <AccordionTrigger className="px-4 text-left hover:no-underline sm:px-5">
+                  <div className="min-w-0 pr-3"><p className="text-sm font-extrabold text-rose-100">Histórico de ajustes</p><p className="mt-1 text-xs font-medium text-slate-400">{adjustmentRequests.length} solicitação(ões) · toque para consultar</p></div>
+                </AccordionTrigger>
+                <AccordionContent className="px-4 sm:px-5">
+                  <div className="space-y-3">
+                    {[...adjustmentRequests].reverse().map((request, index) => <article key={request.id} className="rounded-2xl border border-white/10 bg-white/[0.035] p-3.5">
+                      <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-xs font-extrabold text-rose-100">Solicitação de ajuste · {request.tripulante_pos === 2 ? report.nome_tripulante_2 || 'Tripulante 2' : report.nome_tripulante || 'Tripulante 1'}</p><span className="text-[10px] font-bold text-slate-500">{request.criado_em ? date(request.criado_em) : `Pedido ${adjustmentRequests.length - index}`}</span></div>
+                      <p className="mt-2 whitespace-pre-wrap break-words text-xs leading-relaxed text-slate-200">{request.motivo}</p>
+                      {(request.anexos || []).length > 0 && <div className="mt-3 flex flex-wrap gap-2">{request.anexos!.map((attachment) => <button key={attachment.id} type="button" onClick={() => void openAttachment(attachment)} className="inline-flex min-h-11 max-w-full items-center gap-2 rounded-2xl border border-white/10 bg-black/10 px-3 py-2 text-left text-xs font-bold text-rose-100"><FileImage size={15} className="shrink-0 text-rose-200" /><span className="max-w-[190px] truncate">{attachment.nome_arquivo || 'Imagem da solicitação'}</span><Eye size={14} className="shrink-0 text-slate-400" /></button>)}</div>}
+                    </article>)}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </section>}
+
           <section className="mt-4 overflow-hidden rounded-3xl border border-white/10 bg-[#0b111c] shadow-[0_18px_60px_rgba(0,0,0,0.24)] sm:mt-5">
             <div className="flex items-start gap-3 border-b border-white/10 px-4 py-4 sm:px-5">
               <span className="mt-0.5 grid size-10 shrink-0 place-items-center rounded-2xl bg-white/[0.06] text-sky-200">{group === 'total' ? <Plane size={18} /> : group === 'cliente' ? <ReceiptText size={18} /> : group === 'sharebrasil' ? <ShieldCheck size={18} /> : group === 'outros' ? <Info size={18} /> : <CircleDollarSign size={18} />}</span>
@@ -480,9 +529,7 @@ function ReportReviewScreen({
             <div className="flex items-start gap-3">
               {approved ? <CheckCircle2 className="mt-0.5 shrink-0 text-emerald-300" size={23} /> : rejected ? <XCircle className="mt-0.5 shrink-0 text-rose-300" size={23} /> : <Clock3 className="mt-0.5 shrink-0 text-slate-400" size={23} />}
               <div className="min-w-0"><p className={`text-base font-extrabold ${approved ? 'text-emerald-200' : rejected ? 'text-rose-200' : 'text-slate-200'}`}>{approved ? 'Sua aprovação foi registrada' : rejected ? 'Este relatório foi rejeitado' : `Status: ${status}`}</p>
-                {rejected && approvalReason && <p className="mt-2 break-words rounded-xl border border-white/10 bg-black/10 p-3 text-xs leading-relaxed text-rose-100"><strong>Motivo:</strong> {approvalReason}</p>}
-                {rejected && rejectionAttachments.length > 0 && <div className="mt-3 space-y-2"><p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Imagem(ns) anexada(s) à rejeição</p><div className="flex flex-wrap gap-2">{rejectionAttachments.map((attachment) => <button key={attachment.id} type="button" onClick={() => void openAttachment(attachment)} className="inline-flex min-h-11 max-w-full items-center gap-2 rounded-2xl border border-white/10 bg-black/10 px-3 py-2 text-left text-xs font-bold text-rose-100"><FileImage size={15} className="shrink-0 text-rose-200" /><span className="max-w-[190px] truncate">{attachment.nome_arquivo || 'Imagem da rejeição'}</span><Eye size={14} className="shrink-0 text-slate-400" /></button>)}</div></div>}
-                <p className="mt-2 text-xs leading-relaxed text-slate-500">Este relatório não está mais disponível para uma nova decisão.</p>
+                {!approved && <p className="mt-2 text-xs leading-relaxed text-slate-500">Este relatório não está mais disponível para uma nova decisão.</p>}
               </div>
             </div>
           </section>}
