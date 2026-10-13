@@ -34,7 +34,7 @@ interface Aircraft {
   registration: string;
   model: string;
   image_url?: string;
-  status?: string;
+  in_maintenance: boolean;
 }
 
 export default function GestaoCTM() {
@@ -350,8 +350,8 @@ export default function GestaoCTM() {
                           <p className="text-xs text-gray-500 truncate">{ac.model}</p>
                         </div>
 
-                        {/* Status indicator - only show if not active */}
-                        {(ac.status !== "ativo" && ac.status !== "Ativo") && (
+                        {/* Status de manutenção derivado de uma OAS não encerrada */}
+                        {ac.in_maintenance && (
                           <div className="text-xs font-medium text-orange-600 bg-orange-50 px-2 py-1 rounded">
                             Em Manutenção
                           </div>
