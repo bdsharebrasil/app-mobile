@@ -56,7 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .from('user_profiles')
           .select('employment_status')
           .eq('id', userId)
-          .single();
+          .maybeSingle();
 
         if (error) {
           console.warn('Warning checking user status:', error.message);
