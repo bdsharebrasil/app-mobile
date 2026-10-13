@@ -1,247 +1,265 @@
-import { type FormEvent, useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import { CheckCircle2, Eye, EyeOff, Lock, Plane, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useViewMode } from "@/contexts/ViewModeContext";
 import { getDashboardRouteFromRoles } from "@/lib/dashboard-routing";
-import { Lock, Mail, Plane, Eye, EyeOff, Receipt, Trash2, ShoppingCart } from "lucide-react";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
-import { InlineLottieSpinner } from "@/components/ui/inline-lottie-spinner";
-const Login = () => {
+
+const flightRoutes = [
+  { y: "-18vh", duration: "19s", delay: "-4s", size: 22, opacity: 0.34 },
+  { y: "8vh", duration: "27s", delay: "-14s", size: 16, opacity: 0.2 },
+  { y: "25vh", duration: "23s", delay: "-8s", size: 18, opacity: 0.25 },
+  { y: "-34vh", duration: "31s", delay: "-22s", size: 14, opacity: 0.16 },
+  { y: "35vh", duration: "25s", delay: "-17s", size: 20, opacity: 0.22 },
+];
+
+const EMAIL_DOMAIN = "share-brasil.com";
+
+function isValidUsername(value: string) {
+  return value.length > 0 && !value.includes(" ") && !value.includes("@");
+}
+
+export default function Login() {
   const navigate = useNavigate();
-  const {
-    toast
-  } = useToast();
-  const {
-    session,
-    isLoading: authLoading,
-    refreshRoles,
-    roles
-  } = useAuth();
-  const {
-    setViewMode
-  } = useViewMode();
-  const [email, setEmail] = useState("");
+  const { toast } = useToast();
+  const { session, isLoading: authLoading, refreshRoles } = useAuth();
+  const { setViewMode } = useViewMode();
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [rememberEmail, setRememberEmail] = useState(false);
+  const [rememberUser, setRememberUser] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUsernameFocused, setIsUsernameFocused] = useState(false);
+
   useEffect(() => {
     if (!authLoading && session) {
-      navigate("/", {
-        replace: true
-      });
+      navigate("/", { replace: true });
     }
   }, [authLoading, navigate, session]);
+
   useEffect(() => {
-    const savedEmail = localStorage.getItem("login_email");
-    if (savedEmail) {
-      setEmail(savedEmail);
-      setRememberEmail(true);
+    const savedUser = window.localStorage.getItem("login_username");
+    if (savedUser) {
+      setUsername(savedUser);
+      setRememberUser(true);
     }
   }, []);
-  const isEmailValid = () => {
-    const trimmedEmail = email.trim();
-    // Verifica se tem pelo menos um caractere, sem espaços e sem @
-    return trimmedEmail.length > 0 && !trimmedEmail.includes(" ") && !trimmedEmail.includes("@");
+
+  const handleUsernameChange = (value: string) => {
+    setUsername(value.replace(/[@\s]/g, "").toLowerCase());
   };
 
-  const handleEmailChange = (value: string) => {
-    // Remove @ se o usuário tentar digitar
-    const sanitized = value.replace(/@/g, "").trim();
-    setEmail(sanitized);
-  };
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (isSubmitting) {
-      return;
-    }
-    if (!email.trim() || !password) {
+    if (isSubmitting) return;
+
+    const trimmedUsername = username.trim();
+    if (!trimmedUsername || !password) {
       toast({
-        title: "Preencha os campos",
-        description: "Informe email e senha para continuar.",
-        variant: "destructive"
+        title: "Campos obrigatórios",
+        description: "Preencha seu usuário e senha para continuar.",
+        variant: "destructive",
       });
       return;
     }
-    if (!isEmailValid()) {
+
+    if (!isValidUsername(trimmedUsername)) {
       toast({
-        title: "Email inválido",
-        description: "Preencha seu nome de usuário antes de @share (exemplo: joao)",
-        variant: "destructive"
+        title: "Usuário inválido",
+        description: "Informe apenas o usuário, sem espaços ou @.",
+        variant: "destructive",
       });
       return;
     }
+
     setIsSubmitting(true);
     try {
-      // Formata o email com @share.com
-      const formattedEmail = `${email.trim()}@share.com`;
-      if (rememberEmail) {
-        localStorage.setItem("login_email", email.trim());
-      } else {
-        localStorage.removeItem("login_email");
-      }
-      const {
-        error
-      } = await supabase.auth.signInWithPassword({
-        email: formattedEmail,
-        password
+      const fullEmail = `${trimmedUsername}@${EMAIL_DOMAIN}`;
+
+      if (rememberUser) window.localStorage.setItem("login_username", trimmedUsername);
+      else window.localStorage.removeItem("login_username");
+
+      const { error } = await supabase.auth.signInWithPassword({
+        email: fullEmail,
+        password,
       });
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
+
       const {
-        data: {
-          user
-        }
+        data: { user },
       } = await supabase.auth.getUser();
       if (user) {
         const loadedRoles = await refreshRoles(user.id);
-
-        // Redireciona para o dashboard principal (MobileDashboard)
-        // Em mobile, usamos um único dashboard que se adapta ao perfil do usuário
         if (loadedRoles && loadedRoles.length > 0) {
-          const {
-            viewMode
-          } = getDashboardRouteFromRoles(loadedRoles);
+          const { viewMode } = getDashboardRouteFromRoles(loadedRoles);
           setViewMode(viewMode);
         }
-
-        // Redireciona para / que mostra MobileDashboard
-        navigate("/", {
-          replace: true
-        });
+        navigate("/", { replace: true });
         return;
       }
+
       toast({
         title: "Login realizado",
-        description: "Bem-vindo novamente ao portal."
+        description: "Bem-vindo novamente ao portal.",
       });
     } catch (error) {
-      let description = "Não foi possível realizar o login.";
-      if (error instanceof Error) {
-        // Verifica se é erro de credenciais inválidas
-        if (error.message.toLowerCase().includes("invalid") || error.message.toLowerCase().includes("credentials")) {
-          description = "Login inválido, verifique seus dados";
-        } else {
-          description = error.message;
-        }
-      }
+      const message = error instanceof Error ? error.message.toLowerCase() : "";
       toast({
-        title: "Erro no login",
-        description,
-        variant: "destructive"
+        title: "Acesso negado",
+        description:
+          message.includes("invalid") || message.includes("credentials")
+            ? "Usuário ou senha incorretos. Tente novamente."
+            : "Não foi possível realizar o login. Tente novamente.",
+        variant: "destructive",
       });
     } finally {
       setIsSubmitting(false);
     }
   };
-  return <>
+
+  const isValid = isValidUsername(username);
+
+  if (authLoading) {
+    return <div className="min-h-screen bg-[#030814]" aria-label="Verificando sessão" />;
+  }
+
+  return (
+    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#030814] px-5 py-10 text-white sm:px-8">
       <InstallPrompt />
-      <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#030814] text-white">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(20,67,122,0.45),_transparent_55%),radial-gradient(circle_at_bottom_right,_rgba(17,94,133,0.35),_transparent_40%),radial-gradient(circle_at_bottom_left,_rgba(24,73,109,0.35),_transparent_45%)]" />
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#02050d]/95 via-[#061225]/90 to-[#081b31]/95" />
+      <style>{`
+        @keyframes login-flight {
+          0% { opacity: 0; transform: translate3d(-25vw, var(--flight-y), 0) rotate(90deg) scale(.8); }
+          15% { opacity: var(--flight-opacity); }
+          85% { opacity: var(--flight-opacity); }
+          100% { opacity: 0; transform: translate3d(125vw, var(--flight-y), 0) rotate(90deg) scale(1); }
+        }
+        .login-flight { animation: login-flight var(--flight-duration) linear var(--flight-delay) infinite; }
+      `}</style>
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(20,67,122,.5),transparent_55%),radial-gradient(circle_at_bottom_right,rgba(17,94,133,.3),transparent_42%)]" />
+      <div
+        className="pointer-events-none absolute inset-0 z-0 bg-no-repeat bg-center opacity-20 mix-blend-screen"
+        style={{
+          backgroundImage: "url('https://upload.wikimedia.org/wikipedia/commons/8/80/World_map_-_low_resolution.svg')",
+          backgroundSize: "90% auto",
+          filter: "invert(70%) sepia(100%) saturate(300%) hue-rotate(150deg) brightness(120%) drop-shadow(0 0 10px rgba(57,208,255,0.2))",
+          maskImage: "radial-gradient(circle at center, black 30%, transparent 80%)",
+          WebkitMaskImage: "radial-gradient(circle at center, black 30%, transparent 80%)",
+        }}
+      />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#02050d]/95 via-[#061225]/80 to-[#081b31]/95" />
 
-      {/* Aviões decorativos - responsivos para mobile */}
-      <div className="pointer-events-none absolute -left-10 top-28 text-[#39d0ff]/40 animate-plane-left hidden lg:block">
-        <Plane className="h-24 w-24 drop-shadow-[0_0_25px_rgba(57,208,255,0.35)]" />
-      </div>
-      <div className="pointer-events-none absolute bottom-24 right-6 text-[#2ac6f4]/35 animate-plane-right hidden md:block">
-        <Plane className="h-16 md:h-20 w-16 md:w-20 drop-shadow-[0_0_22px_rgba(42,198,244,0.3)]" />
-      </div>
-      <div className="pointer-events-none absolute left-1/2 top-1/3 -translate-x-1/2 text-[#48d8ff]/28 animate-plane-pulse hidden sm:block">
-        <Plane className="h-12 sm:h-16 w-12 sm:w-16" />
-      </div>
-      <div className="pointer-events-none absolute -right-14 top-1/4 text-[#35c0ff]/32 animate-plane-left hidden lg:block" style={{
-        animationDelay: "0.5s"
-      }}>
-        <Plane className="h-20 w-20 drop-shadow-[0_0_20px_rgba(53,192,255,0.3)]" />
-      </div>
-      <div className="pointer-events-none absolute -left-12 bottom-1/4 text-[#2ac6f4]/30 animate-plane-right hidden md:block" style={{
-        animationDelay: "1s"
-      }}>
-        <Plane className="h-16 md:h-20 w-16 md:w-20 drop-shadow-[0_0_18px_rgba(42,198,244,0.25)]" />
-      </div>
-      <div className="pointer-events-none absolute right-1/3 top-1/2 text-[#39d0ff]/35 animate-plane-pulse hidden lg:block" style={{
-        animationDelay: "1.5s"
-      }}>
-        <Plane className="h-20 w-20 drop-shadow-[0_0_20px_rgba(57,208,255,0.3)]" />
-      </div>
-      <div className="pointer-events-none absolute left-1/4 top-2/3 text-[#48d8ff]/30 animate-plane-left hidden md:block" style={{
-        animationDelay: "0.8s"
-      }}>
-        <Plane className="h-14 md:h-16 w-14 md:w-16 drop-shadow-[0_0_18px_rgba(72,216,255,0.25)]" />
-      </div>
-      <div className="pointer-events-none absolute right-1/4 bottom-1/3 text-[#35c0ff]/28 animate-plane-right hidden lg:block" style={{
-        animationDelay: "1.2s"
-      }}>
-        <Plane className="h-20 w-20 drop-shadow-[0_0_16px_rgba(53,192,255,0.25)]" />
+      <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
+        {flightRoutes.map((route, index) => (
+          <div
+            key={index}
+            className="login-flight absolute left-0 top-1/2 text-[#39d0ff]"
+            style={
+              {
+                "--flight-duration": route.duration,
+                "--flight-delay": route.delay,
+                "--flight-y": route.y,
+                "--flight-opacity": route.opacity,
+              } as CSSProperties
+            }
+          >
+            <Plane style={{ width: route.size, height: route.size }} className="drop-shadow-[0_0_12px_rgba(57,208,255,.5)]" />
+          </div>
+        ))}
       </div>
 
-      <div className="relative z-10 w-full mx-4 sm:mx-auto sm:max-w-md rounded-2xl sm:rounded-[32px] border border-white/6 bg-[#061223]/80 p-6 sm:p-10 shadow-[0_32px_70px_-28px_rgba(8,23,45,0.9)] backdrop-blur-2xl">
-        <div className="flex flex-col items-center text-center">
-          <img src="https://cdn.builder.io/api/v1/image/assets%2Faf5a83f35004455bbe0a6d0781c48fda%2F51b9a2880aa1414ab466f8d29b17f07e?format=webp&width=800" alt="Share Brasil logo" className="h-16 sm:h-24 w-auto" />
-          <h1 className="mt-2 text-2xl sm:text-3xl font-semibold text-[#5dd5ff]">Share Brasil</h1>
-          <p className="mt-1 text-xs sm:text-sm text-white/60">Portal Colaborador</p>
+      <section className="relative z-20 w-full max-w-[416px] rounded-[28px] border border-white/10 bg-[#061223]/75 px-6 py-8 shadow-[0_40px_80px_-20px_rgba(0,10,20,.85)] backdrop-blur-xl sm:rounded-[32px] sm:px-8 sm:py-10">
+        <div className="text-center">
+          <img src="/logoshare.branco.png" alt="Logo Share Brasil" className="mx-auto h-20 w-auto object-contain" />
+          <p className="mt-1.5 text-sm text-[#94a3b8]">Acesso ao Portal do Colaborador</p>
         </div>
 
-        <form className="mt-6 sm:mt-8 space-y-4 sm:space-y-6" onSubmit={handleSubmit}>
+        <form className="mt-7 space-y-5" onSubmit={handleSubmit}>
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="email" className="text-xs sm:text-sm font-medium text-white/70">
-                Email
-              </Label>
-              {email.trim().length > 0 && isEmailValid() ? <span className="text-xs text-green-400/80">✓ Válido</span> : email.trim().length > 0 ? <span className="text-xs text-red-400/80">✗ Inválido</span> : null}
-            </div>
-            <div className="relative">
-              <Mail className="pointer-events-none absolute left-2 sm:left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/45" />
-              <Input id="email" type="text" value={email} onChange={event => handleEmailChange(event.target.value)} placeholder="nome-usuario" autoComplete="off" disabled={isSubmitting} className={`h-10 sm:h-12 rounded-2xl border-2 transition-all bg-white/5 pl-8 sm:pl-10 pr-20 sm:pr-28 text-sm sm:text-base text-white placeholder:text-white/40 focus-visible:bg-white/10 focus-visible:ring-offset-0 ${email.trim().length > 0 ? isEmailValid() ? "border-green-400/50 focus-visible:border-green-400 focus-visible:ring-2 focus-visible:ring-green-400/50" : "border-red-400/50 focus-visible:border-red-400 focus-visible:ring-2 focus-visible:ring-red-400/50" : "border-white/10 focus-visible:border-[#38d7ff] focus-visible:ring-2 focus-visible:ring-[#38d7ff]"}`} />
-              <span className={`pointer-events-none absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all ${email.trim().length > 0 ? isEmailValid() ? "bg-green-400/20 text-green-400" : "bg-red-500/20 text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.6)]" : "bg-gray/10 text-[#2ad1ff] drop-shadow-[0_0_6px_rgba(42,209,255,0.5)]"}`}>
-                @share
+            <Label htmlFor="username" className="ml-1 text-sm font-medium text-[#cbd5e1]">
+              LOGIN
+            </Label>
+            <div className="group relative">
+              <User
+                className={`pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 transition-colors ${isUsernameFocused ? "text-[#38d7ff]" : "text-white/30"}`}
+              />
+              <Input
+                id="username"
+                type="text"
+                value={username}
+                onChange={(event) => handleUsernameChange(event.target.value)}
+                onFocus={() => setIsUsernameFocused(true)}
+                onBlur={() => setIsUsernameFocused(false)}
+                placeholder="seu.nome"
+                autoComplete="username"
+                disabled={isSubmitting}
+                className="h-14 rounded-2xl border-white/10 bg-white/5 pl-12 pr-12 text-base text-white placeholder:text-white/20 focus-visible:border-[#38d7ff]/50 focus-visible:bg-white/10 focus-visible:ring-[#38d7ff]/50 sm:pr-40"
+              />
+              <span
+                className={`pointer-events-none absolute right-4 top-1/2 hidden -translate-y-1/2 items-center gap-2 text-sm font-medium sm:flex ${isUsernameFocused || isValid ? "text-white/60" : "text-white/30"}`}
+              >
+                @{EMAIL_DOMAIN}
+                {isValid && !isUsernameFocused && <CheckCircle2 className="h-4 w-4 text-[#38d7ff]" />}
               </span>
             </div>
-            <p className="text-xs text-white/50 mt-1 leading-relaxed">
-              (digite apenas o seu nome de usuário)
-            </p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password" className="text-xs sm:text-sm font-medium text-white/70">
+            <Label htmlFor="password" className="ml-1 text-sm font-medium text-[#cbd5e1]">
               Senha
             </Label>
-            <div className="relative">
-              <Lock className="pointer-events-none absolute left-2 sm:left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/45" />
-              <Input id="password" type={showPassword ? "text" : "password"} value={password} onChange={event => setPassword(event.target.value)} placeholder="Sua senha" autoComplete="current-password" disabled={isSubmitting} className="h-10 sm:h-12 rounded-2xl border-transparent bg-white/5 pl-8 sm:pl-10 pr-10 sm:pr-10 text-sm sm:text-base text-white placeholder:text-white/40 focus-visible:bg-white/10 focus-visible:ring-2 focus-visible:ring-[#38d7ff] focus-visible:ring-offset-0" />
-              <button type="button" onClick={() => setShowPassword(!showPassword)} disabled={isSubmitting} className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 text-white/45 hover:text-white/70 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}>
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            <div className="group relative">
+              <Lock className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-white/30 transition-colors group-focus-within:text-[#38d7ff]" />
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="••••••••"
+                autoComplete="current-password"
+                disabled={isSubmitting}
+                className="h-14 rounded-2xl border-white/10 bg-white/5 pl-12 pr-12 text-base tracking-widest text-white placeholder:text-white/20 placeholder:tracking-normal focus-visible:border-[#38d7ff]/50 focus-visible:bg-white/10 focus-visible:ring-[#38d7ff]/50"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((visible) => !visible)}
+                disabled={isSubmitting}
+                aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 transition-colors hover:text-white/80 focus-visible:text-[#38d7ff]"
+              >
+                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
               </button>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Checkbox id="remember-email" checked={rememberEmail} onCheckedChange={checked => setRememberEmail(checked as boolean)} disabled={isSubmitting} className="border-white/30 bg-white/5 h-4 w-4" />
-            <Label htmlFor="remember-email" className="text-xs sm:text-sm font-medium text-white/70 cursor-pointer">
-              Lembrar email
+          <div className="flex items-center gap-3 px-1 pt-1">
+            <Checkbox
+              id="remember-user"
+              checked={rememberUser}
+              onCheckedChange={(checked) => setRememberUser(checked === true)}
+              disabled={isSubmitting}
+              className="h-5 w-5 rounded-md border-white/20 bg-white/5 data-[state=checked]:border-[#38d7ff] data-[state=checked]:bg-[#38d7ff] data-[state=checked]:text-[#02111f]"
+            />
+            <Label htmlFor="remember-user" className="cursor-pointer text-sm font-medium text-[#94a3b8] transition-colors hover:text-white">
+              Lembrar meu acesso
             </Label>
           </div>
 
-          <Button type="submit" disabled={isSubmitting || !isEmailValid() || !password} className="h-10 sm:h-12 w-full rounded-2xl bg-[#2ad1ff] text-xs sm:text-base font-semibold text-[#02111f] shadow-[0_22px_45px_-18px_rgba(42,209,255,0.75)] transition-transform duration-200 hover:-translate-y-0.5 hover:bg-[#33d9ff] focus-visible:ring-2 focus-visible:ring-[#33d9ff] focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none">
-            {isSubmitting ? <span className="flex items-center justify-center gap-2">
-                <InlineLottieSpinner size="md" />
-                <span className="hidden sm:inline">Entrando...</span>
-                <span className="sm:hidden">Entrando</span>
-              </span> : !isEmailValid() || !password ? <span className="text-xs sm:text-base">Preencha os campos corretamente</span> : "Entrar"}
+          <Button
+            type="submit"
+            disabled={isSubmitting || !isValid || !password}
+            className="h-14 w-full rounded-2xl bg-[#38d7ff] text-base font-semibold text-[#02111f] shadow-[0_8px_16px_-10px_rgba(56,215,255,.4)] transition-all hover:bg-[#6be4ff] hover:shadow-[0_12px_24px_-10px_rgba(56,215,255,.6)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#38d7ff] focus-visible:ring-offset-2 focus-visible:ring-offset-[#061223] disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/30 disabled:shadow-none"
+          >
+            {isSubmitting ? "Autenticando..." : "Acessar Plataforma"}
           </Button>
         </form>
-
-        <p className="mt-4 sm:mt-6 text-center text-xs sm:text-sm text-white/55">Bem-vindo de volta ao nosso sistema</p>
-      </div>
-    </div>
-    </>;
+      </section>
+    </main>
+  );
 }
-export default Login;
