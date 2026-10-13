@@ -529,13 +529,13 @@ export default function Perfil() {
         {/* Tabs Section */}
         <div className="px-5 mt-4 space-y-4">
           <Tabs defaultValue="dados" className="w-full">
-            <TabsList className="grid w-full grid-cols-5 bg-card/50 border border-border/40 rounded-2xl p-1.5 h-auto mb-6 shadow-sm">
+            <TabsList className={`grid w-full ${showTimeClock ? "grid-cols-5" : "grid-cols-4"} bg-card/50 border border-border/40 rounded-2xl p-1.5 h-auto mb-6 shadow-sm`}>
               <TabsTrigger value="dados" className="rounded-xl py-2.5 data-[state=active]:bg-primary data-[state=active]:text-white transition-all">
                 <User size={18} />
               </TabsTrigger>
-              <TabsTrigger value="ponto" className="rounded-xl py-2.5 data-[state=active]:bg-primary data-[state=active]:text-white transition-all">
+              {showTimeClock && <TabsTrigger value="ponto" className="rounded-xl py-2.5 data-[state=active]:bg-primary data-[state=active]:text-white transition-all">
                 <Timer size={18} />
-              </TabsTrigger>
+              </TabsTrigger>}
               <TabsTrigger value="salario" className="rounded-xl py-2.5 data-[state=active]:bg-primary data-[state=active]:text-white transition-all">
                 <PiggyBank size={18} />
               </TabsTrigger>
@@ -679,7 +679,7 @@ export default function Perfil() {
               </motion.div>
             </TabsContent>
 
-            <TabsContent value="ponto">
+            {showTimeClock && <TabsContent value="ponto">
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                 <Card className="border-border/40 bg-card/50 backdrop-blur-sm rounded-2xl overflow-hidden">
                   <CardContent className="pt-6">
@@ -687,7 +687,7 @@ export default function Perfil() {
                   </CardContent>
                 </Card>
               </motion.div>
-            </TabsContent>
+            </TabsContent>}
 
             <TabsContent value="salario" className="space-y-4">
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
