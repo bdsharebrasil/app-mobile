@@ -1,7 +1,7 @@
 {
-  "name": "Gestão Share Brasil",
-  "short_name": "Share Brasil",
-  "description": "Portal Share Brasil",
+  "name": "Tripulante Share Brasil",
+  "short_name": "Trip Share Brasil",
+  "description": "Portal Tripulante Share Brasil",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -15,7 +15,7 @@
       "type": "image/x-icon"
     },
     {
-      "src": "/logo.share.png",
+      "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
