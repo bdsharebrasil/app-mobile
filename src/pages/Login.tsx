@@ -177,7 +177,7 @@ export default function Login() {
       <section className="relative z-20 w-full max-w-[416px] rounded-[28px] border border-white/10 bg-[#061223]/75 px-6 py-8 shadow-[0_40px_80px_-20px_rgba(0,10,20,.85)] backdrop-blur-xl sm:rounded-[32px] sm:px-8 sm:py-10">
         <div className="text-center">
           <img src="/logoshare.branco.png" alt="Logo Share Brasil" className="mx-auto h-20 w-auto object-contain" />
-          <p className="mt-1.5 text-sm text-[#94a3b8]">Acesso ao Portal do Colaborador</p>
+          <p className="mt-1.5 text-sm text-[#94a3b8]">Acesso ao Portal do Tripulante</p>
         </div>
 
         <form className="mt-7 space-y-5" onSubmit={handleSubmit}>
