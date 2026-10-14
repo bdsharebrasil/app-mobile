@@ -243,7 +243,6 @@ function ReportReviewScreen({
     }));
   }, [report]);
   const [group, setGroup] = useState<ExpenseGroup>('tripulante');
-  const [reviewedGroups, setReviewedGroups] = useState<Exclude<ExpenseGroup, 'total'>[]>([]);
   const [decision, setDecision] = useState<Decision>(null);
   const [reason, setReason] = useState('');
   const [preview, setPreview] = useState<{ attachment: PreviewAttachment; url: string } | null>(null);
@@ -315,8 +314,6 @@ function ReportReviewScreen({
     [expenses, group, report.tripulante_pos],
   );
   const selectedExpenses = useMemo(() => selectedExpenseRows.map(({ expense }) => expense), [selectedExpenseRows]);
-  const allGroupsReviewed = availableGroups.every((item) => reviewedGroups.includes(item));
-  const pendingGroups = availableGroups.filter((item) => !reviewedGroups.includes(item));
   const selectedTotal = totals[group];
 
   useEffect(() => {
@@ -324,20 +321,6 @@ function ReportReviewScreen({
       setGroup(availableGroups[0] || 'total');
     }
   }, [availableGroups, group]);
-
-  const markGroupReviewed = useCallback(() => {
-    if (group === 'total') return;
-    setReviewedGroups((current) => current.includes(group) ? current : [...current, group]);
-  }, [group]);
-
-  useEffect(() => {
-    const element = scrollRef.current;
-    if (!element) return;
-    const frame = requestAnimationFrame(() => {
-      if (element.scrollHeight <= element.clientHeight + 48) markGroupReviewed();
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [group, markGroupReviewed, selectedExpenses.length]);
 
   useEffect(() => () => {
     if (preview?.url) URL.revokeObjectURL(preview.url);
@@ -463,10 +446,6 @@ function ReportReviewScreen({
     <div className="fixed inset-0 z-[80] bg-[#060b14] text-white">
       <main
         ref={scrollRef}
-        onScroll={(event) => {
-          const element = event.currentTarget;
-          if (element.scrollTop + element.clientHeight >= element.scrollHeight - 48) markGroupReviewed();
-        }}
         className="absolute inset-0 overflow-y-auto overscroll-y-contain pt-[env(safe-area-inset-top)]"
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
@@ -556,13 +535,10 @@ function ReportReviewScreen({
 
       {canDecide && <div className="fixed inset-x-0 bottom-0 z-[85] border-t border-white/10 bg-[#07101c]/95 shadow-[0_-18px_50px_rgba(0,0,0,0.35)] backdrop-blur-xl">
         <div className="mx-auto w-full max-w-4xl px-3 pb-[calc(0.85rem+env(safe-area-inset-bottom))] pt-3 sm:px-6 sm:pb-4">
-          <div className="mb-2 flex items-center justify-between gap-3 px-1 text-[10px] font-extrabold uppercase tracking-wider"><span className={canRetryApprovalSync ? 'text-sky-300' : allGroupsReviewed ? 'text-emerald-300' : 'text-amber-300'}>{canRetryApprovalSync ? 'Aprovação registrada · tente novamente' : allGroupsReviewed ? 'Todos os grupos foram revisados' : 'Revise cada grupo até o final para liberar a aprovação'}</span><span className="text-slate-400">{currency(totals.tripulante)}</span></div>
-          {!canRetryApprovalSync && pendingGroups.length > 0 && <div className="mb-2 flex flex-wrap items-center gap-1.5 px-1 text-[10px]"><span className="font-bold text-slate-400">Falta revisar:</span>{pendingGroups.map((item) => item === group
-            ? <span key={item} className="rounded-full border border-amber-300/20 bg-amber-300/[0.06] px-2 py-1 font-bold text-amber-200">{groupLabel(item)}</span>
-            : <button key={item} type="button" onClick={() => selectGroup(item)} className="rounded-full border border-sky-300/20 bg-sky-300/[0.06] px-2 py-1 font-bold text-sky-200 transition hover:bg-sky-300/[0.12]">{groupLabel(item)}</button>)}</div>}
+          <div className="mb-2 flex items-center justify-between gap-3 px-1 text-[10px] font-extrabold uppercase tracking-wider"><span className={canRetryApprovalSync ? 'text-sky-300' : 'text-slate-400'}>{canRetryApprovalSync ? 'Aprovação registrada · tente novamente' : 'Relatório aguardando decisão'}</span><span className="text-slate-400">{currency(totals.tripulante)}</span></div>
           <div className={`grid gap-2.5 ${canRetryApprovalSync ? 'grid-cols-1' : 'grid-cols-2'}`}>
             {!canRetryApprovalSync && <button type="button" disabled={busy} onClick={() => { setReason(''); setRejectionImage(null); setDecision('rejeitar'); }} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-rose-400/20 bg-white/[0.03] px-3 text-sm font-extrabold text-rose-200 transition disabled:opacity-50"><X size={17} />Rejeitar</button>}
-            <button type="button" disabled={busy || (!canRetryApprovalSync && !allGroupsReviewed)} onClick={() => { setReason(''); setRejectionImage(null); setDecision('aprovar'); }} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-3 text-sm font-extrabold text-[#04120c] shadow-[0_8px_24px_rgba(16,185,129,0.22)] transition disabled:cursor-not-allowed disabled:opacity-35"><Check size={17} />{canRetryApprovalSync ? 'Tentar concluir aprovação' : 'Aprovar relatório'}</button>
+            <button type="button" disabled={busy} onClick={() => { setReason(''); setRejectionImage(null); setDecision('aprovar'); }} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-3 text-sm font-extrabold text-[#04120c] shadow-[0_8px_24px_rgba(16,185,129,0.22)] transition disabled:cursor-not-allowed disabled:opacity-35"><Check size={17} />{canRetryApprovalSync ? 'Tentar concluir aprovação' : 'Aprovar relatório'}</button>
           </div>
         </div>
       </div>}
