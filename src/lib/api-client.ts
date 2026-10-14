@@ -21,13 +21,33 @@ class ApiClient {
   ): Promise<T> {
     const { data: { session } } = await supabase.auth.getSession();
     const headers = new Headers(options.headers);
-    headers.set('Content-Type', 'application/json');
+    if (!(options.body instanceof FormData)) headers.set('Content-Type', 'application/json');
     if (session?.access_token) headers.set('Authorization', `Bearer ${session.access_token}`);
     const response = await fetch(`${this.baseUrl}${endpoint}`, { ...options, headers });
     const contentType = response.headers.get('content-type') || '';
     const data = contentType.includes('application/json') ? await response.json() : null;
     if (!response.ok) throw new Error(data?.error || `API Error: ${response.statusText}`);
     return data as T;
+  }
+
+  async getBlob(endpoint: string): Promise<Blob> {
+    const { data: { session } } = await supabase.auth.getSession();
+    const headers = new Headers();
+    if (session?.access_token) headers.set('Authorization', `Bearer ${session.access_token}`);
+    const response = await fetch(`${this.baseUrl}${endpoint}`, { headers });
+    if (!response.ok) {
+      const data = await response.json().catch(() => null);
+      throw new Error(data?.error || `API Error: ${response.statusText}`);
+    }
+    return response.blob();
+  }
+
+  async postMultipart<T>(endpoint: string, formData: FormData): Promise<T> {
+    return this.request<T>(endpoint, { method: 'POST', body: formData });
+  }
+
+  async patchMultipart<T>(endpoint: string, formData: FormData): Promise<T> {
+    return this.request<T>(endpoint, { method: 'PATCH', body: formData });
   }
 
   // Métodos HTTP básicos

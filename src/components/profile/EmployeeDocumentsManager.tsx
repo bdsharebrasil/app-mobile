@@ -4,12 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { supabase } from "@/integrations/supabase/client";
+import { apiClient } from "@/lib/api-client";
 import { toast } from "sonner";
 import { 
   Upload, Download, Trash2, FileText, Loader2, 
   Heart, Award, File, Eye, ChevronRight, Plus, 
-  MoreVertical, ShieldCheck
+  MoreVertical, ShieldCheck, Pencil
 } from "lucide-react";
 
 interface EmployeeDocument {
@@ -20,9 +20,8 @@ interface EmployeeDocument {
   file_size: number;
   file_type: string;
   created_at: string;
-  uploaded_by: string;
-  uploaded_by_name?: string;
   category: string;
+  arquivo_url: string;
 }
 
 type DocumentCategory = "Todos" | "Documentos Pessoais" | "Atestados Médicos" | "Documentos Financeiros" | "Académicos/Certificados" | "Outros";
@@ -71,6 +70,11 @@ export function EmployeeDocumentsManager({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [editingDocument, setEditingDocument] = useState<EmployeeDocument | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editCategory, setEditCategory] = useState("Outros");
+  const [editFile, setEditFile] = useState<File | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
   
   // UI States
   const [activeFilter, setActiveFilter] = useState<DocumentCategory>("Todos");
@@ -87,29 +91,17 @@ export function EmployeeDocumentsManager({
   const loadDocuments = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("user_documents")
-        .select("*")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-
-      const enrichedData = await Promise.all(
-        (data || []).map(async (doc) => {
-          if (doc.uploaded_by && !doc.uploaded_by_name) {
-            const { data: profile } = await supabase
-              .from("user_profiles")
-              .select("full_name")
-              .eq("id", doc.uploaded_by)
-              .single();
-            return { ...doc, uploaded_by_name: profile?.full_name || "Desconhecido" };
-          }
-          return doc;
-        })
-      );
-
-      setDocuments(enrichedData || []);
+      const data = await apiClient.get<any[]>("/api/colaborador/documentos");
+      setDocuments((data || []).map((doc) => ({
+        ...doc,
+        user_id: userId,
+        file_name: doc.nome_arquivo,
+        file_path: doc.arquivo_url,
+        file_size: Number(doc.tamanho_bytes || 0),
+        file_type: doc.mime_type || "application/octet-stream",
+        created_at: doc.criado_em,
+        category: doc.tipo_documento || "Outros",
+      })));
     } catch (error) {
       console.error("Error loading documents:", error);
       toast.error("Erro ao carregar documentos");
@@ -141,37 +133,11 @@ export function EmployeeDocumentsManager({
 
     try {
       setUploading(true);
-      const fileExt = selectedFile.name.split(".").pop() || '';
-      const timestamp = Date.now();
-      const sanitizedCategory = uploadCategory
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-zA-Z0-9._-]/g, '_')
-        .replace(/_+/g, '_');
-      const fileName = `${userId}/${sanitizedCategory}/${timestamp}.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("documents_colaborador")
-        .upload(fileName, selectedFile);
-
-      if (uploadError) throw uploadError;
-
-      const { data: { user } } = await supabase.auth.getUser();
-
-      const { error: dbError } = await supabase
-        .from("user_documents")
-        .insert({
-          user_id: userId,
-          file_name: selectedFile.name,
-          file_path: fileName,
-          file_size: selectedFile.size,
-          file_type: selectedFile.type,
-          uploaded_by: user?.id,
-          category: uploadCategory,
-          created_at: new Date().toISOString()
-        });
-
-      if (dbError) throw dbError;
+      const formData = new FormData();
+      formData.append("arquivo", selectedFile);
+      formData.append("tipo_documento", uploadCategory);
+      formData.append("nome_arquivo", selectedFile.name);
+      await apiClient.postMultipart("/api/colaborador/documentos", formData);
 
       toast.success("Documento enviado com sucesso!");
       setSelectedFile(null);
@@ -179,20 +145,16 @@ export function EmployeeDocumentsManager({
       setUploadCategory("Outros");
       await loadDocuments();
     } catch (error: any) {
-      toast.error(error.code === "PGRST116" ? "Erro de permissão" : "Erro ao enviar documento");
+      toast.error(error.message || "Erro ao enviar documento");
     } finally {
       setUploading(false);
     }
   };
 
-  const handleDownload = async (e: React.MouseEvent, filePath: string, fileName: string) => {
+  const handleDownload = async (e: React.MouseEvent, documentId: string, fileName: string) => {
     e.stopPropagation();
     try {
-      const { data, error } = await supabase.storage
-        .from("documents_colaborador")
-        .download(filePath);
-
-      if (error) throw error;
+      const data = await apiClient.getBlob(`/api/colaborador/documentos/${documentId}/arquivo`);
       const url = URL.createObjectURL(data);
       const a = document.createElement("a");
       a.href = url;
@@ -208,36 +170,47 @@ export function EmployeeDocumentsManager({
 
   const handleViewDocument = async (doc: EmployeeDocument) => {
     try {
-      const { data, error } = await supabase.storage
-        .from("documents_colaborador")
-        .createSignedUrl(doc.file_path, 60 * 60);
-
-      if (error) throw error;
+      const data = await apiClient.getBlob(`/api/colaborador/documentos/${doc.id}/arquivo`);
       setViewingDocument(doc);
-      setDocumentUrl(data.signedUrl);
+      setDocumentUrl(URL.createObjectURL(data));
     } catch (error) {
       toast.error("Erro ao visualizar documento");
     }
   };
 
-  const handleDelete = async (e: React.MouseEvent, docId: string, filePath: string) => {
+  const openEdit = (doc: EmployeeDocument) => {
+    setEditingDocument(doc);
+    setEditName(doc.file_name);
+    setEditCategory(doc.category);
+    setEditFile(null);
+  };
+
+  const handleEdit = async () => {
+    if (!editingDocument || !editName.trim()) return;
+    try {
+      setSavingEdit(true);
+      const formData = new FormData();
+      formData.append("nome_arquivo", editName.trim());
+      formData.append("categoria", editCategory);
+      if (editFile) formData.append("arquivo", editFile);
+      await apiClient.patchMultipart(`/api/colaborador/documentos/${editingDocument.id}`, formData);
+      setEditingDocument(null);
+      await loadDocuments();
+      toast.success("Documento atualizado");
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao atualizar documento");
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const handleDelete = async (e: React.MouseEvent, docId: string) => {
     e.stopPropagation();
     if (!window.confirm("Deseja remover permanentemente este documento?")) return;
 
     try {
       setDeleting(docId);
-      const { error: storageError } = await supabase.storage
-        .from("documents_colaborador")
-        .remove([filePath]);
-
-      if (storageError) throw storageError;
-
-      const { error: dbError } = await supabase
-        .from("user_documents")
-        .delete()
-        .eq("id", docId);
-
-      if (dbError) throw dbError;
+      await apiClient.delete(`/api/colaborador/documentos/${docId}`);
 
       setDocuments(documents.filter(d => d.id !== docId));
       toast.success("Documento removido");
@@ -352,7 +325,7 @@ export function EmployeeDocumentsManager({
                     size="icon"
                     variant="ghost"
                     className="h-10 w-10 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted"
-                    onClick={(e) => handleDownload(e, doc.file_path, doc.file_name)}
+                    onClick={(e) => handleDownload(e, doc.id, doc.file_name)}
                   >
                     <Download className="h-5 w-5" strokeWidth={1.5} />
                   </Button>
@@ -361,8 +334,19 @@ export function EmployeeDocumentsManager({
                     <Button
                       size="icon"
                       variant="ghost"
+                      className="h-10 w-10 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted"
+                      onClick={(e) => { e.stopPropagation(); openEdit(doc); }}
+                    >
+                      <Pencil className="h-5 w-5" strokeWidth={1.5} />
+                    </Button>
+                  )}
+
+                  {canEdit && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
                       className="h-10 w-10 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                      onClick={(e) => handleDelete(e, doc.id, doc.file_path)}
+                      onClick={(e) => handleDelete(e, doc.id)}
                       disabled={deleting === doc.id}
                     >
                       {deleting === doc.id ? (
@@ -467,6 +451,42 @@ export function EmployeeDocumentsManager({
         </DialogContent>
       </Dialog>
 
+      <Dialog open={!!editingDocument} onOpenChange={(open) => !open && setEditingDocument(null)}>
+        <DialogContent className="sm:max-w-md rounded-[2rem] p-6 border-border/50 shadow-xl gap-6">
+          <DialogHeader className="text-left space-y-2">
+            <DialogTitle className="text-xl font-semibold">Editar Documento</DialogTitle>
+            <DialogDescription className="text-sm">Atualize o nome, a categoria ou substitua o arquivo.</DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-5">
+            <div className="space-y-2">
+              <Label htmlFor="document-name">Nome do arquivo</Label>
+              <Input id="document-name" value={editName} onChange={(e) => setEditName(e.target.value)} disabled={savingEdit} className="h-12 rounded-xl" />
+            </div>
+            <div className="space-y-2">
+              <Label>Categoria</Label>
+              <Select value={editCategory} onValueChange={setEditCategory} disabled={savingEdit}>
+                <SelectTrigger className="h-12 rounded-xl"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {CATEGORIES_OPTIONS.map((cat) => <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>)}
+                  <SelectItem value="Outros">Outros</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-document-file">Substituir arquivo (opcional)</Label>
+              <Input id="edit-document-file" type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" onChange={(e) => setEditFile(e.target.files?.[0] || null)} disabled={savingEdit} />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setEditingDocument(null)} disabled={savingEdit}>Cancelar</Button>
+            <Button onClick={handleEdit} disabled={savingEdit || !editName.trim()}>
+              {savingEdit ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : null}
+              Salvar alterações
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Modal de Visualização */}
       <Dialog open={!!viewingDocument} onOpenChange={(open) => !open && setViewingDocument(null)}>
         <DialogContent className="max-w-4xl w-[95vw] h-[90vh] p-0 overflow-hidden flex flex-col rounded-3xl border-border/40 shadow-2xl bg-card">
@@ -486,7 +506,7 @@ export function EmployeeDocumentsManager({
                 variant="ghost"
                 size="icon"
                 className="h-10 w-10 rounded-full"
-                onClick={(e) => viewingDocument && handleDownload(e, viewingDocument.file_path, viewingDocument.file_name)}
+                onClick={(e) => viewingDocument && handleDownload(e, viewingDocument.id, viewingDocument.file_name)}
               >
                 <Download className="h-5 w-5" strokeWidth={1.5} />
               </Button>
