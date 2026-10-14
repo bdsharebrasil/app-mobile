@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { MobileLayout } from "@/components/mobile/MobileLayout";
+import { FlightOperations } from "@/components/mobile/FlightOperations";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { apiClient } from "@/lib/api-client";
 
@@ -93,6 +94,7 @@ type FlightListResponse = { tripulante: { id: string; nome_completo: string; can
 
 const flightsQueryKey = ["colaborador-meus-voos"];
 const closedStatuses = new Set(["encerrada", "concluida"]);
+const activeStatuses = new Set(["aprovada", "em_voo", "em voo", "em_rota", "em rota", "em_solo", "pousado"]);
 
 function dateLabel(value?: string | null) {
   if (!value) return "Data não informada";
@@ -112,7 +114,11 @@ function aircraftLabel(flight: Flight) {
 }
 
 function statusLabel(status: string) {
-  return closedStatuses.has(String(status || "").toLowerCase()) ? "Concluído" : "Aprovado";
+  const normalized = String(status || "").trim().toLowerCase();
+  if (closedStatuses.has(normalized)) return "Concluído";
+  if (["em_voo", "em voo", "em_rota", "em rota"].includes(normalized)) return "Em voo";
+  if (["em_solo", "pousado"].includes(normalized)) return "Em solo";
+  return "Aprovado";
 }
 
 function FlightCard({ flight, onClick }: { flight: Flight; onClick: () => void }) {
@@ -161,7 +167,7 @@ export default function MeusVoos() {
     enabled: Boolean(flightId),
   });
   const flights = listQuery.data?.voos ?? [];
-  const approvedFlights = flights.filter((item) => String(item.status).toLowerCase() === "aprovada");
+  const approvedFlights = flights.filter((item) => activeStatuses.has(String(item.status).trim().toLowerCase()));
   const completedFlights = flights.filter((item) => closedStatuses.has(String(item.status).toLowerCase()));
   const detail = detailQuery.data;
   const isFolder = Boolean(year && aircraftId);
@@ -211,6 +217,7 @@ export default function MeusVoos() {
                   <DetailRow label="Observações" value={flight.observacoes} />
                   <DetailRow label="Aprovado em" value={dateTimeLabel(flight.aprovado_em)} />
                 </section>
+                <FlightOperations flight={flight} />
 
                 <section className="mt-4 rounded-2xl border border-white/10 bg-[#101e33] p-4">
                   <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-white"><Clock3 className="h-4 w-4 text-emerald-300" /> Jornadas registradas</h2>
@@ -279,7 +286,7 @@ export default function MeusVoos() {
           {!listQuery.data?.tripulante ? <EmptyState title="Perfil de tripulante não vinculado" description="Não encontramos um cadastro de tripulante associado ao seu usuário." /> : (
             <Tabs value={activeTab} onValueChange={(tab) => navigate(tab === "concluidos" ? "/meus-voos?tab=concluidos" : "/meus-voos?tab=aprovados")}>
               <TabsList className="mb-5 grid h-auto w-full grid-cols-2 rounded-2xl border border-white/10 bg-white/[0.04] p-1">
-                <TabsTrigger value="aprovados" className="rounded-xl py-3 text-xs font-semibold text-slate-400 data-[state=active]:bg-emerald-300 data-[state=active]:text-[#062219] sm:text-sm">Aprovados <span className="ml-1.5 rounded-full bg-black/10 px-2 py-0.5 text-[10px]">{approvedFlights.length}</span></TabsTrigger>
+                <TabsTrigger value="aprovados" className="rounded-xl py-3 text-xs font-semibold text-slate-400 data-[state=active]:bg-emerald-300 data-[state=active]:text-[#062219] sm:text-sm">Ativos <span className="ml-1.5 rounded-full bg-black/10 px-2 py-0.5 text-[10px]">{approvedFlights.length}</span></TabsTrigger>
                 <TabsTrigger value="concluidos" className="rounded-xl py-3 text-xs font-semibold text-slate-400 data-[state=active]:bg-emerald-300 data-[state=active]:text-[#062219] sm:text-sm">Concluídos <span className="ml-1.5 rounded-full bg-black/10 px-2 py-0.5 text-[10px]">{completedFlights.length}</span></TabsTrigger>
               </TabsList>
 
