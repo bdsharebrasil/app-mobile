@@ -494,7 +494,7 @@ function ReportReviewScreen({
             {report.observacoes && <div className="border-t border-white/10 px-4 py-3 text-xs leading-relaxed text-slate-400 sm:px-5"><strong className="text-slate-300">Observações:</strong> {report.observacoes}</div>}
           </section>
 
-          {report.pdf_url && <a href={report.pdf_url} target="_blank" rel="noreferrer" className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-2xl border border-white/10 bg-[#0b111c] px-4 text-sm font-bold text-sky-200"><FileText size={16} />Abrir relatório PDF<ExternalLink size={14} /></a>}
+          {report.pdf_url && <a href={new URL(report.pdf_url, BACKEND).toString()} target="_blank" rel="noreferrer" className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-2xl border border-white/10 bg-[#0b111c] px-4 text-sm font-bold text-sky-200"><FileText size={16} />Abrir relatório PDF<ExternalLink size={14} /></a>}
 
           {adjustmentRequests.length > 0 && <section className="mt-4 overflow-hidden rounded-3xl border border-rose-300/15 bg-[#0b111c] shadow-[0_18px_60px_rgba(0,0,0,0.18)]">
             <Accordion type="single" collapsible>
