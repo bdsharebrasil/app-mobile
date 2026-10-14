@@ -11,6 +11,7 @@
     "build:dev": "vite build --mode development",
     "build:backend": "tsc api/**/*.ts --outDir dist/api --declaration --esModuleInterop",
     "lint": "eslint .",
+    "test": "node --test tests/*.test.mjs",
     "preview": "vite preview",
     "type-check": "tsc --noEmit"
   },
