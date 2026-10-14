@@ -87,6 +87,8 @@ interface TravelReport {
   status: string;
   status_aprovacao_tripulante?: string | null;
   status_aprovacao_tripulante_2?: string | null;
+  contas_apagar_tripulante_1_id?: string | null;
+  contas_apagar_tripulante_2_id?: string | null;
   motivo_reprovacao_tripulante_1?: string | null;
   motivo_reprovacao_tripulante_2?: string | null;
   pagamento_status: 'PAGO' | 'PENDENTE' | 'NAO_PROGRAMADO';
@@ -252,8 +254,6 @@ function ReportReviewScreen({
   const rejectionImageInput = useRef<HTMLInputElement | null>(null);
   const scrollRef = useRef<HTMLElement | null>(null);
   const approvalStatus = normalize(report.tripulante_pos === 1 ? report.status_aprovacao_tripulante : report.status_aprovacao_tripulante_2);
-  const canRetryApprovalSync = approvalStatus === 'aprovado' && normalize(report.status) === 'aprovado';
-  const canDecide = isPending(report) || canRetryApprovalSync;
   const status = reportStatus(report);
   const approved = status === 'Aprovado';
   const rejected = status === 'Reprovado' || status === 'Ajuste necessário';
@@ -265,6 +265,21 @@ function ReportReviewScreen({
     expenses.forEach((expense) => grouped[groupForExpense(expense, report.tripulante_pos)].push(expense));
     return grouped;
   }, [expenses, report.tripulante_pos]);
+  const payableId = report.tripulante_pos === 1
+    ? report.contas_apagar_tripulante_1_id
+    : report.contas_apagar_tripulante_2_id;
+  const expectedPayable = expenses.some((expense) => {
+    const payer = normalizedPayer(expense);
+    const crewPayers = report.tripulante_pos === 1
+      ? ['tripulante_1', 'tripulante1']
+      : ['tripulante_2', 'tripulante2'];
+    return crewPayers.includes(payer) && Math.round(amountOf(expense) * 100) > 0;
+  });
+  const canRetryApprovalSync = approvalStatus === 'aprovado'
+    && normalize(report.status) === 'aprovado'
+    && expectedPayable
+    && !String(payableId || '').trim();
+  const canDecide = isPending(report) || canRetryApprovalSync;
 
   const attachmentsByExpense = useMemo(() => {
     const grouped = new Map<number, ExpenseAttachment[]>();
@@ -551,6 +566,12 @@ function ReportReviewScreen({
             {!canRetryApprovalSync && <button type="button" disabled={busy} onClick={() => { setReason(''); setRejectionImage(null); setDecision('rejeitar'); }} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-rose-400/20 bg-white/[0.03] px-3 text-sm font-extrabold text-rose-200 transition disabled:opacity-50"><X size={17} />Rejeitar</button>}
             <button type="button" disabled={busy || (!canRetryApprovalSync && !allGroupsReviewed)} onClick={() => { setReason(''); setRejectionImage(null); setDecision('aprovar'); }} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-3 text-sm font-extrabold text-[#04120c] shadow-[0_8px_24px_rgba(16,185,129,0.22)] transition disabled:cursor-not-allowed disabled:opacity-35"><Check size={17} />{canRetryApprovalSync ? 'Tentar concluir aprovação' : 'Aprovar relatório'}</button>
           </div>
+        </div>
+      </div>}
+
+      {!canDecide && approved && <div className="fixed inset-x-0 bottom-0 z-[85] border-t border-white/10 bg-[#07101c]/95 shadow-[0_-18px_50px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+        <div className="mx-auto w-full max-w-4xl px-3 pb-[calc(0.85rem+env(safe-area-inset-bottom))] pt-3 sm:px-6 sm:pb-4">
+          <button type="button" disabled className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.08] px-3 text-sm font-extrabold text-emerald-200 disabled:cursor-default disabled:opacity-100"><CheckCircle2 size={17} />RELATÓRIO APROVADO</button>
         </div>
       </div>}
 
