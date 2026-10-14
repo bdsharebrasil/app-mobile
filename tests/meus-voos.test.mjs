@@ -6,6 +6,8 @@ const src = new URL("../src/", import.meta.url);
 const detailSource = await readFile(new URL("pages/MeusVoos.tsx", src), "utf8");
 const operationsSource = await readFile(new URL("components/mobile/FlightOperations.tsx", src), "utf8");
 const formatterSource = await readFile(new URL("lib/flight-format.ts", src), "utf8");
+const dashboardSource = await readFile(new URL("components/mobile/MobileDashboard.tsx", src), "utf8");
+const flightQueryKeysSource = await readFile(new URL("lib/flight-query-keys.ts", src), "utf8");
 
 test("horário previsto mostra apenas horas UTC e de Brasília e não duplica cotista", () => {
   assert.match(detailSource, /formatScheduledFlightTime\(flight\.horario_previsto_agendamento\)/);
@@ -34,4 +36,26 @@ test("observações do agendamento são a única mensagem de voo exibida", () =>
   assert.match(detailSource, /flight\.mensagem \?/);
   assert.doesNotMatch(detailSource, /detail\.mensagens/);
   assert.doesNotMatch(detailSource, /flight\.observacoes/);
+});
+
+test("menu destaca Meus Voos com quantidade e instrução quando há voos em operação", () => {
+  assert.match(dashboardSource, /apiClient\.get<\{ voos:/);
+  assert.match(dashboardSource, /flightNeedsTimeCompletion\(flight\.status\)/);
+  assert.match(dashboardSource, /Complete horários/);
+  assert.match(dashboardSource, /ring-2 ring-amber-300/);
+  assert.match(dashboardSource, /refetchInterval: 60_000/);
+  assert.match(flightQueryKeysSource, /\["em_voo", "em_rota", "em_solo", "pousado"\]/);
+  assert.match(detailSource, /flightNeedsTimeCompletion\(flight\.status\)/);
+  assert.match(detailSource, /Completar horários/);
+});
+
+test("voo em operação permite preencher AC/DEP/POU/COR da perna e bloqueia pernas lançadas", () => {
+  assert.match(operationsSource, /apiClient\.patch\(`\/api\/interno\/jornadas/);
+  assert.match(operationsSource, /horario_ac: legTimes\.horario_ac \|\| null/);
+  assert.match(operationsSource, /horario_dep: legTimes\.horario_dep \|\| null/);
+  assert.match(operationsSource, /horario_pouso: legTimes\.horario_pouso \|\| null/);
+  assert.match(operationsSource, /horario_corte: legTimes\.horario_corte \|\| null/);
+  assert.match(operationsSource, /!leg\.lancamento_diario_id/);
+  assert.match(operationsSource, /Completar horários da perna/);
+  assert.match(operationsSource, /resumo da jornada atualizado/i);
 });

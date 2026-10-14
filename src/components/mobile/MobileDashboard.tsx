@@ -1,6 +1,8 @@
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
+  Clock3,
   Plane,
   DollarSign,
   Wrench,
@@ -12,6 +14,8 @@ import {
   PlaneTakeoff,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { apiClient } from "@/lib/api-client";
+import { flightListQueryKey, flightNeedsTimeCompletion } from "@/lib/flight-query-keys";
 import { MobileLayout } from "./MobileLayout";
 
 interface NavigationItem {
@@ -103,6 +107,15 @@ const colorStyles = {
 export function MobileDashboard() {
   const { roles, signOut } = useAuth();
   const navigate = useNavigate();
+  const flightsQuery = useQuery({
+    queryKey: flightListQueryKey,
+    queryFn: () => apiClient.get<{ voos: Array<{ status?: string | null }> }>("/api/colaborador/meus-voos"),
+    staleTime: 15_000,
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
+    retry: false,
+  });
+  const activeFlightCount = (flightsQuery.data?.voos ?? []).filter((flight) => flightNeedsTimeCompletion(flight.status)).length;
   const handleLogout = async () => {
     await signOut();
     navigate("/login");
@@ -151,10 +164,12 @@ export function MobileDashboard() {
           <div className="grid grid-cols-2 gap-4 mb-8">
             {filteredItems.map((item, index) => {
               const style = colorStyles[item.color];
+              const needsTimes = item.id === "my-flights" && activeFlightCount > 0;
               return (
                 <motion.button
                   key={item.id}
                   className="group"
+                  aria-label={needsTimes ? `Meus Voos. ${activeFlightCount} voos em operação. Complete os horários das jornadas ou pernas.` : item.title}
                   onClick={() => navigate(item.route)}
                   initial={{ opacity: 0, y: 30 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -167,10 +182,11 @@ export function MobileDashboard() {
                   whileHover={{ scale: 1.05 }}
                 >
                   <div
-                    className={`${style.bg} h-32 rounded-3xl flex flex-col items-center justify-center cursor-pointer transition-all duration-300 shadow-lg hover:shadow-xl`}
+                    className={`${style.bg} relative ${needsTimes ? "h-36 ring-2 ring-amber-300 shadow-amber-300/20" : "h-32"} rounded-3xl flex flex-col items-center justify-center cursor-pointer transition-all duration-300 shadow-lg hover:shadow-xl`}
                   >
+                    {needsTimes && <span className="absolute right-3 top-3 inline-flex h-6 min-w-6 items-center justify-center gap-1 rounded-full bg-amber-300 px-1.5 text-[10px] font-bold text-[#1a2844]"><Clock3 className="h-3 w-3" />{activeFlightCount}</span>}
                     <item.icon
-                      className={`w-12 h-12 ${style.icon} mb-2`}
+                      className={`w-12 h-12 ${needsTimes ? "text-amber-200" : style.icon} mb-2`}
                       strokeWidth={1.5}
                     />
                     <span
@@ -178,6 +194,7 @@ export function MobileDashboard() {
                     >
                       {item.title}
                     </span>
+                    {needsTimes && <span className="mt-1 px-2 text-center text-[10px] font-bold leading-tight text-amber-200">Complete horários</span>}
                   </div>
                 </motion.button>
               );

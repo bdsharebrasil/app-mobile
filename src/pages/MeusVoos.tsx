@@ -9,6 +9,7 @@ import { FlightOperations } from "@/components/mobile/FlightOperations";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { apiClient } from "@/lib/api-client";
 import { formatFlightDate, formatScheduledFlightTime, formatZuluTime } from "@/lib/flight-format";
+import { flightListQueryKey, flightNeedsTimeCompletion } from "@/lib/flight-query-keys";
 
 type Flight = {
   id: string;
@@ -85,7 +86,6 @@ type FlightDetail = {
 
 type FlightListResponse = { tripulante: { id: string; nome_completo: string; canac: string | null } | null; voos: Flight[] };
 
-const flightsQueryKey = ["colaborador-meus-voos"];
 const closedStatuses = new Set(["encerrada", "concluida"]);
 const activeStatuses = new Set(["aprovada", "em_voo", "em voo", "em_rota", "em rota", "em_solo", "pousado"]);
 
@@ -115,13 +115,15 @@ function statusLabel(status: string) {
 }
 
 function FlightCard({ flight, onClick }: { flight: Flight; onClick: () => void }) {
+  const needsTimes = flightNeedsTimeCompletion(flight.status);
   return (
-    <button type="button" onClick={onClick} className="group w-full rounded-2xl border border-white/10 bg-[#101e33] p-4 text-left transition hover:border-emerald-300/30 hover:bg-[#13243c] active:scale-[0.99]">
+    <button type="button" onClick={onClick} className={`group w-full rounded-2xl border bg-[#101e33] p-4 text-left transition hover:border-emerald-300/30 hover:bg-[#13243c] active:scale-[0.99] ${needsTimes ? "border-amber-300/40 shadow-lg shadow-amber-300/[0.06]" : "border-white/10"}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xl font-bold tracking-tight text-white">{flight.numero_voo || "Voo sem número"}</span>
             <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${closedStatuses.has(String(flight.status).toLowerCase()) ? "bg-sky-300/10 text-sky-200" : "bg-emerald-300/10 text-emerald-200"}`}>{statusLabel(flight.status)}</span>
+            {needsTimes && <span className="inline-flex items-center gap-1 rounded-full bg-amber-300/10 px-2.5 py-1 text-[10px] font-bold text-amber-200"><Clock3 className="h-3 w-3" />Completar horários</span>}
           </div>
           <p className="mt-2 truncate text-sm text-slate-300">{aircraftLabel(flight)}</p>
         </div>
@@ -153,9 +155,9 @@ export default function MeusVoos() {
   const { flightId, year, aircraftId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const listQuery = useQuery({ queryKey: flightsQueryKey, queryFn: () => apiClient.get<FlightListResponse>("/api/colaborador/meus-voos") });
+  const listQuery = useQuery({ queryKey: flightListQueryKey, queryFn: () => apiClient.get<FlightListResponse>("/api/colaborador/meus-voos") });
   const detailQuery = useQuery({
-    queryKey: [...flightsQueryKey, "detalhe", flightId],
+    queryKey: [...flightListQueryKey, "detalhe", flightId],
     queryFn: () => apiClient.get<FlightDetail>(`/api/colaborador/meus-voos/${encodeURIComponent(flightId || "")}`),
     enabled: Boolean(flightId),
   });
