@@ -8,6 +8,29 @@ interface ApiError {
   details?: any;
 }
 
+export interface DiarioAeronaveResumo {
+  id: string;
+  matricula_registro: string;
+  fabricante: string | null;
+  modelo: string | null;
+  image_url: string | null;
+  status: string | null;
+  horas_ano: number;
+  celula_atual_ttotal: number;
+  celula_prox_revisao_ttotal: number;
+  celula_disponivel_ttotal: number;
+  mes_referencia: number;
+  fechado: number;
+}
+
+export interface DiarioOpcoesResponse {
+  clientes: Array<{ id: string; nome: string; codigo_cliente: string | null; proprietario: string | null }>;
+  holdings: Array<{ id: string; nome: string; proprietario: string | null }>;
+  socios: Array<{ id: string; nome: string; cotista_id: string | null; holding_id: string | null }>;
+  tripulantes: Array<{ id: string; canac: string | null; nome_completo: string; status: string; origem: string }>;
+  aerodromos: Array<{ id: string; designativo: string; nome: string; coordenadas: string | null }>;
+}
+
 class ApiClient {
   private baseUrl: string;
 
@@ -268,11 +291,11 @@ class ApiClient {
 
   // ========== DIÁRIO DE BORDO (D1) ==========
   async getDiarioOpcoes() {
-    return this.get<{ clientes: any[]; holdings: any[]; socios: any[]; tripulantes: any[]; aerodromos: any[] }>('/api/interno/diario-bordo/opcoes');
+    return this.get<DiarioOpcoesResponse>('/api/interno/diario-bordo/opcoes');
   }
 
   async getDiarioResumo(ano: number) {
-    return this.get<{ ano: number; aeronaves: any[] }>('/api/interno/diario-bordo/resumo', { ano });
+    return this.get<{ ano: number; aeronaves: DiarioAeronaveResumo[] }>('/api/interno/diario-bordo/resumo', { ano });
   }
 
   async getDiarioDetalhes(aeronaveId: string, ano: number, mes: number) {

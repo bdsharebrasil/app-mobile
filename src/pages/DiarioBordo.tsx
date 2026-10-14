@@ -1,25 +1,22 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MobileLayout } from '@/components/mobile/MobileLayout';
 import { MobileDiarioAircraftSelector } from '@/components/diario/MobileDiarioAircraftSelector';
 import { MobileDiarioEntryForm } from '@/components/diario/MobileDiarioEntryForm';
 
-interface DiarioBordoProps {
-  aircraftId?: string | null;
-  onBack?: () => void;
-}
-
 type FlowStep = 'select-aircraft' | 'new-entry';
 
-const DiarioBordo: React.FC<DiarioBordoProps> = () => {
+const DiarioBordo = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState<FlowStep>('select-aircraft');
   const [selectedAircraftId, setSelectedAircraftId] = useState<string | null>(null);
   const [selectedAircraftReg, setSelectedAircraftReg] = useState<string>('');
+  const [selectedAircraftImage, setSelectedAircraftImage] = useState<string | null>(null);
 
-  const handleSelectAircraft = (id: string, registration: string) => {
+  const handleSelectAircraft = (id: string, registration: string, imageUrl: string | null) => {
     setSelectedAircraftId(id);
     setSelectedAircraftReg(registration);
+    setSelectedAircraftImage(imageUrl);
     setStep('new-entry');
   };
 
@@ -27,6 +24,8 @@ const DiarioBordo: React.FC<DiarioBordoProps> = () => {
     if (step === 'new-entry') {
       setStep('select-aircraft');
       setSelectedAircraftId(null);
+      setSelectedAircraftReg('');
+      setSelectedAircraftImage(null);
     } else {
       navigate('/');
     }
@@ -35,6 +34,8 @@ const DiarioBordo: React.FC<DiarioBordoProps> = () => {
   const handleSaved = () => {
     setStep('select-aircraft');
     setSelectedAircraftId(null);
+    setSelectedAircraftReg('');
+    setSelectedAircraftImage(null);
   };
 
   return (
@@ -49,6 +50,7 @@ const DiarioBordo: React.FC<DiarioBordoProps> = () => {
         <MobileDiarioEntryForm
           aircraftId={selectedAircraftId}
           aircraftRegistration={selectedAircraftReg}
+          aircraftImageUrl={selectedAircraftImage}
           onBack={handleBack}
           onSaved={handleSaved}
         />

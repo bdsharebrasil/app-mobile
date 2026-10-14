@@ -26,7 +26,7 @@ interface NavigationItem {
 const NAV_ITEMS: NavigationItem[] = [
   {
     id: "flights",
-    title: "Voos",
+    title: "Diário de Bordo",
     icon: Plane,
     route: "/diario-bordo",
     color: "white",
