@@ -251,7 +251,9 @@ function ReportReviewScreen({
   const [rejectionImagePreview, setRejectionImagePreview] = useState('');
   const rejectionImageInput = useRef<HTMLInputElement | null>(null);
   const scrollRef = useRef<HTMLElement | null>(null);
-  const canDecide = isPending(report);
+  const approvalStatus = normalize(report.tripulante_pos === 1 ? report.status_aprovacao_tripulante : report.status_aprovacao_tripulante_2);
+  const canRetryApprovalSync = approvalStatus === 'aprovado' && normalize(report.status) === 'aprovado';
+  const canDecide = isPending(report) || canRetryApprovalSync;
   const status = reportStatus(report);
   const approved = status === 'Aprovado';
   const rejected = status === 'Reprovado' || status === 'Ajuste necessário';
@@ -299,6 +301,7 @@ function ReportReviewScreen({
   );
   const selectedExpenses = useMemo(() => selectedExpenseRows.map(({ expense }) => expense), [selectedExpenseRows]);
   const allGroupsReviewed = availableGroups.every((item) => reviewedGroups.includes(item));
+  const pendingGroups = availableGroups.filter((item) => !reviewedGroups.includes(item));
   const selectedTotal = totals[group];
 
   useEffect(() => {
@@ -402,9 +405,11 @@ function ReportReviewScreen({
     setRejectionImage(file);
   };
 
-  const statusClasses = canDecide
-    ? 'border-amber-300/20 bg-amber-300/10 text-amber-200'
-    : approved
+  const statusClasses = canRetryApprovalSync
+    ? 'border-sky-300/20 bg-sky-300/10 text-sky-200'
+    : canDecide
+      ? 'border-amber-300/20 bg-amber-300/10 text-amber-200'
+      : approved
       ? 'border-emerald-300/20 bg-emerald-300/10 text-emerald-200'
       : rejected
         ? 'border-rose-300/20 bg-rose-300/10 text-rose-200'
@@ -538,23 +543,26 @@ function ReportReviewScreen({
 
       {canDecide && <div className="fixed inset-x-0 bottom-0 z-[85] border-t border-white/10 bg-[#07101c]/95 shadow-[0_-18px_50px_rgba(0,0,0,0.35)] backdrop-blur-xl">
         <div className="mx-auto w-full max-w-4xl px-3 pb-[calc(0.85rem+env(safe-area-inset-bottom))] pt-3 sm:px-6 sm:pb-4">
-          <div className="mb-2 flex items-center justify-between gap-3 px-1 text-[10px] font-extrabold uppercase tracking-wider"><span className={allGroupsReviewed ? 'text-emerald-300' : 'text-amber-300'}>{allGroupsReviewed ? 'Todos os grupos foram revisados' : 'Revise cada grupo até o final para liberar a aprovação'}</span><span className="text-slate-400">{currency(totals.tripulante)}</span></div>
-          <div className="grid grid-cols-2 gap-2.5">
-            <button type="button" disabled={busy} onClick={() => { setReason(''); setRejectionImage(null); setDecision('rejeitar'); }} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-rose-400/20 bg-white/[0.03] px-3 text-sm font-extrabold text-rose-200 transition disabled:opacity-50"><X size={17} />Rejeitar</button>
-            <button type="button" disabled={busy || !allGroupsReviewed} onClick={() => { setReason(''); setRejectionImage(null); setDecision('aprovar'); }} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-3 text-sm font-extrabold text-[#04120c] shadow-[0_8px_24px_rgba(16,185,129,0.22)] transition disabled:cursor-not-allowed disabled:opacity-35"><Check size={17} />Aprovar relatório</button>
+          <div className="mb-2 flex items-center justify-between gap-3 px-1 text-[10px] font-extrabold uppercase tracking-wider"><span className={canRetryApprovalSync ? 'text-sky-300' : allGroupsReviewed ? 'text-emerald-300' : 'text-amber-300'}>{canRetryApprovalSync ? 'Aprovação registrada · tente novamente' : allGroupsReviewed ? 'Todos os grupos foram revisados' : 'Revise cada grupo até o final para liberar a aprovação'}</span><span className="text-slate-400">{currency(totals.tripulante)}</span></div>
+          {!canRetryApprovalSync && pendingGroups.length > 0 && <div className="mb-2 flex flex-wrap items-center gap-1.5 px-1 text-[10px]"><span className="font-bold text-slate-400">Falta revisar:</span>{pendingGroups.map((item) => item === group
+            ? <span key={item} className="rounded-full border border-amber-300/20 bg-amber-300/[0.06] px-2 py-1 font-bold text-amber-200">{groupLabel(item)}</span>
+            : <button key={item} type="button" onClick={() => selectGroup(item)} className="rounded-full border border-sky-300/20 bg-sky-300/[0.06] px-2 py-1 font-bold text-sky-200 transition hover:bg-sky-300/[0.12]">{groupLabel(item)}</button>)}</div>}
+          <div className={`grid gap-2.5 ${canRetryApprovalSync ? 'grid-cols-1' : 'grid-cols-2'}`}>
+            {!canRetryApprovalSync && <button type="button" disabled={busy} onClick={() => { setReason(''); setRejectionImage(null); setDecision('rejeitar'); }} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-rose-400/20 bg-white/[0.03] px-3 text-sm font-extrabold text-rose-200 transition disabled:opacity-50"><X size={17} />Rejeitar</button>}
+            <button type="button" disabled={busy || (!canRetryApprovalSync && !allGroupsReviewed)} onClick={() => { setReason(''); setRejectionImage(null); setDecision('aprovar'); }} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-3 text-sm font-extrabold text-[#04120c] shadow-[0_8px_24px_rgba(16,185,129,0.22)] transition disabled:cursor-not-allowed disabled:opacity-35"><Check size={17} />{canRetryApprovalSync ? 'Tentar concluir aprovação' : 'Aprovar relatório'}</button>
           </div>
         </div>
       </div>}
 
       {decision && <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/70 p-0 backdrop-blur-sm sm:items-center sm:p-4">
         <section role="dialog" aria-modal="true" aria-labelledby="travel-decision-title" className="max-h-[min(92dvh,760px)] w-full max-w-lg overflow-y-auto overscroll-contain rounded-t-3xl border border-white/10 bg-[#0b111c] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] text-white shadow-2xl sm:rounded-3xl sm:p-6" style={{ WebkitOverflowScrolling: 'touch' }}>
-          <div className="flex items-start justify-between gap-4"><div><p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-500">Confirmação</p><h2 id="travel-decision-title" className="mt-1 text-lg font-black tracking-tight">{decision === 'aprovar' ? 'Aprovar este relatório?' : 'Rejeitar este relatório?'}</h2></div><button type="button" onClick={closeDecision} aria-label="Fechar" className="grid size-11 shrink-0 place-items-center rounded-xl bg-white/[0.06] text-slate-300"><X size={18} /></button></div>
-          {decision === 'aprovar' ? <div className="mt-4 rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.06] p-4"><div className="flex items-start gap-3"><CheckCircle2 className="mt-0.5 shrink-0 text-emerald-300" size={20} /><p className="text-sm leading-relaxed text-emerald-100">Você confirma a aprovação do relatório no valor de <strong>{currency(totals.tripulante)}</strong> atribuídos a você.</p></div></div> : <div className="mt-4"><div className="rounded-2xl border border-rose-300/15 bg-rose-300/[0.06] p-4 text-xs leading-relaxed text-rose-100">Para rejeitar, informe o que precisa ser corrigido. A imagem é opcional.</div><Textarea value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Ex.: Despesa de alimentação informada com valor incorreto." className="mt-3 min-h-28 resize-y rounded-2xl border-white/10 bg-white/[0.04] text-sm text-white placeholder:text-slate-500" />
+          <div className="flex items-start justify-between gap-4"><div><p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-500">Confirmação</p><h2 id="travel-decision-title" className="mt-1 text-lg font-black tracking-tight">{decision === 'aprovar' ? canRetryApprovalSync ? 'Tentar concluir aprovação?' : 'Aprovar este relatório?' : 'Rejeitar este relatório?'}</h2></div><button type="button" onClick={closeDecision} aria-label="Fechar" className="grid size-11 shrink-0 place-items-center rounded-xl bg-white/[0.06] text-slate-300"><X size={18} /></button></div>
+          {decision === 'aprovar' ? <div className="mt-4 rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.06] p-4"><div className="flex items-start gap-3"><CheckCircle2 className="mt-0.5 shrink-0 text-emerald-300" size={20} /><p className="text-sm leading-relaxed text-emerald-100">{canRetryApprovalSync ? 'A aprovação já está registrada. Esta ação tenta concluir a sincronização financeira sem registrar uma nova decisão.' : <>Você confirma a aprovação do relatório no valor de <strong>{currency(totals.tripulante)}</strong> atribuídos a você.</>}</p></div></div> : <div className="mt-4"><div className="rounded-2xl border border-rose-300/15 bg-rose-300/[0.06] p-4 text-xs leading-relaxed text-rose-100">Para rejeitar, informe o que precisa ser corrigido. A imagem é opcional.</div><Textarea value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Ex.: Despesa de alimentação informada com valor incorreto." className="mt-3 min-h-28 resize-y rounded-2xl border-white/10 bg-white/[0.04] text-sm text-white placeholder:text-slate-500" />
             <input ref={rejectionImageInput} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" className="sr-only" onChange={handleRejectionImage} aria-label="Selecionar imagem para anexar à rejeição" />
             {!rejectionImage ? <button type="button" onClick={() => rejectionImageInput.current?.click()} className="mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-rose-300/25 bg-rose-300/[0.04] px-4 text-sm font-extrabold text-rose-100 transition active:bg-rose-300/[0.10]"><ImagePlus size={18} />Adicionar imagem (opcional)</button> : <div className="mt-3 flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3"><img src={rejectionImagePreview} alt="Prévia da imagem anexada" className="size-14 shrink-0 rounded-xl bg-black/20 object-cover" /><span className="min-w-0 flex-1 truncate text-xs font-bold text-slate-200">{rejectionImage.name}</span><button type="button" onClick={() => setRejectionImage(null)} aria-label="Remover imagem anexada" className="grid size-11 shrink-0 place-items-center rounded-xl bg-white/[0.06] text-slate-300"><Trash2 size={17} /></button></div>}
             <p className="mt-2 text-[11px] text-slate-500">JPG, PNG, WebP ou HEIC · até 5 MB</p>
           </div>}
-          <div className="mt-4 grid grid-cols-2 gap-2.5"><button type="button" disabled={busy} onClick={closeDecision} className="min-h-12 rounded-2xl border border-white/10 bg-white/[0.03] px-3 text-sm font-extrabold text-slate-200 disabled:opacity-50">Cancelar</button><button type="button" disabled={busy || (decision === 'rejeitar' && !reason.trim())} onClick={() => void confirmDecision()} className={`min-h-12 rounded-2xl px-3 text-sm font-extrabold disabled:cursor-not-allowed disabled:opacity-50 ${decision === 'aprovar' ? 'bg-emerald-500 text-[#04120c]' : 'bg-rose-500 text-white'}`}>{busy ? <Loader2 className="mx-auto animate-spin" size={18} /> : decision === 'aprovar' ? 'Confirmar aprovação' : 'Confirmar rejeição'}</button></div>
+          <div className="mt-4 grid grid-cols-2 gap-2.5"><button type="button" disabled={busy} onClick={closeDecision} className="min-h-12 rounded-2xl border border-white/10 bg-white/[0.03] px-3 text-sm font-extrabold text-slate-200 disabled:opacity-50">Cancelar</button><button type="button" disabled={busy || (decision === 'rejeitar' && !reason.trim())} onClick={() => void confirmDecision()} className={`min-h-12 rounded-2xl px-3 text-sm font-extrabold disabled:cursor-not-allowed disabled:opacity-50 ${decision === 'aprovar' ? 'bg-emerald-500 text-[#04120c]' : 'bg-rose-500 text-white'}`}>{busy ? <Loader2 className="mx-auto animate-spin" size={18} /> : decision === 'aprovar' ? canRetryApprovalSync ? 'Tentar concluir' : 'Confirmar aprovação' : 'Confirmar rejeição'}</button></div>
         </section>
       </div>}
 
@@ -600,14 +608,14 @@ export default function RelatorioViagem() {
     return data;
   }, [session?.access_token]);
 
-  const loadReports = useCallback(async () => {
+  const loadReports = useCallback(async (silent = false) => {
     if (!session?.access_token) return;
     setLoading(true);
     try {
       const data = await request(endpoint);
       setReports(Array.isArray(data.relatorios) ? data.relatorios : []);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Erro ao carregar seus relatórios.');
+      if (!silent) toast.error(error instanceof Error ? error.message : 'Erro ao carregar seus relatórios.');
     } finally {
       setLoading(false);
     }
@@ -642,6 +650,7 @@ export default function RelatorioViagem() {
       await loadReports();
       return true;
     } catch (error) {
+      await loadReports(true);
       toast.error(error instanceof Error ? error.message : 'Não foi possível registrar sua decisão.');
       return false;
     } finally {
