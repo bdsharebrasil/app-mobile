@@ -4,8 +4,15 @@ import type { User } from "@supabase/supabase-js";
 import { apiClient } from "@/lib/api-client";
 import type { Tables } from "@/integrations/supabase/types";
 
+export type UserProfileMetrics = {
+  horas_totais: number;
+  voos_escalados: number;
+  ctm_abertos: number;
+};
+
 export type UserProfile = Tables<"user_profiles"> & {
   tipo_licenca?: string | null;
+  metricas?: UserProfileMetrics;
   tripulante?: {
     id: string;
     user_id: string | null;
@@ -17,10 +24,14 @@ export type UserProfile = Tables<"user_profiles"> & {
 };
 
 type BackendProfile = Record<string, any>;
-type BackendProfileResponse = { perfil: BackendProfile; tripulante: UserProfile["tripulante"] };
+type BackendProfileResponse = {
+  perfil: BackendProfile;
+  tripulante: UserProfile["tripulante"];
+  metricas?: UserProfileMetrics;
+};
 const profileQueryKey = (userId?: string) => ["user-profile", userId];
 
-function mapBackendProfile({ perfil, tripulante }: BackendProfileResponse): UserProfile {
+function mapBackendProfile({ perfil, tripulante, metricas }: BackendProfileResponse): UserProfile {
   return {
     ...perfil,
     id: perfil.id,
@@ -40,6 +51,7 @@ function mapBackendProfile({ perfil, tripulante }: BackendProfileResponse): User
     avatar_url: /^https?:\/\//i.test(perfil.url_avatar ?? "") ? perfil.url_avatar : null,
     created_at: perfil.data_criacao ?? null,
     updated_at: perfil.data_atualizacao ?? null,
+    metricas,
     tripulante,
   } as UserProfile;
 }

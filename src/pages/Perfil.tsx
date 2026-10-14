@@ -127,34 +127,6 @@ export default function Perfil() {
     isUpdating
   } = useUserProfile(user);
 
-  const { data: flightLogs = [] } = useQuery({
-    queryKey: ["flight-logs", profile?.full_name],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("logbook_entries")
-        .select("*")
-        .or(`pilot_name.ilike.%${profile?.full_name}%,copilot_name.ilike.%${profile?.full_name}%`);
-      if (error) return [];
-      return data;
-    },
-    enabled: !!profile?.full_name
-  });
-
-  const { data: maintenanceReports = [] } = useQuery({
-    queryKey: ["maintenance-reports-open"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("maintenance_reports").select("*").eq("status", "open");
-      if (error) return [];
-      return data;
-    }
-  });
-
-  const totalFlightHours = useMemo(() => {
-    return flightLogs.reduce((acc: number, log: any) => acc + (Number(log.flight_time_hours) || 0) + (Number(log.flight_time_minutes) || 0) / 60, 0);
-  }, [flightLogs]);
-
-  const openCTMCount = maintenanceReports.length;
-
   const [formState, setFormState] = useState<FormState>({
     full_name: "", display_name: "", phone: "", address: "", tipo: "", cpf: "", rg: "", birth_date: "", bank_name: "", bank_agency: "", bank_account: "", bank_pix: "", canac: ""
   });
@@ -450,9 +422,9 @@ export default function Perfil() {
         {/* Floating Stats */}
         <div className="px-5 -mt-8 relative z-10">
           <div className="flex gap-3">
-            <StatCard icon={Clock} label="Horas Totais" value={`${totalFlightHours.toFixed(1)}h`} />
-            <StatCard icon={Star} label="Voos App" value={flightLogs.length} />
-            <StatCard icon={AlertCircle} label="CTM Abertos" value={openCTMCount} />
+            <StatCard icon={Clock} label="Horas Totais" value={`${Number(profile?.metricas?.horas_totais || 0).toFixed(1)}h`} />
+            <StatCard icon={Star} label="Voos Escalados" value={profile?.metricas?.voos_escalados ?? 0} />
+            <StatCard icon={AlertCircle} label="CTM Abertos" value={profile?.metricas?.ctm_abertos ?? 0} />
           </div>
         </div>
 
