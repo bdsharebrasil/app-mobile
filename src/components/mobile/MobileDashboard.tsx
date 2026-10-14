@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -9,8 +8,9 @@ import {
   Bell,
   User,
   LogOut,
+  Navigation,
+  PlaneTakeoff,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { MobileLayout } from "./MobileLayout";
 
@@ -30,6 +30,20 @@ const NAV_ITEMS: NavigationItem[] = [
     icon: Plane,
     route: "/diario-bordo",
     color: "white",
+  },
+  {
+    id: "flight-plan",
+    title: "Plano de Voo",
+    icon: Navigation,
+    route: "/plano-voo",
+    color: "green",
+  },
+  {
+    id: "my-flights",
+    title: "Meus Voos",
+    icon: PlaneTakeoff,
+    route: "/meus-voos",
+    color: "navy",
   },
   {
     id: "payroll",
@@ -56,7 +70,7 @@ const NAV_ITEMS: NavigationItem[] = [
     id: "notifications",
     title: "Notificações",
     icon: Bell,
-    route: "/plano-voo",
+    route: "/notificacoes",
     color: "green",
   },
   {
@@ -87,23 +101,8 @@ const colorStyles = {
 };
 
 export function MobileDashboard() {
-  const { user, roles, signOut } = useAuth();
+  const { roles, signOut } = useAuth();
   const navigate = useNavigate();
-  const [displayName, setDisplayName] = useState("");
-
-  useEffect(() => {
-    const fetchProfile = async () => {
-      if (!user) return;
-      const { data } = await supabase
-        .from("user_profiles")
-        .select("display_name, full_name")
-        .eq("id", user.id)
-        .single();
-      setDisplayName(data?.display_name || data?.full_name || "");
-    };
-    fetchProfile();
-  }, [user]);
-
   const handleLogout = async () => {
     await signOut();
     navigate("/login");

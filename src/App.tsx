@@ -22,6 +22,8 @@ import Perfil from "./pages/Perfil";
 import RelatorioViagem from "./pages/financeiro/RelatorioViagem";
 import GestaoCTM from "./pages/GestaoCTM";
 import RevisaoCoordenador from "./pages/RevisaoCoordenador";
+import MeusVoos from "./pages/MeusVoos";
+import Notificacoes from "./pages/Notificacoes";
 
 const queryClient = new QueryClient();
 
@@ -60,6 +62,10 @@ const App = () => {
                     <Route path="/" element={renderProtected(<Index />)} />
                     <Route path="/diario-bordo" element={renderProtected(<DiarioBordoWrapper />)} />
                     <Route path="/plano-voo" element={renderProtected(<PlanoVoo />)} />
+                    <Route path="/meus-voos" element={renderProtected(<MeusVoos />)} />
+                    <Route path="/meus-voos/concluidos/:year/:aircraftId" element={renderProtected(<MeusVoos />)} />
+                    <Route path="/meus-voos/:flightId" element={renderProtected(<MeusVoos />)} />
+                    <Route path="/notificacoes" element={renderProtected(<Notificacoes />)} />
                     <Route path="/financeiro/viagem" element={renderProtected(<RelatorioViagem />)} />
                     <Route path="/manutencao/ctm" element={renderProtected(<GestaoCTM />)} />
                     <Route path="/perfil" element={renderProtected(<Perfil />)} />
