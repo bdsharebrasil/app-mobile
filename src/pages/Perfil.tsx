@@ -125,7 +125,7 @@ export default function Perfil() {
     isLoading,
     updateProfile,
     isUpdating
-  } = useUserProfile(user, { skipCreation: Boolean(isAdmin || isGestorMaster) });
+  } = useUserProfile(user);
 
   const { data: flightLogs = [] } = useQuery({
     queryKey: ["flight-logs", profile?.full_name],
@@ -186,7 +186,7 @@ export default function Perfil() {
         display_name: profile.display_name ?? "",
         phone: profile.phone != null ? String(profile.phone) : "",
         address: profile.address ?? "",
-        tipo: (profile.tipo as any) ?? "",
+        tipo: (p?.tipo_licenca as any) ?? "",
         cpf: p?.cpf ?? "",
         rg: p?.rg ?? "",
         birth_date: p?.birth_date ?? "",
