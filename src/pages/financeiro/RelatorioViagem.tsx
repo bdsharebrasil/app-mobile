@@ -1,101 +1,50 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft,
-  Check,
-  CheckCircle2,
-  CircleDollarSign,
-  Clock3,
-  ExternalLink,
-  Eye,
-  FileImage,
-  FileText,
-  ImagePlus,
-  Info,
-  Loader2,
-  Plane,
-  ReceiptText,
-  RefreshCw,
-  ShieldCheck,
-  Trash2,
-  X,
-  XCircle,
+  ArrowLeft, Check, CheckCircle2, CircleDollarSign, Clock3, ExternalLink,
+  Eye, FileImage, FileText, ImagePlus, Info, Loader2, Plane, ReceiptText,
+  RefreshCw, ShieldCheck, Trash2, X, XCircle, ChevronRight, Calendar
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { MobileLayout } from '@/components/mobile/MobileLayout';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useAuth } from '@/contexts/AuthContext';
 import { BACKEND } from '@/config/api';
 
+// --- Interfaces e Helpers mantidos idênticos para não quebrar a lógica ---
 interface TravelExpense {
-  id?: string;
-  categoria?: string;
-  category?: string;
-  descricao?: string;
-  description?: string;
-  data?: string;
-  valor?: number | string;
-  amount?: number | string;
-  pago_por?: string;
-  paid_by?: string;
-  observacoes?: string;
-  comprovante_url?: string;
+  id?: string; categoria?: string; category?: string; descricao?: string;
+  description?: string; data?: string; valor?: number | string; amount?: number | string;
+  pago_por?: string; paid_by?: string; observacoes?: string; comprovante_url?: string;
 }
 
 interface ExpenseAttachment {
-  id: string;
-  relatorio_despesa_viagem_id: string;
-  indice_despesa?: number | string;
-  nome_arquivo?: string | null;
-  url_arquivo: string;
-  tipo_arquivo?: string | null;
-  tamanho_arquivo?: number | string | null;
-  criado_em?: string | null;
+  id: string; relatorio_despesa_viagem_id: string; indice_despesa?: number | string;
+  nome_arquivo?: string | null; url_arquivo: string; tipo_arquivo?: string | null;
+  tamanho_arquivo?: number | string | null; criado_em?: string | null;
 }
 
 type PreviewAttachment = Pick<ExpenseAttachment, 'id' | 'nome_arquivo' | 'url_arquivo' | 'tipo_arquivo'>;
 type RejectionAttachment = PreviewAttachment & Pick<ExpenseAttachment, 'tamanho_arquivo' | 'criado_em'>;
 interface AdjustmentRequest {
-  id: string;
-  tripulante_pos?: number | string;
-  motivo: string;
-  criado_em?: string | null;
-  anexos?: RejectionAttachment[] | null;
+  id: string; tripulante_pos?: number | string; motivo: string; criado_em?: string | null; anexos?: RejectionAttachment[] | null;
 }
 
 interface TravelReport {
-  id: string;
-  numero_relatorio: string;
-  numero_voo?: string | null;
-  cliente_nome?: string | null;
-  aeronave_matricula?: string | null;
-  nome_tripulante?: string | null;
-  nome_tripulante_2?: string | null;
-  tripulante_pos: 1 | 2;
-  rota?: string | null;
-  data_inicio?: string | null;
-  data_fim?: string | null;
-  observacoes?: string | null;
-  despesas: TravelExpense[] | string | null;
-  anexos?: ExpenseAttachment[] | null;
-  anexos_rejeicao?: RejectionAttachment[] | string | null;
-  historico_ajustes?: AdjustmentRequest[] | string | null;
-  total_valor?: number | string;
-  status: string;
-  status_aprovacao_tripulante?: string | null;
-  status_aprovacao_tripulante_2?: string | null;
-  contas_apagar_tripulante_1_id?: string | null;
-  contas_apagar_tripulante_2_id?: string | null;
-  motivo_reprovacao_tripulante_1?: string | null;
-  motivo_reprovacao_tripulante_2?: string | null;
+  id: string; numero_relatorio: string; numero_voo?: string | null;
+  cliente_nome?: string | null; aeronave_matricula?: string | null;
+  nome_tripulante?: string | null; nome_tripulante_2?: string | null;
+  tripulante_pos: 1 | 2; rota?: string | null; data_inicio?: string | null; data_fim?: string | null;
+  observacoes?: string | null; despesas: TravelExpense[] | string | null;
+  anexos?: ExpenseAttachment[] | null; anexos_rejeicao?: RejectionAttachment[] | string | null;
+  historico_ajustes?: AdjustmentRequest[] | string | null; total_valor?: number | string;
+  status: string; status_aprovacao_tripulante?: string | null; status_aprovacao_tripulante_2?: string | null;
+  contas_apagar_tripulante_1_id?: string | null; contas_apagar_tripulante_2_id?: string | null;
+  motivo_reprovacao_tripulante_1?: string | null; motivo_reprovacao_tripulante_2?: string | null;
   pagamento_status: 'PAGO' | 'PENDENTE' | 'NAO_PROGRAMADO';
-  pagamento_valor?: number;
-  pagamento_total?: number;
-  data_pagamento?: string | null;
-  pdf_url?: string | null;
+  pagamento_valor?: number; pagamento_total?: number; data_pagamento?: string | null; pdf_url?: string | null;
 }
 
 type ExpenseGroup = 'total' | 'tripulante' | 'cliente' | 'sharebrasil' | 'outros';
@@ -112,45 +61,21 @@ const expenseCategory = (expense: TravelExpense) => expense.categoria || expense
 function parseExpenses(value: TravelReport['despesas']): TravelExpense[] {
   if (Array.isArray(value)) return value;
   if (typeof value !== 'string') return [];
-  try {
-    const parsed: unknown = JSON.parse(value);
-    return Array.isArray(parsed) ? parsed as TravelExpense[] : [];
-  } catch {
-    return [];
-  }
+  try { const parsed: unknown = JSON.parse(value); return Array.isArray(parsed) ? parsed as TravelExpense[] : []; } catch { return []; }
 }
-
 function parseRejectionAttachments(value: TravelReport['anexos_rejeicao']): RejectionAttachment[] {
   if (Array.isArray(value)) return value.filter((item) => Boolean(item?.id && item.url_arquivo));
   if (typeof value !== 'string') return [];
-  try {
-    const parsed: unknown = JSON.parse(value);
-    return Array.isArray(parsed) ? (parsed as RejectionAttachment[]).filter((item) => Boolean(item?.id && item.url_arquivo)) : [];
-  } catch {
-    return [];
-  }
+  try { const parsed: unknown = JSON.parse(value); return Array.isArray(parsed) ? (parsed as RejectionAttachment[]).filter((item) => Boolean(item?.id && item.url_arquivo)) : []; } catch { return []; }
 }
-
 function parseAdjustmentHistory(value: TravelReport['historico_ajustes']): AdjustmentRequest[] {
   if (Array.isArray(value)) return value.filter((item) => Boolean(item?.id && item.motivo?.trim()));
   if (typeof value !== 'string') return [];
-  try {
-    const parsed: unknown = JSON.parse(value);
-    return Array.isArray(parsed) ? (parsed as AdjustmentRequest[]).filter((item) => Boolean(item?.id && item.motivo?.trim())) : [];
-  } catch {
-    return [];
-  }
+  try { const parsed: unknown = JSON.parse(value); return Array.isArray(parsed) ? (parsed as AdjustmentRequest[]).filter((item) => Boolean(item?.id && item.motivo?.trim())) : []; } catch { return []; }
 }
-
 function normalizedPayer(expense: TravelExpense) {
-  return String(expense.pago_por || expense.paid_by || '')
-    .trim()
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[\s-]+/g, '_');
+  return String(expense.pago_por || expense.paid_by || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[\s-]+/g, '_');
 }
-
 function groupForExpense(expense: TravelExpense, position: 1 | 2): Exclude<ExpenseGroup, 'total'> {
   const payer = normalizedPayer(expense);
   if (payer === 'cliente' || payer === 'client') return 'cliente';
@@ -159,7 +84,6 @@ function groupForExpense(expense: TravelExpense, position: 1 | 2): Exclude<Expen
   if (payer === crew || payer === crew.replace('_', '') || (position === 1 && payer === 'tripulante')) return 'tripulante';
   return 'outros';
 }
-
 function payerLabel(expense: TravelExpense) {
   const payer = normalizedPayer(expense);
   if (payer === 'cliente' || payer === 'client') return 'Cliente';
@@ -168,60 +92,51 @@ function payerLabel(expense: TravelExpense) {
   if (payer === 'tripulante_2' || payer === 'tripulante2') return 'Tripulante 2';
   return 'Não informado';
 }
-
 function isPending(report: TravelReport) {
   const approval = normalize(report.tripulante_pos === 1 ? report.status_aprovacao_tripulante : report.status_aprovacao_tripulante_2);
   return ['aguardando_aprovacao', 'ajuste_concluido'].includes(normalize(report.status)) && !['aprovado', 'reprovado', 'rejeitado'].includes(approval);
 }
-
 function reportLabel(report: TravelReport) {
   const approval = normalize(report.tripulante_pos === 1 ? report.status_aprovacao_tripulante : report.status_aprovacao_tripulante_2);
   if (report.pagamento_status === 'PAGO') return 'Pago';
   if (isPending(report)) return normalize(report.status) === 'ajuste_concluido' ? 'Ajuste concluído · nova aprovação' : 'Pendente de aprovação';
   if (approval === 'aprovado' || ['aprovado', 'enviado_cliente'].includes(normalize(report.status))) return 'Aprovado';
-  if (approval === 'reprovado' || approval === 'rejeitado' || report.status === 'ajuste_necessario') return 'Rejeitado / ajuste necessário';
+  if (approval === 'reprovado' || approval === 'rejeitado' || report.status === 'ajuste_necessario') return 'Ajuste necessário';
   return String(report.status || '').replace(/_/g, ' ');
 }
-
 function groupLabel(group: ExpenseGroup) {
-  return {
-    total: 'Total da viagem',
-    tripulante: 'Tripulante',
-    cliente: 'Cliente',
-    sharebrasil: 'Share Brasil',
-    outros: 'Outras despesas',
-  }[group];
+  return { total: 'Total da viagem', tripulante: 'Tripulante', cliente: 'Cliente', sharebrasil: 'Share Brasil', outros: 'Outras despesas' }[group];
 }
-
 function groupDescription(group: ExpenseGroup) {
-  return {
-    total: 'Todas as despesas da viagem',
-    tripulante: 'Despesas atribuídas a você',
-    cliente: 'Despesas pagas pelo cliente',
-    sharebrasil: 'Despesas pagas pela Share Brasil',
-    outros: 'Despesas atribuídas a outros pagadores',
-  }[group];
+  return { total: 'Todas as despesas da viagem', tripulante: 'Despesas atribuídas a você', cliente: 'Despesas pagas pelo cliente', sharebrasil: 'Despesas pagas pela Share Brasil', outros: 'Despesas atribuídas a outros pagadores' }[group];
 }
-
 function reportStatus(report: TravelReport) {
   const approval = normalize(report.tripulante_pos === 1 ? report.status_aprovacao_tripulante : report.status_aprovacao_tripulante_2);
   if (approval === 'aprovado') return 'Aprovado';
   if (approval === 'reprovado' || approval === 'rejeitado') return 'Reprovado';
-  if (isPending(report)) return normalize(report.status) === 'ajuste_concluido' ? 'Ajuste concluído · aprove a nova versão' : 'Pendente';
+  if (isPending(report)) return normalize(report.status) === 'ajuste_concluido' ? 'Ajuste concluído' : 'Pendente';
   if (report.status === 'ajuste_necessario') return 'Ajuste necessário';
   return String(report.status || 'Pendente').replace(/_/g, ' ');
 }
 
-function ReportReviewScreen({
-  report,
-  accessToken,
-  onClose,
-  onDecide,
-  busy,
-}: {
-  report: TravelReport;
-  accessToken?: string;
-  onClose: () => void;
+// --- Componentes de UI Premium ---
+
+const StatCard = ({ icon: Icon, label, value, valueClass = "" }: { icon: any, label: string, value: string | number, valueClass?: string }) => (
+  <div className="bg-card border border-border/50 rounded-2xl p-4 flex flex-col items-center justify-center gap-1 shadow-sm flex-1">
+    <div className="text-muted-foreground/50 mb-1">
+      <Icon size={20} strokeWidth={2} />
+    </div>
+    <span className={`text-xl font-bold tracking-tight leading-none ${valueClass || 'text-foreground'}`}>{value}</span>
+    <span className="text-muted-foreground text-[10px] font-semibold uppercase tracking-wide text-center mt-1">
+      {label}
+    </span>
+  </div>
+);
+
+// --- Subcomponente: Tela de Revisão ---
+
+function ReportReviewScreen({ report, accessToken, onClose, onDecide, busy }: {
+  report: TravelReport; accessToken?: string; onClose: () => void;
   onDecide: (report: TravelReport, approved: boolean, reason: string, rejectionImage?: File) => Promise<boolean>;
   busy: boolean;
 }) {
@@ -235,49 +150,40 @@ function ReportReviewScreen({
       { position: 2, reason: report.motivo_reprovacao_tripulante_2 },
     ].filter((item) => Boolean(item.reason?.trim()));
     return legacy.map((item, index) => ({
-      id: `legacy-${report.id}-${item.position}`,
-      tripulante_pos: item.position,
-      motivo: item.reason!.trim(),
-      criado_em: null,
+      id: `legacy-${report.id}-${item.position}`, tripulante_pos: item.position, motivo: item.reason!.trim(), criado_em: null,
       anexos: index === legacy.length - 1 ? parseRejectionAttachments(report.anexos_rejeicao) : [],
     }));
   }, [report]);
+
   const [group, setGroup] = useState<ExpenseGroup>('tripulante');
   const [decision, setDecision] = useState<Decision>(null);
   const [reason, setReason] = useState('');
   const [preview, setPreview] = useState<{ attachment: PreviewAttachment; url: string } | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
-  const [previewError, setPreviewError] = useState('');
   const [rejectionImage, setRejectionImage] = useState<File | null>(null);
   const [rejectionImagePreview, setRejectionImagePreview] = useState('');
   const rejectionImageInput = useRef<HTMLInputElement | null>(null);
   const scrollRef = useRef<HTMLElement | null>(null);
+
   const approvalStatus = normalize(report.tripulante_pos === 1 ? report.status_aprovacao_tripulante : report.status_aprovacao_tripulante_2);
   const status = reportStatus(report);
   const approved = status === 'Aprovado';
   const rejected = status === 'Reprovado' || status === 'Ajuste necessário';
 
   const groupedExpenses = useMemo(() => {
-    const grouped: Record<Exclude<ExpenseGroup, 'total'>, TravelExpense[]> = {
-      tripulante: [], cliente: [], sharebrasil: [], outros: [],
-    };
+    const grouped: Record<Exclude<ExpenseGroup, 'total'>, TravelExpense[]> = { tripulante: [], cliente: [], sharebrasil: [], outros: [] };
     expenses.forEach((expense) => grouped[groupForExpense(expense, report.tripulante_pos)].push(expense));
     return grouped;
   }, [expenses, report.tripulante_pos]);
-  const payableId = report.tripulante_pos === 1
-    ? report.contas_apagar_tripulante_1_id
-    : report.contas_apagar_tripulante_2_id;
+
+  const payableId = report.tripulante_pos === 1 ? report.contas_apagar_tripulante_1_id : report.contas_apagar_tripulante_2_id;
   const expectedPayable = expenses.some((expense) => {
     const payer = normalizedPayer(expense);
-    const crewPayers = report.tripulante_pos === 1
-      ? ['tripulante_1', 'tripulante1']
-      : ['tripulante_2', 'tripulante2'];
+    const crewPayers = report.tripulante_pos === 1 ? ['tripulante_1', 'tripulante1'] : ['tripulante_2', 'tripulante2'];
     return crewPayers.includes(payer) && Math.round(amountOf(expense) * 100) > 0;
   });
-  const canRetryApprovalSync = approvalStatus === 'aprovado'
-    && normalize(report.status) === 'aprovado'
-    && expectedPayable
-    && !String(payableId || '').trim();
+  
+  const canRetryApprovalSync = approvalStatus === 'aprovado' && normalize(report.status) === 'aprovado' && expectedPayable && !String(payableId || '').trim();
   const canDecide = isPending(report) || canRetryApprovalSync;
 
   const attachmentsByExpense = useMemo(() => {
@@ -286,8 +192,7 @@ function ReportReviewScreen({
       const index = Number(attachment.indice_despesa);
       if (!Number.isFinite(index)) return;
       const list = grouped.get(index) || [];
-      list.push(attachment);
-      grouped.set(index, list);
+      list.push(attachment); grouped.set(index, list);
     });
     return grouped;
   }, [attachments]);
@@ -295,288 +200,288 @@ function ReportReviewScreen({
   const totals = useMemo(() => {
     const sum = (items: TravelExpense[]) => items.reduce((total, expense) => total + amountOf(expense), 0);
     return {
-      total: sum(expenses),
-      tripulante: sum(groupedExpenses.tripulante),
-      cliente: sum(groupedExpenses.cliente),
-      sharebrasil: sum(groupedExpenses.sharebrasil),
-      outros: sum(groupedExpenses.outros),
+      total: sum(expenses), tripulante: sum(groupedExpenses.tripulante), cliente: sum(groupedExpenses.cliente),
+      sharebrasil: sum(groupedExpenses.sharebrasil), outros: sum(groupedExpenses.outros),
     };
   }, [expenses, groupedExpenses]);
 
-  const availableGroups = useMemo(
-    () => (['tripulante', 'cliente', 'sharebrasil', 'outros'] as const).filter((item) => groupedExpenses[item].length > 0),
-    [groupedExpenses],
-  );
-  const selectedExpenseRows = useMemo(
-    () => expenses
-      .map((expense, index) => ({ expense, index }))
-      .filter(({ expense }) => group === 'total' || groupForExpense(expense, report.tripulante_pos) === group),
-    [expenses, group, report.tripulante_pos],
-  );
+  const availableGroups = useMemo(() => (['tripulante', 'cliente', 'sharebrasil', 'outros'] as const).filter((item) => groupedExpenses[item].length > 0), [groupedExpenses]);
+  const selectedExpenseRows = useMemo(() => expenses.map((expense, index) => ({ expense, index })).filter(({ expense }) => group === 'total' || groupForExpense(expense, report.tripulante_pos) === group), [expenses, group, report.tripulante_pos]);
   const selectedExpenses = useMemo(() => selectedExpenseRows.map(({ expense }) => expense), [selectedExpenseRows]);
   const selectedTotal = totals[group];
 
+  useEffect(() => { if (group !== 'total' && !availableGroups.includes(group)) setGroup(availableGroups[0] || 'total'); }, [availableGroups, group]);
+  useEffect(() => () => { if (preview?.url) URL.revokeObjectURL(preview.url); }, [preview?.url]);
   useEffect(() => {
-    if (group !== 'total' && !availableGroups.includes(group)) {
-      setGroup(availableGroups[0] || 'total');
-    }
-  }, [availableGroups, group]);
-
-  useEffect(() => () => {
-    if (preview?.url) URL.revokeObjectURL(preview.url);
-  }, [preview?.url]);
-
-  useEffect(() => {
-    if (!rejectionImage) {
-      setRejectionImagePreview('');
-      return;
-    }
+    if (!rejectionImage) { setRejectionImagePreview(''); return; }
     const url = URL.createObjectURL(rejectionImage);
-    setRejectionImagePreview(url);
-    return () => URL.revokeObjectURL(url);
+    setRejectionImagePreview(url); return () => URL.revokeObjectURL(url);
   }, [rejectionImage]);
 
-  const selectGroup = (selected: ExpenseGroup) => {
-    setGroup(selected);
-    requestAnimationFrame(() => scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' }));
-  };
-
   const openAttachment = async (attachment: PreviewAttachment) => {
-    if (!accessToken) {
-      toast.error('Sessão expirada. Entre novamente.');
-      return;
-    }
-    setPreviewError('');
+    if (!accessToken) { toast.error('Sessão expirada. Entre novamente.'); return; }
     setPreviewLoading(true);
     try {
       const response = await fetch(`${BACKEND}${attachment.url_arquivo}`, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_DEFAULT_KEY,
-        },
+        headers: { Authorization: `Bearer ${accessToken}`, apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_DEFAULT_KEY },
       });
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        throw new Error(data.error || 'Não foi possível abrir o comprovante.');
-      }
+      if (!response.ok) throw new Error('Não foi possível abrir o comprovante.');
       const url = URL.createObjectURL(await response.blob());
       setPreview({ attachment, url });
-    } catch (error) {
-      setPreviewError(error instanceof Error ? error.message : 'Não foi possível abrir o comprovante.');
-    } finally {
-      setPreviewLoading(false);
-    }
+    } catch (error) { toast.error('Falha ao abrir anexo.'); } finally { setPreviewLoading(false); }
   };
 
   const confirmDecision = async () => {
     const approvedDecision = decision === 'aprovar';
-    if (!approvedDecision && !reason.trim()) {
-      toast.error('Informe o motivo da rejeição.');
-      return;
-    }
+    if (!approvedDecision && !reason.trim()) { toast.error('Informe o motivo da rejeição.'); return; }
     const saved = await onDecide(report, approvedDecision, reason.trim(), rejectionImage || undefined);
-    if (saved) {
-      setDecision(null);
-      setReason('');
-      setRejectionImage(null);
-    }
-  };
-
-  const closeDecision = () => {
-    setDecision(null);
-    setRejectionImage(null);
+    if (saved) { setDecision(null); setReason(''); setRejectionImage(null); }
   };
 
   const handleRejectionImage = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.currentTarget.files?.[0];
     event.currentTarget.value = '';
     if (!file) return;
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
-    if (!allowedTypes.includes(file.type.toLowerCase())) {
-      toast.error('Escolha uma imagem JPG, PNG, WebP ou HEIC.');
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('A imagem deve ter no máximo 5 MB.');
-      return;
-    }
+    if (file.size > 5 * 1024 * 1024) { toast.error('A imagem deve ter no máximo 5 MB.'); return; }
     setRejectionImage(file);
   };
 
-  const statusClasses = canRetryApprovalSync
-    ? 'border-sky-300/20 bg-sky-300/10 text-sky-200'
-    : canDecide
-      ? 'border-amber-300/20 bg-amber-300/10 text-amber-200'
-      : approved
-      ? 'border-emerald-300/20 bg-emerald-300/10 text-emerald-200'
-      : rejected
-        ? 'border-rose-300/20 bg-rose-300/10 text-rose-200'
-        : 'border-white/10 bg-white/[0.05] text-slate-300';
-
-  const renderExpense = (expense: TravelExpense, index: number) => {
-    const linkedAttachments = attachmentsByExpense.get(index) || [];
-    return <article key={`${expense.id || 'despesa'}-${index}`} className="border-b border-white/10 px-4 py-4 last:border-b-0 sm:px-5 sm:py-5">
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full border border-sky-300/20 bg-sky-300/10 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide text-sky-200">{expenseCategory(expense)}</span>
-            {expense.data && <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-bold text-slate-400">{date(expense.data)}</span>}
+  return (
+    <div className="fixed inset-0 z-[80] bg-background flex flex-col overflow-hidden">
+      
+      {/* Overlapping Header nativo iOS-like */}
+      <div className="bg-[#0A111F] pt-14 pb-24 px-5 shrink-0 relative">
+        <div className="flex items-center justify-between mb-6">
+          <button onClick={onClose} className="w-10 h-10 flex items-center justify-center -ml-2 text-white active:opacity-70 transition-opacity">
+            <ArrowLeft size={22} />
+          </button>
+          <div className="flex flex-col items-center">
+            <span className="text-white/60 text-[10px] font-bold uppercase tracking-wider">Revisão de Despesas</span>
+            <span className="text-white font-semibold">{report.numero_relatorio || 'Relatório'}</span>
           </div>
-          <p className="mt-3 break-words text-sm font-extrabold text-white">{expenseDescription(expense)}</p>
-          <p className="mt-1 text-xs text-slate-400">Pago por {payerLabel(expense)}</p>
-          {expense.observacoes && <p className="mt-2 break-words text-xs leading-relaxed text-slate-500">{expense.observacoes}</p>}
+          <div className="w-10" /> {/* Spacer */}
         </div>
-        <strong className="shrink-0 text-sm font-black text-white sm:text-base">{currency(amountOf(expense))}</strong>
+        
+        <div className="flex flex-col gap-1 items-center text-center">
+          <h2 className="text-white text-2xl font-bold tracking-tight">{currency(totals.total)}</h2>
+          <div className="flex items-center gap-1.5 mt-2">
+            <div className={`px-2.5 py-1 rounded-md text-[11px] font-semibold border ${approved ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : rejected ? 'bg-rose-500/20 text-rose-400 border-rose-500/30' : 'bg-amber-500/20 text-amber-400 border-amber-500/30'}`}>
+              {status}
+            </div>
+          </div>
+        </div>
       </div>
-      {linkedAttachments.length > 0 && <div className="mt-3 space-y-2">
-        <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">Comprovantes</p>
-        <div className="flex flex-wrap gap-2">
-          {linkedAttachments.map((attachment) => <button key={attachment.id} type="button" onClick={() => void openAttachment(attachment)} className="inline-flex min-h-11 max-w-full items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.045] px-3 py-2 text-left text-xs font-bold text-slate-200 transition hover:border-sky-300/30 hover:bg-white/[0.07]">
-            {String(attachment.tipo_arquivo || '').startsWith('image/') ? <FileImage size={15} className="shrink-0 text-sky-300" /> : <FileText size={15} className="shrink-0 text-slate-300" />}
-            <span className="min-w-0 max-w-[190px] truncate">{attachment.nome_arquivo || 'Comprovante'}</span>
-            <Eye size={14} className="shrink-0 text-slate-500" />
-          </button>)}
+
+      <div className="flex-1 overflow-y-auto px-5 pb-32 -mt-10 relative z-10" ref={scrollRef}>
+        
+        {/* Informações Básicas (Grouped List) */}
+        <div className="bg-card rounded-2xl border border-border/40 shadow-sm overflow-hidden divide-y divide-border/40 mb-6">
+          <div className="flex justify-between items-center px-4 py-3.5">
+            <div className="flex items-center gap-3">
+              <Plane size={16} className="text-muted-foreground" />
+              <span className="text-[14px] font-medium text-muted-foreground">Voo</span>
+            </div>
+            <span className="text-[14px] font-semibold text-foreground">{report.numero_voo || '—'}</span>
+          </div>
+          <div className="flex justify-between items-center px-4 py-3.5">
+            <div className="flex items-center gap-3">
+              <ShieldCheck size={16} className="text-muted-foreground" />
+              <span className="text-[14px] font-medium text-muted-foreground">Aeronave</span>
+            </div>
+            <span className="text-[14px] font-semibold text-foreground">{report.aeronave_matricula || '—'}</span>
+          </div>
+          <div className="flex justify-between items-center px-4 py-3.5">
+            <div className="flex items-center gap-3">
+              <Calendar size={16} className="text-muted-foreground" />
+              <span className="text-[14px] font-medium text-muted-foreground">Período</span>
+            </div>
+            <span className="text-[14px] font-semibold text-foreground">{date(report.data_inicio)} a {date(report.data_fim)}</span>
+          </div>
+          <div className="flex justify-between items-center px-4 py-3.5">
+            <div className="flex items-center gap-3">
+              <FileText size={16} className="text-muted-foreground" />
+              <span className="text-[14px] font-medium text-muted-foreground">Tripulante</span>
+            </div>
+            <span className="text-[14px] font-semibold text-foreground">{report.tripulante_pos === 1 ? report.nome_tripulante || 'Tripulante 1' : report.nome_tripulante_2 || 'Tripulante 2'}</span>
+          </div>
+          {report.observacoes && (
+            <div className="px-4 py-3.5 flex flex-col gap-1.5">
+              <span className="text-[13px] font-semibold text-foreground">Observações</span>
+              <p className="text-[13px] text-muted-foreground">{report.observacoes}</p>
+            </div>
+          )}
         </div>
-      </div>}
-      {linkedAttachments.length === 0 && expense.comprovante_url && <a className="mt-3 inline-flex items-center gap-2 text-xs font-bold text-sky-200 underline" href={expense.comprovante_url} target="_blank" rel="noreferrer"><Eye size={14} />Abrir comprovante</a>}
-    </article>;
-  };
 
-  return <>
-    <div className="fixed inset-0 z-[80] bg-[#060b14] text-white">
-      <main
-        ref={scrollRef}
-        className="absolute inset-0 overflow-y-auto overscroll-y-contain pt-[env(safe-area-inset-top)]"
-        style={{ WebkitOverflowScrolling: 'touch' }}
-      >
-        <div className="mx-auto w-full max-w-4xl px-3 pb-48 pt-3 sm:px-6 sm:pb-52 sm:pt-6">
-          <header className="mb-4 flex items-center gap-3 sm:mb-6">
-            <button type="button" onClick={onClose} aria-label="Voltar aos relatórios" className="grid size-11 shrink-0 place-items-center rounded-2xl border border-white/10 bg-white/[0.04] text-slate-200"><ArrowLeft size={19} /></button>
-            <div className="grid size-12 shrink-0 place-items-center rounded-2xl border border-white/10 bg-white/[0.04] text-sky-200"><Plane size={22} /></div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-sky-300">Share Brasil</p>
-              <h1 className="truncate text-base font-extrabold tracking-tight text-white sm:text-xl">Revisão de despesas</h1>
-            </div>
-            <span className={`shrink-0 rounded-full border px-3 py-1.5 text-[10px] font-bold ${statusClasses}`}>{status}</span>
-          </header>
+        {/* Segmented Control Abas */}
+        <div className="flex w-full overflow-x-auto no-scrollbar bg-muted/40 p-1 rounded-[14px] mb-5 shadow-inner snap-x">
+          {(['total', ...availableGroups] as ExpenseGroup[]).map((item) => (
+            <button key={item} onClick={() => setGroup(item)} className={`snap-center shrink-0 flex flex-col items-center justify-center rounded-[10px] py-2 px-4 transition-all min-w-[100px] ${group === item ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground'}`}>
+              <span className="text-[10px] font-semibold uppercase tracking-wider mb-0.5">{groupLabel(item)}</span>
+              <span className={`text-[15px] font-bold ${group === item ? (item === 'tripulante' ? 'text-emerald-500' : 'text-primary') : ''}`}>{currency(totals[item])}</span>
+            </button>
+          ))}
+        </div>
 
-          <section className="overflow-hidden rounded-3xl border border-white/10 bg-[#0b111c] shadow-[0_18px_60px_rgba(0,0,0,0.24)]">
-            <div className="border-b border-white/10 bg-gradient-to-br from-white/[0.05] to-transparent px-4 py-5 sm:px-6 sm:py-6">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0">
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-300/15 bg-sky-300/[0.08] px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.12em] text-sky-200"><ShieldCheck size={13} />Revisão do relatório</span>
-                  <h2 className="mt-3 break-words text-xl font-extrabold tracking-tight text-white sm:text-2xl">Relatório {report.numero_relatorio || '—'}</h2>
-                  <p className="mt-1 text-sm leading-relaxed text-slate-400">Revise os grupos de despesas e abra os comprovantes antes de aprovar ou solicitar ajustes.</p>
-                </div>
-                <div className="rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.06] px-4 py-3 sm:min-w-[160px] sm:text-right">
-                  <p className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-200/70">{groupLabel(group)}</p>
-                  <p className="mt-1 text-xl font-black text-emerald-100">{currency(selectedTotal)}</p>
-                </div>
-              </div>
-
-              <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-3.5"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Voo</p><p className="mt-1 flex items-center gap-1.5 text-sm font-bold text-white"><Plane size={14} className="text-sky-300" />{report.numero_voo || '—'}</p></div>
-                <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-3.5"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Aeronave</p><p className="mt-1 text-sm font-bold text-white">{report.aeronave_matricula || '—'}</p></div>
-                <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-3.5"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Período</p><p className="mt-1 text-sm font-bold text-white">{date(report.data_inicio)} a {date(report.data_fim)}</p></div>
-                <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-3.5"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Tripulante</p><p className="mt-1 break-words text-sm font-bold text-white">{report.tripulante_pos === 1 ? report.nome_tripulante || 'Tripulante 1' : report.nome_tripulante_2 || 'Tripulante 2'}</p></div>
-              </div>
-              <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.035] p-3.5"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Rota</p><p className="mt-1 break-words text-sm font-bold text-white">{report.rota || '—'}</p></div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-px bg-white/10 sm:grid-cols-4">
-              {(['total', ...availableGroups] as ExpenseGroup[]).map((item) => <button key={item} type="button" onClick={() => selectGroup(item)} aria-pressed={group === item} className={`p-4 text-left transition hover:bg-white/[0.045] ${group === item ? 'bg-sky-400/[0.10] ring-1 ring-inset ring-sky-300/25' : 'bg-[#0b111c]'}`}>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{groupLabel(item)}</p>
-                <p className={`mt-1 text-base font-black ${item === 'tripulante' ? 'text-emerald-200' : item === 'cliente' ? 'text-sky-200' : 'text-white'}`}>{currency(totals[item])}</p>
-                <p className="mt-1 text-[10px] font-bold text-slate-500">{item === 'total' ? expenses.length : groupedExpenses[item].length} despesa(s)</p>
-              </button>)}
-            </div>
-            {report.observacoes && <div className="border-t border-white/10 px-4 py-3 text-xs leading-relaxed text-slate-400 sm:px-5"><strong className="text-slate-300">Observações:</strong> {report.observacoes}</div>}
-          </section>
-
-          {adjustmentRequests.length > 0 && <section className="mt-4 overflow-hidden rounded-3xl border border-rose-300/15 bg-[#0b111c] shadow-[0_18px_60px_rgba(0,0,0,0.18)]">
-            <Accordion type="single" collapsible>
-              <AccordionItem value="adjustment-history" className="border-0">
-                <AccordionTrigger className="px-4 text-left hover:no-underline sm:px-5">
-                  <div className="min-w-0 pr-3"><p className="text-sm font-extrabold text-rose-100">Histórico de ajustes</p><p className="mt-1 text-xs font-medium text-slate-400">{adjustmentRequests.length} solicitação(ões) · toque para consultar</p></div>
-                </AccordionTrigger>
-                <AccordionContent className="px-4 sm:px-5">
-                  <div className="space-y-3">
-                    {[...adjustmentRequests].reverse().map((request, index) => <article key={request.id} className="rounded-2xl border border-white/10 bg-white/[0.035] p-3.5">
-                      <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-xs font-extrabold text-rose-100">Solicitação de ajuste · {request.tripulante_pos === 2 ? report.nome_tripulante_2 || 'Tripulante 2' : report.nome_tripulante || 'Tripulante 1'}</p><span className="text-[10px] font-bold text-slate-500">{request.criado_em ? date(request.criado_em) : `Pedido ${adjustmentRequests.length - index}`}</span></div>
-                      <p className="mt-2 whitespace-pre-wrap break-words text-xs leading-relaxed text-slate-200">{request.motivo}</p>
-                      {(request.anexos || []).length > 0 && <div className="mt-3 flex flex-wrap gap-2">{request.anexos!.map((attachment) => <button key={attachment.id} type="button" onClick={() => void openAttachment(attachment)} className="inline-flex min-h-11 max-w-full items-center gap-2 rounded-2xl border border-white/10 bg-black/10 px-3 py-2 text-left text-xs font-bold text-rose-100"><FileImage size={15} className="shrink-0 text-rose-200" /><span className="max-w-[190px] truncate">{attachment.nome_arquivo || 'Imagem da solicitação'}</span><Eye size={14} className="shrink-0 text-slate-400" /></button>)}</div>}
-                    </article>)}
+        {/* Lista de Despesas (Grouped List) */}
+        <div className="mb-4">
+          <h3 className="text-[13px] font-semibold text-muted-foreground uppercase tracking-wide mb-2 px-1">
+            Despesas do Grupo: {groupLabel(group)}
+          </h3>
+          <div className="bg-card rounded-2xl border border-border/40 shadow-sm overflow-hidden divide-y divide-border/40">
+            {selectedExpenses.length > 0 ? (
+              selectedExpenseRows.map(({ expense, index }) => {
+                const linkedAttachments = attachmentsByExpense.get(index) || [];
+                return (
+                  <div key={index} className="p-4 flex flex-col gap-3 group active:bg-muted/20 transition-colors">
+                    <div className="flex justify-between items-start gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex gap-2 items-center mb-1">
+                          <span className="text-[10px] font-semibold text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-md">{expenseCategory(expense)}</span>
+                          {expense.data && <span className="text-[10px] text-muted-foreground">{date(expense.data)}</span>}
+                        </div>
+                        <p className="text-[15px] font-semibold text-foreground leading-snug">{expenseDescription(expense)}</p>
+                        <p className="text-[12px] text-muted-foreground mt-0.5">Pago por: {payerLabel(expense)}</p>
+                      </div>
+                      <span className="text-[15px] font-bold text-foreground">{currency(amountOf(expense))}</span>
+                    </div>
+                    
+                    {(linkedAttachments.length > 0 || expense.comprovante_url) && (
+                      <div className="flex gap-2 overflow-x-auto no-scrollbar pt-2">
+                        {linkedAttachments.map((attachment) => (
+                          <button key={attachment.id} onClick={() => openAttachment(attachment)} className="flex items-center gap-2 bg-muted/40 border border-border/40 rounded-xl px-3 py-2 text-[12px] font-medium text-foreground shrink-0 active:opacity-70">
+                            {String(attachment.tipo_arquivo || '').startsWith('image/') ? <FileImage size={14} className="text-primary" /> : <FileText size={14} />}
+                            <span className="max-w-[120px] truncate">{attachment.nome_arquivo || 'Comprovante'}</span>
+                          </button>
+                        ))}
+                        {linkedAttachments.length === 0 && expense.comprovante_url && (
+                          <a href={expense.comprovante_url} target="_blank" rel="noreferrer" className="flex items-center gap-2 bg-muted/40 border border-border/40 rounded-xl px-3 py-2 text-[12px] font-medium text-primary shrink-0 active:opacity-70">
+                            <Eye size={14} /> Abrir anexo
+                          </a>
+                        )}
+                      </div>
+                    )}
                   </div>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
-          </section>}
+                );
+              })
+            ) : (
+              <div className="p-8 text-center text-muted-foreground text-sm font-medium">Nenhuma despesa neste grupo.</div>
+            )}
+          </div>
+        </div>
 
-          <section className="mt-4 overflow-hidden rounded-3xl border border-white/10 bg-[#0b111c] shadow-[0_18px_60px_rgba(0,0,0,0.24)] sm:mt-5">
-            <div className="flex items-start gap-3 border-b border-white/10 px-4 py-4 sm:px-5">
-              <span className="mt-0.5 grid size-10 shrink-0 place-items-center rounded-2xl bg-white/[0.06] text-sky-200">{group === 'total' ? <Plane size={18} /> : group === 'cliente' ? <ReceiptText size={18} /> : group === 'sharebrasil' ? <ShieldCheck size={18} /> : group === 'outros' ? <Info size={18} /> : <CircleDollarSign size={18} />}</span>
-              <div className="min-w-0"><h2 className="text-sm font-extrabold tracking-tight text-white sm:text-base">{groupDescription(group)} ({selectedExpenses.length})</h2><p className="mt-1 text-xs leading-relaxed text-slate-400">Total deste grupo: {currency(selectedTotal)}</p></div>
-            </div>
-            {selectedExpenses.length > 0
-              ? selectedExpenseRows.map(({ expense, index }) => renderExpense(expense, index))
-              : <p className="px-4 py-5 text-sm text-slate-500 sm:px-5">Nenhuma despesa neste grupo.</p>}
-          </section>
+        {/* Histórico de Ajustes */}
+        {adjustmentRequests.length > 0 && (
+          <Accordion type="single" collapsible className="bg-card rounded-2xl border border-border/40 shadow-sm overflow-hidden mb-6">
+            <AccordionItem value="history" className="border-0">
+              <AccordionTrigger className="px-4 py-4 hover:no-underline text-[14px] font-semibold text-foreground">
+                <div className="flex gap-2 items-center text-rose-500">
+                  <Info size={16} /> Histórico de Ajustes ({adjustmentRequests.length})
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="px-4 pb-4 divide-y divide-border/40">
+                {[...adjustmentRequests].reverse().map((req, i) => (
+                  <div key={req.id} className="py-3 first:pt-0 last:pb-0">
+                    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                      {req.criado_em ? date(req.criado_em) : `Ajuste ${adjustmentRequests.length - i}`}
+                    </p>
+                    <p className="text-[13px] text-foreground leading-relaxed">{req.motivo}</p>
+                  </div>
+                ))}
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        )}
+      </div>
 
-          {!canDecide && <section className={`mt-4 rounded-3xl border p-4 sm:p-5 ${approved ? 'border-emerald-300/15 bg-emerald-300/[0.05]' : rejected ? 'border-rose-300/15 bg-rose-300/[0.05]' : 'border-white/10 bg-[#0b111c]'}`}>
-            <div className="flex items-start gap-3">
-              {approved ? <CheckCircle2 className="mt-0.5 shrink-0 text-emerald-300" size={23} /> : rejected ? <XCircle className="mt-0.5 shrink-0 text-rose-300" size={23} /> : <Clock3 className="mt-0.5 shrink-0 text-slate-400" size={23} />}
-              <div className="min-w-0"><p className={`text-base font-extrabold ${approved ? 'text-emerald-200' : rejected ? 'text-rose-200' : 'text-slate-200'}`}>{approved ? 'Sua aprovação foi registrada' : rejected ? 'Este relatório foi rejeitado' : `Status: ${status}`}</p>
-                {!approved && <p className="mt-2 text-xs leading-relaxed text-slate-500">Este relatório não está mais disponível para uma nova decisão.</p>}
+      {/* Floating Bottom Bar Actions */}
+      <div className="fixed bottom-0 inset-x-0 bg-background/80 backdrop-blur-xl border-t border-border/50 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] z-40">
+        {canDecide ? (
+          <div className="flex gap-3 max-w-4xl mx-auto">
+            {!canRetryApprovalSync && (
+              <Button disabled={busy} variant="outline" onClick={() => { setDecision('rejeitar'); setReason(''); setRejectionImage(null); }} className="flex-1 h-12 rounded-xl border-rose-500/20 text-rose-500 hover:bg-rose-500/10 font-semibold text-[15px]">
+                Solicitar Ajuste
+              </Button>
+            )}
+            <Button disabled={busy} onClick={() => { setDecision('aprovar'); }} className="flex-1 h-12 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 font-semibold text-[15px]">
+              {canRetryApprovalSync ? 'Tentar novamente' : 'Aprovar Relatório'}
+            </Button>
+          </div>
+        ) : (
+          <div className="max-w-4xl mx-auto flex items-center justify-center gap-2 py-2 text-muted-foreground font-medium text-[14px]">
+            {approved ? <CheckCircle2 size={18} className="text-emerald-500" /> : rejected ? <XCircle size={18} className="text-rose-500" /> : <Clock3 size={18} />}
+            {approved ? 'Relatório Aprovado' : rejected ? 'Relatório em Ajuste' : 'Aguardando Revisão'}
+          </div>
+        )}
+      </div>
+
+      {/* Bottom Sheet Modais (Decisão) */}
+      {decision && (
+        <div className="fixed inset-0 z-[100] flex justify-center items-end bg-black/50 backdrop-blur-sm">
+          <div className="bg-card w-full max-w-lg rounded-t-[32px] p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-2xl animate-in slide-in-from-bottom-full duration-300 border-t border-border/40">
+            <div className="w-12 h-1.5 bg-muted-foreground/20 rounded-full mx-auto mb-6" />
+            <h2 className="text-xl font-bold text-foreground mb-2">
+              {decision === 'aprovar' ? 'Confirmar Aprovação' : 'Solicitar Ajuste'}
+            </h2>
+            
+            {decision === 'aprovar' ? (
+              <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 mb-6">
+                <p className="text-[14px] text-emerald-600 dark:text-emerald-400 font-medium">
+                  {canRetryApprovalSync ? 'Concluir sincronização.' : <>Você está aprovando este relatório e assumindo a responsabilidade pelas despesas vinculadas a você (<strong>{currency(totals.tripulante)}</strong>).</>}
+                </p>
               </div>
+            ) : (
+              <div className="mb-6 space-y-4">
+                <p className="text-[13px] text-muted-foreground">Detalhe o que precisa ser corrigido pelo usuário neste relatório.</p>
+                <Textarea value={reason} onChange={e => setReason(e.target.value)} placeholder="Descreva o motivo do ajuste..." className="bg-background/50 border-border/60 rounded-xl h-28 text-[14px] p-3 resize-none" />
+                
+                <input ref={rejectionImageInput} type="file" accept="image/jpeg,image/png" className="hidden" onChange={handleRejectionImage} />
+                {!rejectionImage ? (
+                  <Button variant="outline" onClick={() => rejectionImageInput.current?.click()} className="w-full h-12 rounded-xl border-dashed border-border/60 text-muted-foreground font-semibold">
+                    <ImagePlus size={16} className="mr-2" /> Anexar imagem (Opcional)
+                  </Button>
+                ) : (
+                  <div className="flex items-center gap-3 bg-muted/30 border border-border/40 rounded-xl p-2 pl-3">
+                    <span className="flex-1 truncate text-[13px] font-medium text-foreground">{rejectionImage.name}</span>
+                    <Button variant="ghost" size="icon" onClick={() => setRejectionImage(null)} className="text-muted-foreground"><Trash2 size={16} /></Button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="flex gap-3 mt-2">
+              <Button variant="outline" onClick={() => setDecision(null)} className="flex-1 h-12 rounded-xl font-semibold border-border/60 text-foreground">Cancelar</Button>
+              <Button onClick={confirmDecision} disabled={busy || (decision === 'rejeitar' && !reason.trim())} className={`flex-1 h-12 rounded-xl font-semibold text-white ${decision === 'aprovar' ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-rose-500 hover:bg-rose-600'}`}>
+                {busy ? <Loader2 className="animate-spin" size={18} /> : 'Confirmar'}
+              </Button>
             </div>
-          </section>}
-        </div>
-      </main>
-
-      {canDecide && <div className="fixed inset-x-0 bottom-0 z-[85] border-t border-white/10 bg-[#07101c]/95 shadow-[0_-18px_50px_rgba(0,0,0,0.35)] backdrop-blur-xl">
-        <div className="mx-auto w-full max-w-4xl px-3 pb-[calc(0.85rem+env(safe-area-inset-bottom))] pt-3 sm:px-6 sm:pb-4">
-          <div className="mb-2 flex items-center justify-between gap-3 px-1 text-[10px] font-extrabold uppercase tracking-wider"><span className={canRetryApprovalSync ? 'text-sky-300' : 'text-slate-400'}>{canRetryApprovalSync ? 'Aprovação registrada · tente novamente' : 'Relatório aguardando decisão'}</span><span className="text-slate-400">{currency(totals.tripulante)}</span></div>
-          <div className={`grid gap-2.5 ${canRetryApprovalSync ? 'grid-cols-1' : 'grid-cols-2'}`}>
-            {!canRetryApprovalSync && <button type="button" disabled={busy} onClick={() => { setReason(''); setRejectionImage(null); setDecision('rejeitar'); }} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-rose-400/20 bg-white/[0.03] px-3 text-sm font-extrabold text-rose-200 transition disabled:opacity-50"><X size={17} />Rejeitar</button>}
-            <button type="button" disabled={busy} onClick={() => { setReason(''); setRejectionImage(null); setDecision('aprovar'); }} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-3 text-sm font-extrabold text-[#04120c] shadow-[0_8px_24px_rgba(16,185,129,0.22)] transition disabled:cursor-not-allowed disabled:opacity-35"><Check size={17} />{canRetryApprovalSync ? 'Tentar concluir aprovação' : 'Aprovar relatório'}</button>
           </div>
         </div>
-      </div>}
+      )}
 
-      {!canDecide && approved && <div className="fixed inset-x-0 bottom-0 z-[85] border-t border-white/10 bg-[#07101c]/95 shadow-[0_-18px_50px_rgba(0,0,0,0.35)] backdrop-blur-xl">
-        <div className="mx-auto w-full max-w-4xl px-3 pb-[calc(0.85rem+env(safe-area-inset-bottom))] pt-3 sm:px-6 sm:pb-4">
-          <button type="button" disabled className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.08] px-3 text-sm font-extrabold text-emerald-200 disabled:cursor-default disabled:opacity-100"><CheckCircle2 size={17} />RELATÓRIO APROVADO</button>
-        </div>
-      </div>}
-
-      {decision && <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/70 p-0 backdrop-blur-sm sm:items-center sm:p-4">
-        <section role="dialog" aria-modal="true" aria-labelledby="travel-decision-title" className="max-h-[min(92dvh,760px)] w-full max-w-lg overflow-y-auto overscroll-contain rounded-t-3xl border border-white/10 bg-[#0b111c] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] text-white shadow-2xl sm:rounded-3xl sm:p-6" style={{ WebkitOverflowScrolling: 'touch' }}>
-          <div className="flex items-start justify-between gap-4"><div><p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-500">Confirmação</p><h2 id="travel-decision-title" className="mt-1 text-lg font-black tracking-tight">{decision === 'aprovar' ? canRetryApprovalSync ? 'Tentar concluir aprovação?' : 'Aprovar este relatório?' : 'Rejeitar este relatório?'}</h2></div><button type="button" onClick={closeDecision} aria-label="Fechar" className="grid size-11 shrink-0 place-items-center rounded-xl bg-white/[0.06] text-slate-300"><X size={18} /></button></div>
-          {decision === 'aprovar' ? <div className="mt-4 rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.06] p-4"><div className="flex items-start gap-3"><CheckCircle2 className="mt-0.5 shrink-0 text-emerald-300" size={20} /><p className="text-sm leading-relaxed text-emerald-100">{canRetryApprovalSync ? 'A aprovação já está registrada. Esta ação tenta concluir a sincronização financeira sem registrar uma nova decisão.' : <>Você confirma a aprovação do relatório no valor de <strong>{currency(totals.tripulante)}</strong> atribuídos a você.</>}</p></div></div> : <div className="mt-4"><div className="rounded-2xl border border-rose-300/15 bg-rose-300/[0.06] p-4 text-xs leading-relaxed text-rose-100">Para rejeitar, informe o que precisa ser corrigido. A imagem é opcional.</div><Textarea value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Ex.: Despesa de alimentação informada com valor incorreto." className="mt-3 min-h-28 resize-y rounded-2xl border-white/10 bg-white/[0.04] text-sm text-white placeholder:text-slate-500" />
-            <input ref={rejectionImageInput} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" className="sr-only" onChange={handleRejectionImage} aria-label="Selecionar imagem para anexar à rejeição" />
-            {!rejectionImage ? <button type="button" onClick={() => rejectionImageInput.current?.click()} className="mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-rose-300/25 bg-rose-300/[0.04] px-4 text-sm font-extrabold text-rose-100 transition active:bg-rose-300/[0.10]"><ImagePlus size={18} />Adicionar imagem (opcional)</button> : <div className="mt-3 flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3"><img src={rejectionImagePreview} alt="Prévia da imagem anexada" className="size-14 shrink-0 rounded-xl bg-black/20 object-cover" /><span className="min-w-0 flex-1 truncate text-xs font-bold text-slate-200">{rejectionImage.name}</span><button type="button" onClick={() => setRejectionImage(null)} aria-label="Remover imagem anexada" className="grid size-11 shrink-0 place-items-center rounded-xl bg-white/[0.06] text-slate-300"><Trash2 size={17} /></button></div>}
-            <p className="mt-2 text-[11px] text-slate-500">JPG, PNG, WebP ou HEIC · até 5 MB</p>
-          </div>}
-          <div className="mt-4 grid grid-cols-2 gap-2.5"><button type="button" disabled={busy} onClick={closeDecision} className="min-h-12 rounded-2xl border border-white/10 bg-white/[0.03] px-3 text-sm font-extrabold text-slate-200 disabled:opacity-50">Cancelar</button><button type="button" disabled={busy || (decision === 'rejeitar' && !reason.trim())} onClick={() => void confirmDecision()} className={`min-h-12 rounded-2xl px-3 text-sm font-extrabold disabled:cursor-not-allowed disabled:opacity-50 ${decision === 'aprovar' ? 'bg-emerald-500 text-[#04120c]' : 'bg-rose-500 text-white'}`}>{busy ? <Loader2 className="mx-auto animate-spin" size={18} /> : decision === 'aprovar' ? canRetryApprovalSync ? 'Tentar concluir' : 'Confirmar aprovação' : 'Confirmar rejeição'}</button></div>
-        </section>
-      </div>}
-
-      {(preview || previewLoading || previewError) && <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-2 backdrop-blur-sm sm:p-6">
-        <section className="flex max-h-[96dvh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#0b111c] text-white shadow-2xl">
-          <div className="flex items-center gap-3 border-b border-white/10 px-4 py-3 sm:px-5"><div className="grid size-10 shrink-0 place-items-center rounded-xl bg-white/[0.06] text-slate-300">{preview && String(preview.attachment.tipo_arquivo || '').startsWith('image/') ? <FileImage size={17} /> : <FileText size={17} />}</div><div className="min-w-0 flex-1"><p className="truncate text-sm font-extrabold">{preview?.attachment.nome_arquivo || 'Comprovante'}</p><p className="truncate text-[11px] text-slate-500">{report.numero_relatorio}</p></div><button type="button" onClick={() => { setPreview(null); setPreviewError(''); }} aria-label="Fechar comprovante" className="grid size-10 shrink-0 place-items-center rounded-xl bg-white/[0.06] text-slate-300"><X size={18} /></button></div>
-          <div className="min-h-0 flex-1 overflow-auto bg-[#050a12] p-2 sm:p-4" style={{ WebkitOverflowScrolling: 'touch' }}>
-            {previewLoading && <div className="flex min-h-[50dvh] items-center justify-center"><Loader2 className="animate-spin text-sky-300" size={32} /></div>}
-            {!previewLoading && previewError && <p className="flex min-h-[50dvh] items-center justify-center px-6 text-sm text-rose-200">{previewError}</p>}
-            {!previewLoading && preview && String(preview.attachment.tipo_arquivo || '').startsWith('image/') && <div className="flex min-h-[55dvh] items-center justify-center rounded-2xl bg-black/20 p-2 sm:p-4"><img src={preview.url} alt={preview.attachment.nome_arquivo || 'Comprovante'} className="max-h-[78dvh] w-auto max-w-full rounded-xl object-contain" /></div>}
-            {!previewLoading && preview && (preview.attachment.tipo_arquivo === 'application/pdf' || preview.attachment.nome_arquivo?.toLowerCase().endsWith('.pdf')) && <iframe title={preview.attachment.nome_arquivo || 'Comprovante PDF'} src={preview.url} className="h-[75dvh] w-full rounded-xl bg-white" />}
-            {!previewLoading && preview && !String(preview.attachment.tipo_arquivo || '').startsWith('image/') && preview.attachment.tipo_arquivo !== 'application/pdf' && !preview.attachment.nome_arquivo?.toLowerCase().endsWith('.pdf') && <div className="flex min-h-[50dvh] flex-col items-center justify-center rounded-2xl bg-white/[0.03] p-6 text-center"><FileText size={44} className="text-slate-600" /><p className="mt-3 text-sm font-bold">Arquivo disponível</p><p className="mt-1 text-xs text-slate-500">Use o botão abaixo para abrir o comprovante.</p></div>}
+      {/* Visualizador de Imagem / Comprovante Modal */}
+      {preview && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/90 p-4 backdrop-blur-md">
+          <div className="w-full max-w-3xl flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center mb-4">
+              <p className="text-white text-sm font-semibold truncate max-w-[80%]">{preview.attachment.nome_arquivo}</p>
+              <button onClick={() => setPreview(null)} className="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 text-white active:scale-95"><X size={20} /></button>
+            </div>
+            <div className="flex-1 overflow-hidden flex items-center justify-center rounded-2xl bg-white/5">
+              {previewLoading ? <Loader2 className="animate-spin text-white" size={32} /> : 
+                String(preview.attachment.tipo_arquivo || '').startsWith('image/') ? 
+                  <img src={preview.url} className="max-w-full max-h-full object-contain rounded-xl" alt="Comprovante" />
+                : <iframe src={preview.url} className="w-full h-full bg-white rounded-xl" title="Documento" />
+              }
+            </div>
           </div>
-          <div className="flex items-center justify-between gap-3 border-t border-white/10 px-4 py-3 sm:px-5"><span className="truncate text-[11px] text-slate-500">Comprovante do relatório</span>{preview && <a href={preview.url} target="_blank" rel="noreferrer" className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-xs font-bold text-slate-200">Abrir em nova guia<ExternalLink size={14} /></a>}</div>
-        </section>
-      </div>}
+        </div>
+      )}
     </div>
-  </>;
+  );
 }
+
+
+// --- Main Component: Relatório Viagem ---
 
 export default function RelatorioViagem() {
   const navigate = useNavigate();
@@ -591,12 +496,7 @@ export default function RelatorioViagem() {
     if (!session?.access_token) throw new Error('Sessão expirada. Entre novamente.');
     const response = await fetch(`${BACKEND}${path}`, {
       ...init,
-      headers: {
-        Authorization: `Bearer ${session.access_token}`,
-        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_DEFAULT_KEY,
-        ...(init?.body && !(init.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}),
-        ...init?.headers,
-      },
+      headers: { Authorization: `Bearer ${session.access_token}`, apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_DEFAULT_KEY, ...(init?.body && !(init.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}), ...init?.headers, },
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.message || data.error || 'Não foi possível concluir a solicitação.');
@@ -610,11 +510,10 @@ export default function RelatorioViagem() {
       const data = await request(endpoint);
       setReports(Array.isArray(data.relatorios) ? data.relatorios : []);
     } catch (error) {
-      if (!silent) toast.error(error instanceof Error ? error.message : 'Erro ao carregar seus relatórios.');
-    } finally {
-      setLoading(false);
-    }
+      if (!silent) toast.error(error instanceof Error ? error.message : 'Erro ao carregar relatórios.');
+    } finally { setLoading(false); }
   }, [request, session?.access_token]);
+  
   useEffect(() => { void loadReports(); }, [loadReports]);
 
   const filteredReports = useMemo(() => reports.filter((report) => {
@@ -623,6 +522,7 @@ export default function RelatorioViagem() {
     if (filter === 'Aprovado') return !isPending(report) && reportLabel(report) === 'Aprovado' && report.pagamento_status !== 'PAGO';
     return true;
   }), [filter, reports]);
+
   const counts = useMemo(() => ({
     pending: reports.filter(isPending).length,
     approved: reports.filter((report) => reportLabel(report) === 'Aprovado' && report.pagamento_status !== 'PAGO').length,
@@ -637,54 +537,105 @@ export default function RelatorioViagem() {
       body.set('aprovado', String(approved));
       body.set('observacoes', reason);
       if (rejectionImage) body.set('anexo_rejeicao', rejectionImage, rejectionImage.name);
-      await request(`/api/financeiro/relatorios-despesa-viagem/${encodeURIComponent(report.id)}/aprovacao`, {
-        method: 'POST',
-        body,
-      });
-      toast.success(approved ? 'Relatório aprovado.' : 'Relatório rejeitado e enviado para ajuste.');
-      await loadReports();
-      return true;
+      await request(`/api/financeiro/relatorios-despesa-viagem/${encodeURIComponent(report.id)}/aprovacao`, { method: 'POST', body });
+      toast.success(approved ? 'Relatório aprovado.' : 'Ajuste solicitado.');
+      await loadReports(); return true;
     } catch (error) {
-      await loadReports(true);
-      toast.error(error instanceof Error ? error.message : 'Não foi possível registrar sua decisão.');
-      return false;
-    } finally {
-      setBusyId(null);
-    }
+      await loadReports(true); toast.error('Não foi possível registrar decisão.'); return false;
+    } finally { setBusyId(null); }
   };
 
   const selectedReport = reports.find((report) => report.id === selectedId) || null;
 
-  return <MobileLayout hideTabBar={Boolean(selectedReport)}>
-    {selectedReport ? <ReportReviewScreen key={selectedReport.id} report={selectedReport} accessToken={session?.access_token} onClose={() => setSelectedId(null)} onDecide={decide} busy={busyId === selectedReport.id} /> : <main className="mx-auto w-full max-w-3xl space-y-5 p-4 sm:p-6">
-      <header className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/')} aria-label="Voltar ao início"><ArrowLeft className="h-5 w-5" /></Button>
-        <div className="min-w-0 flex-1"><h1 className="text-xl font-bold sm:text-2xl">Despesas de viagem</h1><p className="text-sm text-muted-foreground">Acompanhe aprovações e pagamentos dos seus relatórios.</p></div>
-        <Button variant="outline" size="icon" onClick={() => void loadReports()} disabled={loading} aria-label="Atualizar"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /></Button>
-      </header>
-      <section className="grid grid-cols-3 gap-2" aria-label="Resumo dos relatórios">
-        <Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">Pendentes</p><p className="mt-1 text-xl font-bold">{counts.pending}</p></CardContent></Card>
-        <Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">Aprovados</p><p className="mt-1 text-xl font-bold">{counts.approved}</p></CardContent></Card>
-        <Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">Pagos</p><p className="mt-1 text-xl font-bold">{counts.paid}</p></CardContent></Card>
-      </section>
-      <nav className="flex gap-2 overflow-x-auto pb-1" aria-label="Filtrar relatórios">
-        {(['Todos', 'Pendente', 'Aprovado', 'Pago'] as const).map((item) => <Button key={item} size="sm" variant={filter === item ? 'default' : 'outline'} onClick={() => setFilter(item)}>{item}</Button>)}
-      </nav>
-      {loading ? <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin" aria-label="Carregando" /></div> : filteredReports.length === 0
-        ? <Card><CardContent className="py-10 text-center text-sm text-muted-foreground"><FileText className="mx-auto mb-3 h-8 w-8 opacity-50" />Nenhum relatório encontrado neste filtro.</CardContent></Card>
-        : <div className="space-y-3">{filteredReports.map((report) => {
-          const pending = isPending(report);
-          const paid = report.pagamento_status === 'PAGO';
-          return <Card key={report.id}><CardContent className="p-4">
-            <div className="flex items-start gap-3">
-              <div className="mt-0.5 rounded-full bg-muted p-2">{paid ? <CircleDollarSign className="h-4 w-4 text-green-600" /> : pending ? <Clock3 className="h-4 w-4 text-amber-600" /> : <FileText className="h-4 w-4 text-primary" />}</div>
-              <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h2 className="font-semibold">{report.numero_relatorio || 'Relatório de viagem'}</h2><span className={`rounded-full px-2 py-0.5 text-xs font-medium ${paid ? 'bg-green-100 text-green-800' : pending ? 'bg-amber-100 text-amber-800' : report.status === 'ajuste_necessario' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'}`}>{reportLabel(report)}</span></div>
-                <p className="mt-1 text-sm text-muted-foreground">{report.cliente_nome || 'Cliente'} · {report.aeronave_matricula || 'Aeronave'}</p><p className="text-xs text-muted-foreground">{report.rota || 'Trecho não informado'} · {date(report.data_inicio)} a {date(report.data_fim)}</p></div>
-              <Button variant="outline" size="sm" onClick={() => setSelectedId(report.id)} aria-label={`Abrir relatório ${report.numero_relatorio}`}><Eye className="mr-1 h-4 w-4" />Abrir</Button>
+  return (
+    <MobileLayout hideTabBar={Boolean(selectedReport)}>
+      {selectedReport ? (
+        <ReportReviewScreen key={selectedReport.id} report={selectedReport} accessToken={session?.access_token} onClose={() => setSelectedId(null)} onDecide={decide} busy={busyId === selectedReport.id} />
+      ) : (
+        <div className="flex flex-col min-h-screen bg-background pb-24">
+          
+          {/* Overlapping Header nativo */}
+          <div className="bg-[#0A111F] pt-14 pb-20 px-5 relative shrink-0">
+            <div className="flex items-center justify-between mb-6">
+              <button onClick={() => navigate('/')} className="w-10 h-10 flex items-center justify-center -ml-2 text-white active:opacity-70">
+                <ArrowLeft size={22} />
+              </button>
+              <h1 className="text-white text-lg font-bold tracking-tight">Despesas de Viagem</h1>
+              <button onClick={() => loadReports()} className="w-10 h-10 flex items-center justify-center -mr-2 text-white active:opacity-70">
+                <RefreshCw size={20} className={loading ? 'animate-spin' : ''} />
+              </button>
             </div>
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t pt-3"><p className="font-semibold">Total: {currency(report.total_valor)}</p>{report.pagamento_status !== 'NAO_PROGRAMADO' && <p className="text-sm">{paid ? `Pagamento quitado: ${currency(report.pagamento_valor)}` : `Quitado: ${currency(report.pagamento_valor)} · pendente: ${currency(Math.max(0, Number(report.pagamento_total || 0) - Number(report.pagamento_valor || 0)))}`}</p>}</div>
-          </CardContent></Card>;
-        })}</div>}
-    </main>}
-  </MobileLayout>;
+            <p className="text-white/60 text-[14px] text-center max-w-[280px] mx-auto leading-relaxed">
+              Acompanhe aprovações e o status de pagamento dos seus relatórios.
+            </p>
+          </div>
+
+          {/* Stats Flutuantes */}
+          <div className="px-5 -mt-8 relative z-10">
+            <div className="flex gap-3">
+              <StatCard icon={Clock3} label="Pendentes" value={counts.pending} valueClass="text-amber-500" />
+              <StatCard icon={CheckCircle2} label="Aprovados" value={counts.approved} valueClass="text-emerald-500" />
+              <StatCard icon={CircleDollarSign} label="Pagos" value={counts.paid} valueClass="text-primary" />
+            </div>
+          </div>
+
+          <div className="px-5 mt-6 space-y-4">
+            {/* Segmented Control Nativel-like */}
+            <div className="flex bg-muted/40 p-1 rounded-[14px] shadow-inner mb-2 w-full overflow-x-auto no-scrollbar">
+              {(['Todos', 'Pendente', 'Aprovado', 'Pago'] as const).map((item) => (
+                <button 
+                  key={item} onClick={() => setFilter(item)}
+                  className={`flex-1 min-w-[80px] rounded-[10px] py-2 text-[13px] font-semibold transition-all ${filter === item ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+
+            {loading ? (
+              <div className="flex justify-center py-16"><Loader2 className="animate-spin text-muted-foreground" size={32} /></div>
+            ) : filteredReports.length === 0 ? (
+              <div className="py-12 bg-card rounded-2xl border border-border/40 text-center flex flex-col items-center shadow-sm">
+                <ReceiptText size={32} className="text-muted-foreground/30 mb-3" />
+                <p className="text-[14px] font-medium text-muted-foreground">Nenhum relatório encontrado.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredReports.map((report) => {
+                  const pending = isPending(report);
+                  const paid = report.pagamento_status === 'PAGO';
+                  const needsFix = report.status === 'ajuste_necessario';
+                  
+                  return (
+                    <div key={report.id} onClick={() => setSelectedId(report.id)} className="bg-card rounded-2xl border border-border/40 p-4 shadow-sm active:bg-muted/20 transition-colors flex flex-col cursor-pointer">
+                      <div className="flex gap-4">
+                        <div className={`mt-0.5 shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${paid ? 'bg-primary/10 text-primary' : pending ? 'bg-amber-500/10 text-amber-500' : needsFix ? 'bg-rose-500/10 text-rose-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
+                          {paid ? <CircleDollarSign size={20} /> : pending ? <Clock3 size={20} /> : needsFix ? <XCircle size={20} /> : <CheckCircle2 size={20} />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-0.5">
+                            <h2 className="text-[15px] font-bold text-foreground truncate mr-2">{report.numero_relatorio || 'Relatório'}</h2>
+                            <ChevronRight size={16} className="text-muted-foreground shrink-0" />
+                          </div>
+                          <p className="text-[13px] text-muted-foreground truncate">{report.cliente_nome || 'Cliente'} · {report.aeronave_matricula}</p>
+                          <p className="text-[11px] text-muted-foreground/70 uppercase tracking-wide mt-1 font-semibold">{date(report.data_inicio)} a {date(report.data_fim)}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center justify-between mt-4 pt-4 border-t border-border/40">
+                        <span className="text-[15px] font-bold text-foreground">{currency(report.total_valor)}</span>
+                        <div className={`px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wider ${paid ? 'bg-primary/10 text-primary' : pending ? 'bg-amber-500/10 text-amber-500' : needsFix ? 'bg-rose-500/10 text-rose-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
+                          {reportLabel(report)}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </MobileLayout>
+  );
 }
