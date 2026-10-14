@@ -8,6 +8,7 @@ import { MobileLayout } from "@/components/mobile/MobileLayout";
 import { FlightOperations } from "@/components/mobile/FlightOperations";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { apiClient } from "@/lib/api-client";
+import { formatFlightDate, formatScheduledFlightTime, formatZuluTime } from "@/lib/flight-format";
 
 type Flight = {
   id: string;
@@ -30,11 +31,11 @@ type FlightDetailVoo = Flight & {
   data_fim: string | null;
   fabricante: string | null;
   cliente_razao_social: string | null;
-  socio_nome: string | null;
+  cliente_tipo: string | null;
   piloto_nome: string | null;
   copiloto_nome: string | null;
   voo_emprestado: string | null;
-  observacoes: string | null;
+  mensagem: string | null;
   aprovado_em: string | null;
 };
 
@@ -76,18 +77,10 @@ type HotelReservation = {
   hotel_uf: string | null;
 };
 
-type FlightMessage = {
-  id: string;
-  assunto: string | null;
-  conteudo: string;
-  criado_em: string;
-};
-
 type FlightDetail = {
   voo: FlightDetailVoo;
   jornadas: FlightJourney[];
   hospedagens: HotelReservation[];
-  mensagens: FlightMessage[];
 };
 
 type FlightListResponse = { tripulante: { id: string; nome_completo: string; canac: string | null } | null; voos: Flight[] };
@@ -206,15 +199,13 @@ export default function MeusVoos() {
                   <h2 className="mb-1 flex items-center gap-2 text-sm font-semibold text-white"><CalendarDays className="h-4 w-4 text-emerald-300" /> Agendamento</h2>
                   <DetailRow label="Data de início" value={dateLabel(flight.data_agendada)} />
                   <DetailRow label="Data de término" value={dateLabel(flight.data_fim)} />
-                  <DetailRow label="Horário previsto" value={flight.horario_previsto_agendamento} />
+                  <DetailRow label="Horário previsto" value={formatScheduledFlightTime(flight.horario_previsto_agendamento)} />
                   <DetailRow label="Duração" value={flight.dias_duracao ? `${flight.dias_duracao} ${flight.dias_duracao === 1 ? "dia" : "dias"}` : null} />
                   <DetailRow label="Passageiros" value={flight.numero_passageiros} />
-                  <DetailRow label="Cliente" value={flight.cliente_razao_social} />
-                  <DetailRow label="Cotista" value={flight.socio_nome} />
+                  <DetailRow label="Cliente" value={flight.cliente_razao_social ? `${flight.cliente_tipo || "Cliente"}: ${flight.cliente_razao_social}` : null} />
                   <DetailRow label="Piloto" value={flight.piloto_nome} />
                   <DetailRow label="Copiloto" value={flight.copiloto_nome} />
                   <DetailRow label="Voo emprestado" value={flight.voo_emprestado} />
-                  <DetailRow label="Observações" value={flight.observacoes} />
                   <DetailRow label="Aprovado em" value={dateTimeLabel(flight.aprovado_em)} />
                 </section>
                 <FlightOperations flight={flight} />
@@ -222,10 +213,11 @@ export default function MeusVoos() {
                 <section className="mt-4 rounded-2xl border border-white/10 bg-[#101e33] p-4">
                   <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-white"><Clock3 className="h-4 w-4 text-emerald-300" /> Jornadas registradas</h2>
                   {detail.jornadas.length ? <div className="space-y-3">{detail.jornadas.map((jornada) => <div key={jornada.id} className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-semibold text-slate-100">{dateLabel(jornada.data)} · {jornada.funcao_tripulante || "Tripulante"}</p><span className="rounded-full bg-sky-300/10 px-2 py-1 text-[10px] font-semibold text-sky-200">{jornada.status || "Registrada"}</span></div>
-                    <p className="mt-1 text-xs text-slate-400">{jornada.tripulante_nome || "Tripulante"} · Apresentação {jornada.horario_apresentacao || "—"} · Acionamento {jornada.horario_acionamento || "—"}</p>
-                    {jornada.pernas?.length > 0 && <div className="mt-3 space-y-2">{jornada.pernas.map((perna) => <div key={perna.id} className="rounded-lg bg-black/15 px-3 py-2 text-xs text-slate-300"><div className="flex items-center justify-between gap-2"><span className="font-semibold">Perna {perna.numero}: {perna.origem || "—"} → {perna.destino || "—"}</span><span className="text-slate-500">{perna.status}</span></div><p className="mt-1 text-slate-500">AC {perna.horario_ac || "—"} · DEP {perna.horario_dep || "—"} · POU {perna.horario_pouso || "—"} · COR {perna.horario_corte || "—"}</p></div>)}</div>}
-                    <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-500"><span>Pouso: {jornada.horario_pouso || "—"}</span><span>Corte: {jornada.horario_corte || "—"}</span><span>Jornada: {jornada.minutos_jornada == null ? "—" : `${jornada.minutos_jornada} min`}</span></div>
+                    <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-semibold text-slate-100">{formatFlightDate(jornada.data)} · {jornada.funcao_tripulante || "Tripulante"}</p><span className="rounded-full bg-sky-300/10 px-2 py-1 text-[10px] font-semibold text-sky-200">{jornada.status || "Registrada"}</span></div>
+                    <p className="mt-1 text-xs text-slate-400">{jornada.tripulante_nome || "Tripulante"}</p>
+                    <div className="mt-2 grid grid-cols-2 gap-2 text-xs"><span className="rounded-lg bg-black/15 px-2.5 py-2 text-slate-400">Apresentação <strong className="ml-1 text-slate-200">{formatZuluTime(jornada.horario_apresentacao)}</strong></span><span className="rounded-lg bg-black/15 px-2.5 py-2 text-slate-400">Acionamento <strong className="ml-1 text-slate-200">{formatZuluTime(jornada.horario_acionamento)}</strong></span></div>
+                    {jornada.pernas?.length > 0 && <div className="mt-3 space-y-2">{jornada.pernas.map((perna) => <div key={perna.id} className="rounded-lg bg-black/15 px-3 py-2 text-xs text-slate-300"><div className="flex items-center justify-between gap-2"><span className="font-semibold">Perna {perna.numero}: {perna.origem || "—"} → {perna.destino || "—"}</span><span className="text-slate-500">{perna.status}</span></div><p className="mt-1 text-slate-500">AC {formatZuluTime(perna.horario_ac)} · DEP {formatZuluTime(perna.horario_dep)} · POU {formatZuluTime(perna.horario_pouso)} · COR {formatZuluTime(perna.horario_corte)}</p></div>)}</div>}
+                    <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-500"><span>Pouso: {formatZuluTime(jornada.horario_pouso)}</span><span>Corte: {formatZuluTime(jornada.horario_corte)}</span><span>Jornada: {jornada.minutos_jornada == null ? "—" : `${jornada.minutos_jornada} min`}</span></div>
                   </div>)}</div> : <p className="text-sm text-slate-400">Ainda não há jornadas registradas para este agendamento.</p>}
                 </section>
 
@@ -235,8 +227,8 @@ export default function MeusVoos() {
                 </section>
 
                 <section className="mt-4 rounded-2xl border border-white/10 bg-[#101e33] p-4">
-                  <div className="mb-3 flex items-center gap-2"><MessageSquareText className="h-4 w-4 text-emerald-300" /><h2 className="text-sm font-semibold text-white">Mensagens sobre este voo</h2></div>
-                  {detail.mensagens.length ? <div className="space-y-3">{detail.mensagens.map((message) => <article key={message.id} className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3"><p className="text-sm font-semibold text-slate-100">{message.assunto || "Mensagem para tripulante"}</p><p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-slate-300">{message.conteudo}</p><p className="mt-3 text-xs text-slate-500">{dateTimeLabel(message.criado_em)}</p></article>)}</div> : <p className="text-sm text-slate-400">Não há mensagens recebidas que mencionem este número de voo.</p>}
+                  <div className="mb-3 flex items-center gap-2"><MessageSquareText className="h-4 w-4 text-emerald-300" /><h2 className="text-sm font-semibold text-white">Observações</h2></div>
+                  {flight.mensagem ? <p className="whitespace-pre-wrap break-words rounded-xl border border-white/[0.08] bg-white/[0.025] p-3 text-sm leading-6 text-slate-300">{flight.mensagem}</p> : <p className="text-sm text-slate-400">Não há observações para este voo.</p>}
                 </section>
               </>
             )}
