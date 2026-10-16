@@ -21,6 +21,8 @@ import { fetchAISWebMETAR, type AISWebMETARData } from '@/services/aiswebWeather
 import { fetchAirportCharts, type ChartData } from '@/services/chartsService';
 import { AerodromeCombobox, FlightRouteMap, type RoutePoint } from '@/components/plano-voo';
 import PlanoIcaoMobile from '@/components/plano-voo/PlanoIcaoMobile';
+import MeteorologiaMobile from '@/components/plano-voo/MeteorologiaMobile';
+import InformacoesAerodromoMobile from '@/components/plano-voo/InformacoesAerodromoMobile';
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import useHandleStreamResponse from '@/utils/useHandleStreamResponse';
@@ -1204,16 +1206,7 @@ export default function PlanoVooPage() {
 
             {/* TAB: Aeródromos */}
             <TabsContent value="aerodromos" className="space-y-3 sm:space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                <div>
-                  <h3 className="text-white font-semibold mb-2">Origem: {formData.origin}</h3>
-                  {renderROTAERCard(originROTAER, formData.origin, originSolar)}
-                </div>
-                <div>
-                  <h3 className="text-white font-semibold mb-2">Destino: {formData.destination}</h3>
-                  {renderROTAERCard(destROTAER, formData.destination, destSolar)}
-                </div>
-              </div>
+              <InformacoesAerodromoMobile />
             </TabsContent>
 
             {/* TAB: Cartas */}
@@ -1301,18 +1294,7 @@ export default function PlanoVooPage() {
 
             {/* TAB: Meteorologia */}
             <TabsContent value="meteorologia" className="space-y-3 sm:space-y-4">
-              <div className="flex justify-end mb-2">
-                <Button onClick={fetchWeatherData} disabled={isLoadingWeather || !formData.origin && !formData.destination} className="bg-primary hover:bg-primary/90 text-xs sm:text-sm h-9 sm:h-10 px-3 sm:px-4">
-                  {isLoadingWeather ? <Loader2 className="w-3 sm:w-4 h-3 sm:h-4 mr-1 sm:mr-2 animate-spin" /> : <RefreshCw className="w-3 sm:w-4 h-3 sm:h-4 mr-1 sm:mr-2" />}
-                  <span className="hidden sm:inline">Buscar METAR</span>
-                  <span className="sm:hidden">METAR</span>
-                </Button>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                {renderWeatherCard(originWeather, 'Origem', formData.origin)}
-                {renderWeatherCard(destWeather, 'Destino', formData.destination)}
-              </div>
+              <MeteorologiaMobile />
             </TabsContent>
 
             {/* TAB: Salvos */}
