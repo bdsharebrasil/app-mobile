@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { FileText, Plane, RefreshCw, Save, Search, CheckCircle2 } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
@@ -41,11 +41,12 @@ const fields: Array<{ key: keyof Fpl; label: string; hint?: string; area?: boole
 ];
 const labels: Record<string, string> = { identificacao: 'Identificação', regraVoo: 'Regra de voo', tipoVoo: 'Tipo de voo', numeroAeronaves: 'Nº aeronaves', tipoAeronave: 'Tipo aeronave', esteira: 'Esteira', equipamento: 'Equipamento', adep: 'ADEP', dataVoo: 'Data do voo', eobt: 'EOBT (UTC)', velocidade: 'Velocidade', nivel: 'Nível', rota: 'Rota', ades: 'ADES', eet: 'EET', alternado1: 'Alternado 1', alternado2: 'Alternado 2', outrasInformacoes: 'Outras informações', autonomia: 'Autonomia', pessoasABordo: 'Pessoas a bordo', radioEmergencia: 'Rádio emergência', sobrevivencia: 'Sobrevivência', coletes: 'Coletes', botes: 'Botes', corAeronave: 'Cor e marcas', observacoes: 'Observações', piloto: 'Piloto em comando' };
 
-export default function PlanoIcaoMobile() {
+export default function PlanoIcaoMobile({ mode = 'form', onSaved, onCountChange }: { mode?: 'form' | 'saved'; onSaved?: () => void; onCountChange?: (count: number) => void }) {
   const queryClient = useQueryClient();
-  const [view, setView] = useState<'form' | 'saved'>('form');
+  const view = mode;
   const [form, setForm] = useState<Fpl>(initialForm);
   const [reservationId, setReservationId] = useState('');
+  const [reservationNumber, setReservationNumber] = useState('');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<SavedPlan | null>(null);
   const [saving, setSaving] = useState(false);
@@ -55,14 +56,21 @@ export default function PlanoIcaoMobile() {
     enabled: view === 'form', staleTime: 60_000,
   });
   const saved = useQuery({ queryKey: ['planos-voo-d1'], queryFn: () => apiClient.get<SavedPlan[]>('/api/interno/planos-voo'), enabled: view === 'saved' });
+  useEffect(() => { if (saved.data) onCountChange?.(saved.data.length); }, [saved.data, onCountChange]);
   const update = (key: keyof Fpl, value: string) => setForm((old) => ({ ...old, [key]: value.toUpperCase() }));
   const chooseReservation = (id: string) => {
     setReservationId(id);
     const item = (reservations.data?.agendamentos || []).find((flight) => flight.id === id);
     if (!item) return;
+    setReservationNumber(item.numero_voo || '');
     const aircraftType = item.modelo || item.tipo_aeronave || '';
     setForm((old) => ({ ...old, identificacao: item.numero_voo || old.identificacao, adep: (item.origem || '').toUpperCase(), ades: (item.destino || '').toUpperCase(), dataVoo: item.data_agendada?.slice(0, 10) || old.dataVoo, eobt: (item.horario_previsto_agendamento || '').slice(0, 5), tipoAeronave: aircraftType.toUpperCase(), pessoasABordo: String(item.numero_passageiros || ''), piloto: item.piloto_nome || old.piloto, outrasInformacoes: item.matricula_registro ? `REG/${item.matricula_registro.replace('-', '')} TYP/${aircraftType}`.trim().toUpperCase() : old.outrasInformacoes }));
     toast.success('Dados da solicitação preenchidos. Confira e complete o formulário ICAO.');
+  };
+  const searchReservation = () => {
+    const item = (reservations.data?.agendamentos || []).find((flight) => flight.numero_voo?.trim().toLocaleUpperCase('pt-BR') === reservationNumber.trim().toLocaleUpperCase('pt-BR'));
+    if (!item) { toast.error('Voo não encontrado nas solicitações disponíveis. Você também pode preencher manualmente.'); return; }
+    chooseReservation(item.id);
   };
   const save = async () => {
     const adep = form.adep.trim().toUpperCase(); const ades = form.ades.trim().toUpperCase();
@@ -73,7 +81,7 @@ export default function PlanoIcaoMobile() {
       await apiClient.post('/api/interno/planos-voo', { numero_voo: form.identificacao || null, adep, ades, data_voo: form.dataVoo || null, eobt: form.eobt || null, form, contexto: reservation ? { solicitacao: reservation, aeronave: { matricula_registro: reservation.matricula_registro || null, modelo: reservation.modelo || null } } : null, rota: null, segmentos: [], distancia_total_nm: null, salvo_em: new Date().toISOString() });
       toast.success('Plano de voo salvo.');
       await queryClient.invalidateQueries({ queryKey: ['planos-voo-d1'] });
-      setView('saved');
+      onSaved?.();
     } catch (error) { toast.error(error instanceof Error ? error.message : 'Não foi possível salvar o plano de voo.'); }
     finally { setSaving(false); }
   };
@@ -81,11 +89,11 @@ export default function PlanoIcaoMobile() {
   const formValues = selected?.payload?.form as Record<string, unknown> | undefined;
 
   return <section className="space-y-4 text-white">
-    <div className="flex rounded-2xl border border-white/10 bg-[#101e33] p-1" role="tablist" aria-label="Plano ICAO"><button type="button" onClick={() => setView('form')} aria-selected={view === 'form'} className={`min-h-11 flex-1 rounded-xl px-3 text-sm font-semibold ${view === 'form' ? 'bg-emerald-300 text-[#062018]' : 'text-slate-300'}`}><FileText className="mr-2 inline h-4 w-4" /> Formulário ICAO</button><button type="button" onClick={() => setView('saved')} aria-selected={view === 'saved'} className={`min-h-11 flex-1 rounded-xl px-3 text-sm font-semibold ${view === 'saved' ? 'bg-emerald-300 text-[#062018]' : 'text-slate-300'}`}><Plane className="mr-2 inline h-4 w-4" /> Planos salvos</button></div>
     {view === 'form' ? <>
       <section className="space-y-3 rounded-2xl border border-white/10 bg-[#101e33] p-4">
-        <div><h2 className="text-base font-bold">Vincular solicitação de voo</h2><p className="mt-1 text-xs leading-5 text-slate-400">Opcional: selecione uma reserva para preencher dados iniciais, que você poderá revisar.</p></div>
-        <select aria-label="Solicitação de voo" value={reservationId} onChange={(event) => chooseReservation(event.target.value)} className={`${control} w-full px-3 text-sm`}><option value="">Preencher manualmente</option>{(reservations.data?.agendamentos || []).filter((flight) => flight.numero_voo).map((flight) => <option key={flight.id} value={flight.id}>{flight.numero_voo} · {flight.origem} → {flight.destino} · {flight.data_agendada?.slice(0, 10)}</option>)}</select>
+        <div><h2 className="text-sm font-bold uppercase tracking-wide text-slate-300">Número do voo</h2><p className="mt-1 text-xs leading-5 text-slate-400">Opcional: busque uma solicitação para preencher dados iniciais ou continue manualmente.</p></div>
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2"><Input aria-label="Número do voo" value={reservationNumber} onChange={(event) => setReservationNumber(event.target.value.toUpperCase())} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); searchReservation(); } }} placeholder="EBL-0003/26" className={`${control} font-mono text-base tracking-widest`} /><Button type="button" onClick={searchReservation} disabled={reservations.isLoading} className="min-h-11 rounded-xl bg-sky-500 px-5 font-bold text-slate-950 hover:bg-sky-400">{reservations.isLoading ? '…' : 'Buscar'}</Button></div>
+        {(reservations.data?.agendamentos || []).some((flight) => flight.numero_voo) && <select aria-label="Selecionar solicitação de reserva" value={reservationId} onChange={(event) => chooseReservation(event.target.value)} className={`${control} w-full px-3 text-sm`}><option value="">Preencher manualmente / escolher solicitação</option>{(reservations.data?.agendamentos || []).filter((flight) => flight.numero_voo).map((flight) => <option key={flight.id} value={flight.id}>{flight.numero_voo} · {flight.origem} → {flight.destino} · {flight.data_agendada?.slice(0, 10)}</option>)}</select>}
         {reservations.isError && <p className="text-xs text-amber-200">Não foi possível carregar as solicitações; o formulário manual continua disponível.</p>}
       </section>
       <section className="space-y-5 rounded-2xl border border-white/10 bg-[#101e33] p-4">

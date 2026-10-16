@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Plane, MapPin, Clock, Fuel, Wind, Calendar, AlertTriangle, CheckCircle, FileText, Download, Save, Calculator, Navigation, Route, CloudRain, RefreshCw, Loader2, Shield, Radio, Info, XCircle, AlertCircle, CheckCircle2, Thermometer, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Plane, MapPin, Clock, Fuel, Wind, Calendar, AlertTriangle, CheckCircle, FileText, Download, Save, Calculator, Navigation, Route, CloudRain, RefreshCw, Loader2, Shield, Radio, Info, XCircle, AlertCircle, CheckCircle2, Thermometer, ChevronRight, ChevronLeft, FilePlus2, FolderOpen } from 'lucide-react';
 import { InlineLottieSpinner } from '@/components/ui/inline-lottie-spinner';
 import { useAerodromes, type Aerodromo } from '@/hooks/useAerodromes';
 import { useAeronaves, type Aeronave } from '@/hooks/useAeronaves';
@@ -171,6 +171,8 @@ function formatNOTAMDate(dateValue: any): string {
 export default function PlanoVooPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('formulario-icao');
+  const [fplResetKey, setFplResetKey] = useState(0);
+  const [savedPlanCount, setSavedPlanCount] = useState(0);
   const [formData, setFormData] = useState<FlightFormData>({
     origin: '',
     destination: '',
@@ -741,8 +743,7 @@ export default function PlanoVooPage() {
   return <MobileLayout>
       <div className="min-h-screen p-4 sm:p-6 bg-inherit rounded-2xl">
         <div className="max-w-7xl mx-auto">
-          {/* Header com botão de voltar */}
-          <div className="mb-6">
+          <div className="mb-4">
             <button
               onClick={() => navigate('/')}
               className="flex items-center gap-2 mb-4 p-2 -ml-2 rounded-lg hover:bg-primary/10 transition-colors text-primary hover:text-primary/80"
@@ -751,15 +752,17 @@ export default function PlanoVooPage() {
               <span className="text-sm font-medium">Voltar</span>
             </button>
 
-            <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 bg-primary/10 rounded-lg flex-shrink-0">
-                <Plane className="w-5 sm:w-6 h-5 sm:h-6 text-primary" />
+            <div className="relative overflow-hidden rounded-2xl border border-slate-600/50 bg-gradient-to-br from-[#12253b] via-[#102034] to-[#102b3d] p-5 shadow-[0_18px_55px_rgba(0,0,0,.2)] sm:p-7">
+              <div className="pointer-events-none absolute -right-10 -top-20 h-80 w-1/2 rotate-[18deg] bg-cyan-400/[.04]" />
+              <div className="relative">
+                <p className="text-[10px] font-extrabold uppercase tracking-[.2em] text-sky-400">Operações · ICAO FPL</p>
+                <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-white sm:text-4xl">Plano de voo</h1>
+                <p className="mt-2 text-sm leading-6 text-slate-300 sm:text-base">Preencha o formulário ICAO, consulte informações operacionais e acesse rapidamente os planos salvos.</p>
+                <button type="button" onClick={() => { setFplResetKey((value) => value + 1); setActiveTab('formulario-icao'); }} className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[.06] px-4 text-sm font-bold text-white transition-colors hover:bg-white/[.12] sm:text-base">
+                  <FilePlus2 className="h-5 w-5" /> Novo plano
+                </button>
               </div>
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">Plano de Voo</h1>
             </div>
-            <p className="text-xs sm:text-sm text-muted-foreground pl-11">
-              Planejamento com NOTAMs, ROTAER e meteorologia
-            </p>
           </div>
 
           {/* Erro da API AISWeb */}
@@ -771,11 +774,24 @@ export default function PlanoVooPage() {
             </Alert>}
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-3 sm:space-y-4">
-            <TabsList className="bg-surface-dark border border-border-dark grid grid-cols-4 sm:grid-cols-auto overflow-x-auto w-full h-auto sm:h-10 gap-1 sm:gap-0">
+            <nav className="grid grid-cols-2 gap-2 border-b border-border-dark pb-3 sm:gap-3" aria-label="Menu do plano de voo">
+              <button type="button" aria-pressed={['formulario-icao', 'planejar', 'resultados', 'notam'].includes(activeTab)} onClick={() => setActiveTab('formulario-icao')} className={`flex min-h-[68px] items-center justify-center gap-2 rounded-2xl border px-3 py-3 text-center text-sm font-bold transition-colors ${['formulario-icao', 'planejar', 'resultados', 'notam'].includes(activeTab) ? 'border-sky-400/70 bg-sky-500 text-slate-950 shadow-lg shadow-sky-950/20' : 'border-border-dark bg-surface-dark text-slate-400 hover:text-white'}`}><FilePlus2 className="h-5 w-5 shrink-0" /><span>Criar Plano de Voo<br className="sm:hidden" /> Completo</span></button>
+              <button type="button" aria-pressed={activeTab === 'aerodromos'} onClick={() => setActiveTab('aerodromos')} className={`flex min-h-[68px] items-center justify-center gap-2 rounded-2xl border px-3 py-3 text-center text-sm font-bold transition-colors ${activeTab === 'aerodromos' ? 'border-sky-400/70 bg-sky-500 text-slate-950' : 'border-border-dark bg-surface-dark text-slate-400 hover:text-white'}`}><MapPin className="h-5 w-5 shrink-0" /><span>Informações<br className="sm:hidden" /> Aeródromo</span></button>
+              <button type="button" aria-pressed={activeTab === 'meteorologia'} onClick={() => setActiveTab('meteorologia')} className={`flex min-h-[68px] items-center justify-center gap-2 rounded-2xl border px-3 py-3 text-center text-sm font-bold transition-colors ${activeTab === 'meteorologia' ? 'border-sky-400/70 bg-sky-500 text-slate-950' : 'border-border-dark bg-surface-dark text-slate-400 hover:text-white'}`}><CloudRain className="h-5 w-5 shrink-0" /><span>Meteorologia</span></button>
+              <button type="button" aria-pressed={activeTab === 'planos-salvos'} onClick={() => setActiveTab('planos-salvos')} className={`flex min-h-[68px] items-center justify-center gap-2 rounded-2xl border px-3 py-3 text-center text-sm font-bold transition-colors ${activeTab === 'planos-salvos' ? 'border-sky-400/70 bg-sky-500 text-slate-950' : 'border-border-dark bg-surface-dark text-slate-400 hover:text-white'}`}><FolderOpen className="h-5 w-5 shrink-0" /><span>Planos de Voo<br className="sm:hidden" /> Salvos</span><span className="ml-1 text-xs">{savedPlanCount}</span></button>
+            </nav>
+            {['formulario-icao', 'planejar', 'resultados', 'notam'].includes(activeTab) && <div className="flex items-center gap-1 overflow-x-auto border-b border-border-dark" role="tablist" aria-label="Plano de voo completo">
+              <button type="button" role="tab" aria-selected={activeTab === 'formulario-icao'} onClick={() => setActiveTab('formulario-icao')} className={`inline-flex min-h-12 shrink-0 items-center gap-2 border-b-2 px-4 text-sm font-bold ${activeTab === 'formulario-icao' ? 'border-sky-400 text-sky-400' : 'border-transparent text-slate-400'}`}><FilePlus2 className="h-4 w-4" /> Formulário ICAO</button>
+              <button type="button" role="tab" aria-selected={activeTab === 'planejar'} onClick={() => setActiveTab('planejar')} className={`inline-flex min-h-12 shrink-0 items-center gap-2 border-b-2 px-4 text-sm font-bold ${activeTab === 'planejar' ? 'border-sky-400 text-sky-400' : 'border-transparent text-slate-400'}`}><Route className="h-4 w-4" /> Criar rotas</button>
+              {activeTab === 'resultados' && <button type="button" onClick={() => setActiveTab('resultados')} className="px-2 text-xs font-semibold text-slate-400">Resultados</button>}
+              {activeTab === 'notam' && <button type="button" onClick={() => setActiveTab('notam')} className="px-2 text-xs font-semibold text-slate-400">NOTAMs</button>}
+            </div>}
+            <TabsList className="hidden">
               <TabsTrigger value="formulario-icao" className="data-[state=active]:bg-primary/20 text-xs sm:text-sm px-2 sm:px-4 py-2 sm:py-0">
                 <FileText className="w-4 h-4 sm:mr-2 flex-shrink-0" />
                 <span>ICAO</span>
               </TabsTrigger>
+              <TabsTrigger value="planos-salvos" className="hidden">Planos salvos ICAO</TabsTrigger>
               <TabsTrigger value="planejar" className="data-[state=active]:bg-primary/20 text-xs sm:text-sm px-2 sm:px-4 py-2 sm:py-0">
                 <Calculator className="w-4 h-4 sm:mr-2 flex-shrink-0" />
                 <span className="hidden sm:inline">Planejar</span>
@@ -809,8 +825,11 @@ export default function PlanoVooPage() {
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="formulario-icao" className="space-y-3 sm:space-y-4">
-              <PlanoIcaoMobile />
+            <TabsContent value="formulario-icao" forceMount className="space-y-3 sm:space-y-4">
+              <PlanoIcaoMobile key={fplResetKey} onSaved={() => setActiveTab('planos-salvos')} />
+            </TabsContent>
+            <TabsContent value="planos-salvos" className="space-y-3 sm:space-y-4">
+              <PlanoIcaoMobile mode="saved" onCountChange={setSavedPlanCount} />
             </TabsContent>
             {/* TAB: Planejar */}
             <TabsContent value="planejar" className="space-y-3 sm:space-y-4">
