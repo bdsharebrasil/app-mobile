@@ -20,6 +20,7 @@ import { calculateDistance, calculateMagneticHeading, calculateOptimalAltitude, 
 import { fetchAISWebMETAR, type AISWebMETARData } from '@/services/aiswebWeather';
 import { fetchAirportCharts, type ChartData } from '@/services/chartsService';
 import { AerodromeCombobox, FlightRouteMap, type RoutePoint } from '@/components/plano-voo';
+import PlanoIcaoMobile from '@/components/plano-voo/PlanoIcaoMobile';
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import useHandleStreamResponse from '@/utils/useHandleStreamResponse';
@@ -169,7 +170,7 @@ function formatNOTAMDate(dateValue: any): string {
 
 export default function PlanoVooPage() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('planejar');
+  const [activeTab, setActiveTab] = useState('formulario-icao');
   const [formData, setFormData] = useState<FlightFormData>({
     origin: '',
     destination: '',
@@ -771,6 +772,10 @@ export default function PlanoVooPage() {
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-3 sm:space-y-4">
             <TabsList className="bg-surface-dark border border-border-dark grid grid-cols-4 sm:grid-cols-auto overflow-x-auto w-full h-auto sm:h-10 gap-1 sm:gap-0">
+              <TabsTrigger value="formulario-icao" className="data-[state=active]:bg-primary/20 text-xs sm:text-sm px-2 sm:px-4 py-2 sm:py-0">
+                <FileText className="w-4 h-4 sm:mr-2 flex-shrink-0" />
+                <span>ICAO</span>
+              </TabsTrigger>
               <TabsTrigger value="planejar" className="data-[state=active]:bg-primary/20 text-xs sm:text-sm px-2 sm:px-4 py-2 sm:py-0">
                 <Calculator className="w-4 h-4 sm:mr-2 flex-shrink-0" />
                 <span className="hidden sm:inline">Planejar</span>
@@ -804,6 +809,9 @@ export default function PlanoVooPage() {
               </TabsTrigger>
             </TabsList>
 
+            <TabsContent value="formulario-icao" className="space-y-3 sm:space-y-4">
+              <PlanoIcaoMobile />
+            </TabsContent>
             {/* TAB: Planejar */}
             <TabsContent value="planejar" className="space-y-3 sm:space-y-4">
               <Card className="bg-surface-dark border-border-dark p-4 sm:p-6">
