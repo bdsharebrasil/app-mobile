@@ -30,13 +30,24 @@ test("formulário envia número do voo e combustível com as colunas D1 correspo
 
 test("ao abrir uma aeronave, o diário lista lançamentos e oferece novo registro", () => {
   assert.match(diaryPage, /aircraft-logbook/);
-  assert.match(diaryPage, /Lançamentos do mês/);
+  assert.match(diaryPage, /Lançamentos/);
   assert.match(diaryPage, /Novo lançamento/);
   assert.match(diaryPage, /getDiarioDetalhes/);
 });
 
-test("aviso de reserva em andamento é opcional e não restringe lançamentos a um usuário", () => {
-  assert.match(diaryPage, /solicitação de reserva ativa/);
-  assert.match(diaryPage, /Isso é opcional e qualquer usuário pode registrar lançamentos/);
-  assert.doesNotMatch(diaryPage, /disabled=\{[^}]*activeFlight/);
+test("cabeçalho mostra dados da aeronave, horas de célula e permite mudar o mês", () => {
+  assert.match(diaryPage, /Fabricante/);
+  assert.match(diaryPage, /Modelo/);
+  assert.match(diaryPage, /celula_atual_ttotal/);
+  assert.match(diaryPage, /Próx\. revisão/);
+  assert.match(diaryPage, /changeMonth\(-1\)/);
+  assert.match(diaryPage, /changeMonth\(1\)/);
+});
+
+test("aviso depende de uma jornada iniciada, não apenas de reserva aprovada", () => {
+  assert.match(diaryPage, /\/jornada/);
+  assert.match(diaryPage, /Jornada iniciada/);
+  assert.match(diaryPage, /journey\?\.id/);
+  assert.match(diaryPage, /é opcional, e qualquer usuário pode registrar lançamentos/);
+  assert.doesNotMatch(diaryPage, /status\)\.trim\(\)\.toLowerCase\(\).*aprovada/);
 });
