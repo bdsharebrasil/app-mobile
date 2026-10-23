@@ -61,7 +61,7 @@ const App = () => {
                     <Route path="/login" element={<Login />} />
                     <Route path="/" element={renderProtected(<Index />)} />
                     <Route path="/diario-bordo" element={renderProtected(<DiarioBordoWrapper />)} />
-                    <Route path="/plano-voo" element={renderProtected(<PlanoVoo />)} />
+                    <Route path="/plano-voo/*" element={renderProtected(<PlanoVoo />)} />
                     <Route path="/meus-voos" element={renderProtected(<MeusVoos />)} />
                     <Route path="/meus-voos/concluidos/:year/:aircraftId" element={renderProtected(<MeusVoos />)} />
                     <Route path="/meus-voos/:flightId" element={renderProtected(<MeusVoos />)} />

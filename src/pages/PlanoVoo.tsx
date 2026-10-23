@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { MobileLayout } from '@/components/mobile/MobileLayout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Plane, MapPin, Clock, Fuel, Wind, Calendar, AlertTriangle, CheckCircle, FileText, Download, Save, Calculator, Navigation, Route, CloudRain, RefreshCw, Loader2, Shield, Radio, Info, XCircle, AlertCircle, CheckCircle2, Thermometer, ChevronRight, ChevronLeft, FilePlus2, FolderOpen } from 'lucide-react';
 import { InlineLottieSpinner } from '@/components/ui/inline-lottie-spinner';
@@ -20,9 +20,12 @@ import { calculateDistance, calculateMagneticHeading, calculateOptimalAltitude, 
 import { fetchAISWebMETAR, type AISWebMETARData } from '@/services/aiswebWeather';
 import { fetchAirportCharts, type ChartData } from '@/services/chartsService';
 import { AerodromeCombobox, FlightRouteMap, type RoutePoint } from '@/components/plano-voo';
-import PlanoIcaoMobile from '@/components/plano-voo/PlanoIcaoMobile';
+import PlanoIcaoMobile, { type IcaoFlightPlanForm } from '@/components/plano-voo/PlanoIcaoMobile';
 import MeteorologiaMobile from '@/components/plano-voo/MeteorologiaMobile';
 import InformacoesAerodromoMobile from '@/components/plano-voo/InformacoesAerodromoMobile';
+import { FlightPlanNavigation, flightPlanPathForTab, flightPlanTabFromPath, type FlightPlanTab } from '@/components/plano-voo/FlightPlanNavigation';
+import { apiClient } from '@/lib/api-client';
+import { exportFlightPlanPdf } from '@/lib/flightPlanPdf';
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import useHandleStreamResponse from '@/utils/useHandleStreamResponse';
@@ -52,6 +55,7 @@ interface FlightCalculations {
   suggestedAlt: string;
   altitudeWarnings: string[];
   alternatives: string[];
+  formSnapshot?: Partial<FlightFormData>;
 }
 interface ValidationResult {
   valid: boolean;
@@ -70,6 +74,19 @@ interface ValidationResult {
   };
   restrictions: any[];
   warnings: string[];
+}
+
+interface RouteSuggestionResponse {
+  flightplan?: {
+    route?: string;
+    route_source?: string;
+    distance_nm?: number;
+    estimated_time?: string;
+    cruise_speed?: number;
+  };
+  fuel?: { total_required?: number };
+  alternates?: Array<{ icao: string; name?: string; distance_km?: number }>;
+  notam_count?: number;
 }
 
 // Parse coordenadas do banco de dados
@@ -172,9 +189,21 @@ function formatNOTAMDate(dateValue: any): string {
 
 export default function PlanoVooPage() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('formulario-icao');
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState<FlightPlanTab>(() => flightPlanTabFromPath(location.pathname));
+  const navigateToTab = useCallback((tab: FlightPlanTab) => {
+    setActiveTab(tab);
+    navigate(flightPlanPathForTab(tab));
+  }, [navigate]);
+  useEffect(() => {
+    setActiveTab(flightPlanTabFromPath(location.pathname));
+  }, [location.pathname]);
   const [fplResetKey, setFplResetKey] = useState(0);
   const [savedPlanCount, setSavedPlanCount] = useState(0);
+  const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
+  const [routeSuggestion, setRouteSuggestion] = useState<RouteSuggestionResponse | null>(null);
+  const [isLoadingRouteSuggestion, setIsLoadingRouteSuggestion] = useState(false);
+  const [icaoInitialValues, setIcaoInitialValues] = useState<Partial<IcaoFlightPlanForm>>();
   const [formData, setFormData] = useState<FlightFormData>({
     origin: '',
     destination: '',
@@ -231,9 +260,46 @@ export default function PlanoVooPage() {
     flightPlans,
     loading: loadingPlans,
     createFlightPlan,
+    updateFlightPlan,
     deleteFlightPlan,
     refreshFlightPlans
   } = useFlightPlans();
+
+  const requestRouteSuggestion = useCallback(async () => {
+    if (!formData.origin || !formData.destination) {
+      toast.error('Selecione origem e destino antes de consultar uma rota.');
+      return;
+    }
+    setIsLoadingRouteSuggestion(true);
+    try {
+      const params: Record<string, string | number> = {
+        adep: formData.origin,
+        ades: formData.destination,
+      };
+      if (formData.aircraftId) params.aeronave_id = formData.aircraftId;
+      if (Number(formData.cruiseSpeed) > 0) params.speed = Number(formData.cruiseSpeed);
+      const suggestion = await apiClient.get<RouteSuggestionResponse>('/api/flightplan', params);
+      if (!suggestion.flightplan?.route) throw new Error('O serviço não retornou uma rota para este trecho.');
+      setRouteSuggestion(suggestion);
+      toast.success('Sugestão de rota carregada. Revise antes de aplicar.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Não foi possível consultar a rota preferencial.';
+      toast.error(message);
+    } finally {
+      setIsLoadingRouteSuggestion(false);
+    }
+  }, [formData.origin, formData.destination, formData.aircraftId, formData.cruiseSpeed]);
+
+  const useSuggestedRoute = useCallback(() => {
+    const route = routeSuggestion?.flightplan?.route;
+    if (!route) return;
+    setFormData((current) => ({ ...current, route }));
+    toast.success('Rota aplicada ao planejamento.');
+  }, [routeSuggestion]);
+
+  useEffect(() => {
+    setRouteSuggestion(null);
+  }, [formData.origin, formData.destination]);
 
   // Obter aeródromo por designativo
   const getAerodromeByCode = useCallback((code: string): Aerodromo | undefined => {
@@ -333,9 +399,9 @@ export default function PlanoVooPage() {
       alternatives: altitudeData.alternatives,
       ete: `${Math.floor(timeHours)}h ${Math.round(timeHours % 1 * 60)}min`
     });
-    setActiveTab('resultados');
+    navigateToTab('resultados');
     toast.success('Plano de voo calculado');
-  }, [formData, getAerodromeByCode, getAircraftById]);
+  }, [formData, getAerodromeByCode, getAircraftById, navigateToTab]);
 
   // Validar plano de voo
   const validatePlan = useCallback(async (originCoords: {
@@ -485,15 +551,24 @@ export default function PlanoVooPage() {
       flight_date: flightDate,
       departure_airport: formData.origin,
       arrival_airport: formData.destination,
-      aircraft_id: formData.aircraftId || undefined,
+      aircraft_id: formData.aircraftId,
       pilot_in_command: user.email || 'Piloto',
-      alternate_airport: formData.alternate || undefined,
+      alternate_airport: formData.alternate,
       cruise_altitude: formData.cruiseAlt || calculations.suggestedAlt,
       estimated_time: calculations.ete,
       fuel_endurance: `${calculations.totalFuel}L`,
       route: formData.route || 'DCT',
       status: 'draft' as const,
-      calculations,
+      calculations: {
+        ...calculations,
+        formSnapshot: {
+          flightRule: formData.flightRule,
+          registration: formData.registration,
+          cruiseSpeed: formData.cruiseSpeed,
+          departure: formData.departure,
+          passengers: formData.passengers,
+        },
+      },
       validation,
       weather: {
         origin: originWeather,
@@ -501,13 +576,24 @@ export default function PlanoVooPage() {
         timestamp: Date.now()
       }
     };
-    await createFlightPlan(planInput);
-  }, [formData, calculations, validation, originWeather, destWeather, createFlightPlan, user]);
+    if (editingPlanId) {
+      const updated = await updateFlightPlan(editingPlanId, planInput);
+      if (updated) {
+        setEditingPlanId(null);
+        navigateToTab('salvos');
+      }
+      return;
+    }
+    const created = await createFlightPlan(planInput);
+    if (created) navigateToTab('salvos');
+  }, [formData, calculations, validation, originWeather, destWeather, createFlightPlan, updateFlightPlan, user, editingPlanId, navigateToTab]);
 
   // Excluir plano
   const handleDeletePlan = useCallback(async (id: string) => {
-    await deleteFlightPlan(id);
-  }, [deleteFlightPlan]);
+    if (!window.confirm('Excluir este plano de voo salvo? Esta ação não pode ser desfeita.')) return;
+    const deleted = await deleteFlightPlan(id);
+    if (deleted && editingPlanId === id) setEditingPlanId(null);
+  }, [deleteFlightPlan, editingPlanId]);
 
   // Atualizar aircraft quando mudar
   const handleAircraftChange = useCallback((aircraftId: string) => {
@@ -518,6 +604,59 @@ export default function PlanoVooPage() {
       registration: aircraft?.registration || ''
     }));
   }, [aeronaves]);
+
+  const transferRouteToIcao = useCallback(() => {
+    const route = formData.route || routeSuggestion?.flightplan?.route || '';
+    if (!formData.origin || !formData.destination || !route) {
+      toast.error('Selecione origem, destino e uma rota antes de abrir o formulário ICAO.');
+      return;
+    }
+    const aircraft = getAircraftById(formData.aircraftId);
+    setIcaoInitialValues({
+      adep: formData.origin,
+      ades: formData.destination,
+      rota: route,
+      regraVoo: formData.flightRule,
+      alternado1: formData.alternate,
+      dataVoo: formData.departure ? formData.departure.split('T')[0] : new Date().toISOString().slice(0, 10),
+      tipoAeronave: aircraft?.model || '',
+      outrasInformacoes: formData.registration ? `REG/${formData.registration.replace(/-/g, '')}` : '',
+      piloto: user?.email || '',
+    });
+    setFplResetKey((key) => key + 1);
+    navigateToTab('formulario-icao');
+  }, [formData, routeSuggestion, getAircraftById, user, navigateToTab]);
+
+  const handleExportPdf = useCallback(async () => {
+    if (!calculations) {
+      toast.error('Calcule o plano antes de exportar o PDF.');
+      return;
+    }
+    try {
+      const aircraft = getAircraftById(formData.aircraftId);
+      const result = await exportFlightPlanPdf({
+        origin: formData.origin,
+        originName: getAerodromeByCode(formData.origin)?.name,
+        destination: formData.destination,
+        destinationName: getAerodromeByCode(formData.destination)?.name,
+        alternate: formData.alternate,
+        aircraft: aircraft?.model,
+        registration: formData.registration,
+        flightRule: { V: 'VFR', I: 'IFR', Y: 'IFR/VFR', Z: 'VFR/IFR' }[formData.flightRule],
+        cruiseAltitude: formData.cruiseAlt || calculations.suggestedAlt,
+        cruiseSpeed: formData.cruiseSpeed,
+        departure: formData.departure,
+        passengers: formData.passengers,
+        route: formData.route || routeSuggestion?.flightplan?.route,
+        calculations,
+        validation,
+      });
+      toast.success(result === 'shared' ? 'PDF aberto no menu de compartilhamento.' : 'PDF do plano de voo baixado.');
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      toast.error(error instanceof Error ? error.message : 'Não foi possível gerar o PDF.');
+    }
+  }, [calculations, formData, routeSuggestion, validation, getAircraftById, getAerodromeByCode]);
 
   // Renderizar NOTAM badge
   const renderNOTAMBadge = (priority: NOTAMData['priority']) => {
@@ -760,7 +899,7 @@ export default function PlanoVooPage() {
                 <p className="text-[10px] font-extrabold uppercase tracking-[.2em] text-sky-400">Operações · ICAO FPL</p>
                 <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-white sm:text-4xl">Plano de voo</h1>
                 <p className="mt-2 text-sm leading-6 text-slate-300 sm:text-base">Preencha o formulário ICAO, consulte informações operacionais e acesse rapidamente os planos salvos.</p>
-                <button type="button" onClick={() => { setFplResetKey((value) => value + 1); setActiveTab('formulario-icao'); }} className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[.06] px-4 text-sm font-bold text-white transition-colors hover:bg-white/[.12] sm:text-base">
+                <button type="button" onClick={() => { setIcaoInitialValues(undefined); setFplResetKey((value) => value + 1); navigateToTab('formulario-icao'); }} className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[.06] px-4 text-sm font-bold text-white transition-colors hover:bg-white/[.12] sm:text-base">
                   <FilePlus2 className="h-5 w-5" /> Novo plano
                 </button>
               </div>
@@ -775,63 +914,29 @@ export default function PlanoVooPage() {
               </AlertDescription>
             </Alert>}
 
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-3 sm:space-y-4">
+          <Tabs value={activeTab} onValueChange={(value) => navigateToTab(value as FlightPlanTab)} className="space-y-3 sm:space-y-4">
             <nav className="grid grid-cols-2 gap-2 border-b border-border-dark pb-3 sm:gap-3" aria-label="Menu do plano de voo">
-              <button type="button" aria-pressed={['formulario-icao', 'planejar', 'resultados', 'notam'].includes(activeTab)} onClick={() => setActiveTab('formulario-icao')} className={`flex min-h-[68px] items-center justify-center gap-2 rounded-2xl border px-3 py-3 text-center text-sm font-bold transition-colors ${['formulario-icao', 'planejar', 'resultados', 'notam'].includes(activeTab) ? 'border-sky-400/70 bg-sky-500 text-slate-950 shadow-lg shadow-sky-950/20' : 'border-border-dark bg-surface-dark text-slate-400 hover:text-white'}`}><FilePlus2 className="h-5 w-5 shrink-0" /><span>Criar Plano de Voo<br className="sm:hidden" /> Completo</span></button>
-              <button type="button" aria-pressed={activeTab === 'aerodromos'} onClick={() => setActiveTab('aerodromos')} className={`flex min-h-[68px] items-center justify-center gap-2 rounded-2xl border px-3 py-3 text-center text-sm font-bold transition-colors ${activeTab === 'aerodromos' ? 'border-sky-400/70 bg-sky-500 text-slate-950' : 'border-border-dark bg-surface-dark text-slate-400 hover:text-white'}`}><MapPin className="h-5 w-5 shrink-0" /><span>Informações<br className="sm:hidden" /> Aeródromo</span></button>
-              <button type="button" aria-pressed={activeTab === 'meteorologia'} onClick={() => setActiveTab('meteorologia')} className={`flex min-h-[68px] items-center justify-center gap-2 rounded-2xl border px-3 py-3 text-center text-sm font-bold transition-colors ${activeTab === 'meteorologia' ? 'border-sky-400/70 bg-sky-500 text-slate-950' : 'border-border-dark bg-surface-dark text-slate-400 hover:text-white'}`}><CloudRain className="h-5 w-5 shrink-0" /><span>Meteorologia</span></button>
-              <button type="button" aria-pressed={activeTab === 'planos-salvos'} onClick={() => setActiveTab('planos-salvos')} className={`flex min-h-[68px] items-center justify-center gap-2 rounded-2xl border px-3 py-3 text-center text-sm font-bold transition-colors ${activeTab === 'planos-salvos' ? 'border-sky-400/70 bg-sky-500 text-slate-950' : 'border-border-dark bg-surface-dark text-slate-400 hover:text-white'}`}><FolderOpen className="h-5 w-5 shrink-0" /><span>Planos de Voo<br className="sm:hidden" /> Salvos</span><span className="ml-1 text-xs">{savedPlanCount}</span></button>
+              <button type="button" aria-pressed={['formulario-icao', 'planejar', 'resultados', 'notam', 'cartas', 'salvos'].includes(activeTab)} onClick={() => navigateToTab('formulario-icao')} className={`flex min-h-[68px] items-center justify-center gap-2 rounded-2xl border px-3 py-3 text-center text-sm font-bold transition-colors ${['formulario-icao', 'planejar', 'resultados', 'notam', 'cartas', 'salvos'].includes(activeTab) ? 'border-sky-400/70 bg-sky-500 text-slate-950 shadow-lg shadow-sky-950/20' : 'border-border-dark bg-surface-dark text-slate-400 hover:text-white'}`}><FilePlus2 className="h-5 w-5 shrink-0" /><span>Criar Plano de Voo<br className="sm:hidden" /> Completo</span></button>
+              <button type="button" aria-pressed={activeTab === 'aerodromos'} onClick={() => navigateToTab('aerodromos')} className={`flex min-h-[68px] items-center justify-center gap-2 rounded-2xl border px-3 py-3 text-center text-sm font-bold transition-colors ${activeTab === 'aerodromos' ? 'border-sky-400/70 bg-sky-500 text-slate-950' : 'border-border-dark bg-surface-dark text-slate-400 hover:text-white'}`}><MapPin className="h-5 w-5 shrink-0" /><span>Informações<br className="sm:hidden" /> Aeródromo</span></button>
+              <button type="button" aria-pressed={activeTab === 'meteorologia'} onClick={() => navigateToTab('meteorologia')} className={`flex min-h-[68px] items-center justify-center gap-2 rounded-2xl border px-3 py-3 text-center text-sm font-bold transition-colors ${activeTab === 'meteorologia' ? 'border-sky-400/70 bg-sky-500 text-slate-950' : 'border-border-dark bg-surface-dark text-slate-400 hover:text-white'}`}><CloudRain className="h-5 w-5 shrink-0" /><span>Meteorologia</span></button>
+              <button type="button" aria-pressed={activeTab === 'planos-salvos'} onClick={() => navigateToTab('planos-salvos')} className={`flex min-h-[68px] items-center justify-center gap-2 rounded-2xl border px-3 py-3 text-center text-sm font-bold transition-colors ${activeTab === 'planos-salvos' ? 'border-sky-400/70 bg-sky-500 text-slate-950' : 'border-border-dark bg-surface-dark text-slate-400 hover:text-white'}`}><FolderOpen className="h-5 w-5 shrink-0" /><span>Planos de Voo<br className="sm:hidden" /> Salvos</span><span className="ml-1 text-xs">{savedPlanCount}</span></button>
             </nav>
-            {['formulario-icao', 'planejar', 'resultados', 'notam'].includes(activeTab) && <div className="flex items-center gap-1 overflow-x-auto border-b border-border-dark" role="tablist" aria-label="Plano de voo completo">
-              <button type="button" role="tab" aria-selected={activeTab === 'formulario-icao'} onClick={() => setActiveTab('formulario-icao')} className={`inline-flex min-h-12 shrink-0 items-center gap-2 border-b-2 px-4 text-sm font-bold ${activeTab === 'formulario-icao' ? 'border-sky-400 text-sky-400' : 'border-transparent text-slate-400'}`}><FilePlus2 className="h-4 w-4" /> Formulário ICAO</button>
-              <button type="button" role="tab" aria-selected={activeTab === 'planejar'} onClick={() => setActiveTab('planejar')} className={`inline-flex min-h-12 shrink-0 items-center gap-2 border-b-2 px-4 text-sm font-bold ${activeTab === 'planejar' ? 'border-sky-400 text-sky-400' : 'border-transparent text-slate-400'}`}><Route className="h-4 w-4" /> Criar rotas</button>
-              {activeTab === 'resultados' && <button type="button" onClick={() => setActiveTab('resultados')} className="px-2 text-xs font-semibold text-slate-400">Resultados</button>}
-              {activeTab === 'notam' && <button type="button" onClick={() => setActiveTab('notam')} className="px-2 text-xs font-semibold text-slate-400">NOTAMs</button>}
-            </div>}
-            <TabsList className="hidden">
-              <TabsTrigger value="formulario-icao" className="data-[state=active]:bg-primary/20 text-xs sm:text-sm px-2 sm:px-4 py-2 sm:py-0">
-                <FileText className="w-4 h-4 sm:mr-2 flex-shrink-0" />
-                <span>ICAO</span>
-              </TabsTrigger>
-              <TabsTrigger value="planos-salvos" className="hidden">Planos salvos ICAO</TabsTrigger>
-              <TabsTrigger value="planejar" className="data-[state=active]:bg-primary/20 text-xs sm:text-sm px-2 sm:px-4 py-2 sm:py-0">
-                <Calculator className="w-4 h-4 sm:mr-2 flex-shrink-0" />
-                <span className="hidden sm:inline">Planejar</span>
-              </TabsTrigger>
-              <TabsTrigger value="resultados" className="data-[state=active]:bg-primary/20 text-xs sm:text-sm px-2 sm:px-4 py-2 sm:py-0">
-                <Route className="w-4 h-4 sm:mr-2 flex-shrink-0" />
-                <span className="hidden sm:inline">Resultados</span>
-              </TabsTrigger>
-              <TabsTrigger value="notam" className="data-[state=active]:bg-primary/20 text-xs sm:text-sm px-2 sm:px-4 py-2 sm:py-0 relative">
-                <Shield className="w-4 h-4 sm:mr-2 flex-shrink-0" />
-                <span className="hidden sm:inline">NOTAMs</span>
-                {validation && validation.warnings.length > 0 && <Badge className="absolute top-0 right-0 -mt-1 -mr-1 text-xs bg-red-500/20 text-red-400 border-red-500/50 p-0.5 w-4 h-4 flex items-center justify-center text-xs">
-                    {validation.warnings.length}
-                  </Badge>}
-              </TabsTrigger>
-              <TabsTrigger value="aerodromos" className="data-[state=active]:bg-primary/20 text-xs sm:text-sm px-2 sm:px-4 py-2 sm:py-0">
-                <Radio className="w-4 h-4 sm:mr-2 flex-shrink-0" />
-                <span className="hidden sm:inline">Aeródromos</span>
-              </TabsTrigger>
-              <TabsTrigger value="cartas" className="data-[state=active]:bg-primary/20 text-xs sm:text-sm px-2 sm:px-4 py-2 sm:py-0 hidden sm:flex">
-                <FileText className="w-4 h-4 mr-2 flex-shrink-0" />
-                <span>Cartas</span>
-              </TabsTrigger>
-              <TabsTrigger value="meteorologia" className="data-[state=active]:bg-primary/20 text-xs sm:text-sm px-2 sm:px-4 py-2 sm:py-0 hidden sm:flex">
-                <CloudRain className="w-4 h-4 mr-2 flex-shrink-0" />
-                <span>Meteorologia</span>
-              </TabsTrigger>
-              <TabsTrigger value="salvos" className="data-[state=active]:bg-primary/20 text-xs sm:text-sm px-2 sm:px-4 py-2 sm:py-0 hidden sm:flex">
-                <FileText className="w-4 h-4 mr-2 flex-shrink-0" />
-                <span>Salvos ({flightPlans.length})</span>
-              </TabsTrigger>
-            </TabsList>
+            {['formulario-icao', 'planejar', 'resultados', 'notam', 'cartas', 'salvos'].includes(activeTab) && <FlightPlanNavigation activeTab={activeTab} onSelect={navigateToTab} />}
 
             <TabsContent value="formulario-icao" forceMount className="space-y-3 sm:space-y-4">
-              <PlanoIcaoMobile key={fplResetKey} onSaved={() => setActiveTab('planos-salvos')} />
+              <PlanoIcaoMobile key={fplResetKey} initialValues={icaoInitialValues} onSaved={() => navigateToTab('planos-salvos')} />
             </TabsContent>
             <TabsContent value="planos-salvos" className="space-y-3 sm:space-y-4">
-              <PlanoIcaoMobile mode="saved" onCountChange={setSavedPlanCount} />
+              <PlanoIcaoMobile
+                mode="saved"
+                onCountChange={setSavedPlanCount}
+                onUseAsBase={(values) => {
+                  setIcaoInitialValues(values);
+                  setFplResetKey((key) => key + 1);
+                  navigateToTab('formulario-icao');
+                  toast.success('Plano carregado como base para um novo formulário.');
+                }}
+              />
             </TabsContent>
             {/* TAB: Planejar */}
             <TabsContent value="planejar" className="space-y-3 sm:space-y-4">
@@ -846,9 +951,10 @@ export default function PlanoVooPage() {
                   <div>
                     <Label className="text-xs sm:text-sm text-muted-foreground">Aeródromo de Origem *</Label>
                     <div className="mt-2 sm:mt-1">
-                      <AerodromeCombobox aerodromes={aerodromes} value={formData.origin} onChange={val => setFormData({
+                    <AerodromeCombobox aerodromes={aerodromes} value={formData.origin} onChange={val => setFormData({
                       ...formData,
-                      origin: val
+                      origin: val,
+                      route: ''
                     })} placeholder="Buscar origem..." disabled={isLoadingAerodromes} />
                     </div>
                     {originNotams.length > 0 && <div className="mt-1 flex items-center gap-1">
@@ -861,9 +967,10 @@ export default function PlanoVooPage() {
                   <div>
                     <Label className="text-xs sm:text-sm text-muted-foreground">Aeródromo de Destino *</Label>
                     <div className="mt-2 sm:mt-1">
-                      <AerodromeCombobox aerodromes={aerodromes} value={formData.destination} onChange={val => setFormData({
+                    <AerodromeCombobox aerodromes={aerodromes} value={formData.destination} onChange={val => setFormData({
                       ...formData,
-                      destination: val
+                      destination: val,
+                      route: ''
                     })} placeholder="Buscar destino..." disabled={isLoadingAerodromes} />
                     </div>
                     {destNotams.length > 0 && <div className="mt-1 flex items-center gap-1">
@@ -892,7 +999,7 @@ export default function PlanoVooPage() {
                   {/* Aeronave */}
                   <div>
                     <Label className="text-xs sm:text-sm text-muted-foreground">Aeronave *</Label>
-                    <select value={formData.aircraftId} onChange={e => handleAircraftChange(e.target.value)} className="w-full mt-2 sm:mt-1 bg-background border border-border rounded-lg px-3 py-2 text-foreground text-xs sm:text-sm h-9 sm:h-10" disabled={isLoadingAeronaves}>
+                    <select value={formData.aircraftId} onChange={e => handleAircraftChange(e.target.value)} className="w-full mt-2 sm:mt-1 bg-background border border-border rounded-lg px-3 py-2 text-foreground text-xs sm:text-sm h-12 sm:h-10" disabled={isLoadingAeronaves}>
                       <option value="">Selecione</option>
                       {aeronaves.map(ac => <option key={ac.id} value={ac.id}>
                           {ac.registration} - {ac.model}
@@ -906,7 +1013,7 @@ export default function PlanoVooPage() {
                     <Input value={formData.registration} onChange={e => setFormData({
                     ...formData,
                     registration: e.target.value.toUpperCase()
-                  })} placeholder="PT-ABC" className="mt-2 sm:mt-1 bg-background border-border text-foreground text-xs sm:text-sm h-9 sm:h-10" />
+                  })} placeholder="PT-ABC" className="mt-2 sm:mt-1 bg-background border-border text-foreground text-xs sm:text-sm h-12 sm:h-10" />
                   </div>
 
                   {/* Regra de Voo */}
@@ -915,7 +1022,7 @@ export default function PlanoVooPage() {
                     <select value={formData.flightRule} onChange={e => setFormData({
                     ...formData,
                     flightRule: e.target.value as 'V' | 'I' | 'Y' | 'Z'
-                  })} className="w-full mt-2 sm:mt-1 bg-background border border-border rounded-lg px-3 py-2 text-foreground text-xs sm:text-sm h-9 sm:h-10">
+                  })} className="w-full mt-2 sm:mt-1 bg-background border border-border rounded-lg px-3 py-2 text-foreground text-xs sm:text-sm h-12 sm:h-10">
                       <option value="V">VFR</option>
                       <option value="I">IFR</option>
                       <option value="Y">IFR/VFR</option>
@@ -929,7 +1036,7 @@ export default function PlanoVooPage() {
                     <Input type="number" value={formData.passengers} onChange={e => setFormData({
                     ...formData,
                     passengers: parseInt(e.target.value) || 1
-                  })} min="1" className="mt-2 sm:mt-1 bg-background border-border text-foreground text-xs sm:text-sm h-9 sm:h-10" />
+                  })} min="1" className="mt-2 sm:mt-1 bg-background border-border text-foreground text-xs sm:text-sm h-12 sm:h-10" />
                   </div>
                 </div>
 
@@ -940,7 +1047,7 @@ export default function PlanoVooPage() {
                     <Input value={formData.cruiseSpeed} onChange={e => setFormData({
                     ...formData,
                     cruiseSpeed: e.target.value
-                  })} placeholder="180" className="mt-2 sm:mt-1 bg-background border-border text-foreground text-xs sm:text-sm h-9 sm:h-10" />
+                  })} placeholder="180" className="mt-2 sm:mt-1 bg-background border-border text-foreground text-xs sm:text-sm h-12 sm:h-10" />
                   </div>
 
                   {/* Data/Hora */}
@@ -949,20 +1056,50 @@ export default function PlanoVooPage() {
                     <Input type="datetime-local" value={formData.departure} onChange={e => setFormData({
                     ...formData,
                     departure: e.target.value
-                  })} className="mt-2 sm:mt-1 bg-background border-border text-foreground text-xs sm:text-sm h-9 sm:h-10" />
+                  })} className="mt-2 sm:mt-1 bg-background border-border text-foreground text-xs sm:text-sm h-12 sm:h-10" />
                   </div>
 
                   {/* Rota */}
                   <div>
                     <Label className="text-xs sm:text-sm text-muted-foreground">Rota</Label>
-                    <Input value={formData.route} onChange={e => setFormData({
-                    ...formData,
-                    route: e.target.value.toUpperCase()
-                  })} placeholder="DCT ou via pontos" className="mt-2 sm:mt-1 bg-background border-border text-foreground text-xs sm:text-sm h-9 sm:h-10" />
+                    <div className="mt-2 flex gap-2 sm:mt-1">
+                      <Input value={formData.route} onChange={e => setFormData({
+                        ...formData,
+                        route: e.target.value.toUpperCase()
+                      })} placeholder="DCT ou via pontos" className="min-w-0 flex-1 bg-background border-border text-foreground text-xs sm:text-sm h-11" />
+                      <Button type="button" onClick={() => void requestRouteSuggestion()} disabled={!formData.origin || !formData.destination || isLoadingRouteSuggestion} className="min-h-11 shrink-0 bg-sky-500 px-3 text-xs font-bold text-slate-950 hover:bg-sky-400">
+                        {isLoadingRouteSuggestion ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Route className="mr-1 h-4 w-4" />}
+                        Sugerir
+                      </Button>
+                    </div>
+                    {routeSuggestion?.flightplan?.route && <div className="mt-3 space-y-3 rounded-xl border border-sky-300/20 bg-sky-300/[.06] p-3">
+                      <div>
+                        <p className="text-[10px] font-extrabold uppercase tracking-wide text-sky-300">Rota sugerida · {routeSuggestion.flightplan.route_source === 'AISWEB/DECEA' ? 'AISWEB/DECEA' : 'rota direta de contingência'}</p>
+                        <p className="mt-1 break-words font-mono text-sm font-semibold text-white">{routeSuggestion.flightplan.route}</p>
+                        <p className="mt-1 text-xs text-slate-400">
+                          {routeSuggestion.flightplan.distance_nm != null ? `${routeSuggestion.flightplan.distance_nm} NM` : ''}
+                          {routeSuggestion.flightplan.estimated_time ? ` · ETE ${routeSuggestion.flightplan.estimated_time}` : ''}
+                          {routeSuggestion.fuel?.total_required != null ? ` · ${routeSuggestion.fuel.total_required} L estimados` : ''}
+                          {routeSuggestion.notam_count ? ` · ${routeSuggestion.notam_count} NOTAM(s)` : ''}
+                        </p>
+                      </div>
+                      <div className="flex flex-col gap-2 sm:flex-row">
+                        <Button type="button" onClick={useSuggestedRoute} className="min-h-11 flex-1 bg-sky-400 font-bold text-slate-950 hover:bg-sky-300">Usar esta rota</Button>
+                        <Button type="button" variant="outline" onClick={transferRouteToIcao} className="min-h-11 flex-1 border-white/15 text-slate-100">Preencher ICAO FPL</Button>
+                      </div>
+                      {!!routeSuggestion.alternates?.length && <div>
+                        <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-slate-400">Alternativas próximas ao destino</p>
+                        <div className="flex flex-wrap gap-2">
+                          {routeSuggestion.alternates.map((alternate) => <button key={alternate.icao} type="button" onClick={() => setFormData((current) => ({ ...current, alternate: alternate.icao }))} className="min-h-10 rounded-lg border border-white/10 bg-[#0a1729] px-3 text-xs font-semibold text-slate-200">
+                            {alternate.icao}{alternate.distance_km != null ? ` · ${Math.round(alternate.distance_km)} km` : ''}
+                          </button>)}
+                        </div>
+                      </div>}
+                    </div>}
                   </div>
                 </div>
 
-                <Button onClick={calculateFlightPlan} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm h-9 sm:h-10" disabled={!formData.origin || !formData.destination || isValidating}>
+                <Button onClick={calculateFlightPlan} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm h-12 sm:h-10" disabled={!formData.origin || !formData.destination || isValidating}>
                   {isValidating ? <>
                       <Loader2 className="w-3 sm:w-4 h-3 sm:h-4 mr-1 sm:mr-2 animate-spin" />
                       <span className="hidden sm:inline">Validando...</span>
@@ -1049,6 +1186,19 @@ export default function PlanoVooPage() {
                     </div>
                   </Card>
 
+                  <Card className="bg-surface-dark border-border-dark p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-sm font-semibold text-foreground">Rota do plano</h3>
+                        <p className="mt-2 break-words font-mono text-sm leading-6 text-sky-200">{formData.route || 'DCT'}</p>
+                        {routeSuggestion?.flightplan?.route_source && formData.route === routeSuggestion.flightplan.route && <p className="mt-1 text-xs text-slate-400">Fonte da sugestão: {routeSuggestion.flightplan.route_source === 'AISWEB/DECEA' ? 'AISWEB/DECEA' : 'rota direta de contingência'}</p>}
+                        {formData.route && routeSuggestion?.flightplan?.route && formData.route !== routeSuggestion.flightplan.route && <p className="mt-1 text-xs text-slate-400">Rota informada manualmente; valide a rota publicada antes do voo.</p>}
+                      </div>
+                      <Button type="button" variant="outline" onClick={transferRouteToIcao} className="min-h-11 shrink-0 border-white/15 text-slate-100">Preencher ICAO FPL</Button>
+                    </div>
+                    <p className="mt-3 text-[11px] leading-5 text-slate-500">O mapa abaixo exibe a linha direta entre origem e destino; a rota textual deve ser conferida e autorizada nas fontes aeronáuticas oficiais.</p>
+                  </Card>
+
                   {/* Mapa e Detalhes */}
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
                     {/* Mapa */}
@@ -1117,17 +1267,16 @@ export default function PlanoVooPage() {
                   {/* Ações */}
                   <Card className="bg-surface-dark border-border-dark p-3 sm:p-4">
                     <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-                      <Button onClick={savePlan} variant="outline" className="border-border-dark text-xs sm:text-sm h-9 sm:h-10 flex-1 sm:flex-auto">
+                      <Button onClick={savePlan} variant="outline" className="min-h-11 border-border-dark text-xs sm:text-sm flex-1 sm:flex-auto">
                         <Save className="w-3 sm:w-4 h-3 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" />
-                        <span className="hidden sm:inline">Salvar Plano</span>
-                        <span className="sm:hidden">Salvar</span>
+                        <span>{editingPlanId ? 'Atualizar plano' : 'Salvar plano'}</span>
                       </Button>
-                      <Button variant="outline" className="border-border-dark text-xs sm:text-sm h-9 sm:h-10 flex-1 sm:flex-auto" disabled>
+                      <Button type="button" onClick={() => void handleExportPdf()} variant="outline" className="min-h-11 border-border-dark text-xs sm:text-sm flex-1 sm:flex-auto">
                         <Download className="w-3 sm:w-4 h-3 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" />
                         <span className="hidden sm:inline">Exportar PDF</span>
                         <span className="sm:hidden">PDF</span>
                       </Button>
-                      <Button onClick={() => setActiveTab('notam')} variant="outline" className="border-border-dark text-xs sm:text-sm h-9 sm:h-10 flex-1 sm:flex-auto">
+                      <Button onClick={() => navigateToTab('notam')} variant="outline" className="min-h-11 border-border-dark text-xs sm:text-sm flex-1 sm:flex-auto">
                         <Shield className="w-3 sm:w-4 h-3 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" />
                         <span className="hidden sm:inline">Ver NOTAMs</span>
                         <span className="sm:hidden">NOTAMs</span>
@@ -1344,31 +1493,30 @@ export default function PlanoVooPage() {
                       </div>
                       <div className="flex gap-2">
                         <Button variant="ghost" size="sm" onClick={() => {
+                    const formSnapshot = plan.calculations?.formSnapshot || {};
+                    setEditingPlanId(plan.id);
+                    setRouteSuggestion(null);
                     setFormData({
                       origin: plan.departure_airport,
                       destination: plan.arrival_airport,
                       alternate: plan.alternate_airport || '',
                       aircraftId: plan.aircraft_id || '',
-                      registration: '',
-                      flightRule: 'V',
+                      registration: formSnapshot.registration || '',
+                      flightRule: formSnapshot.flightRule || 'V',
                       cruiseAlt: plan.cruise_altitude || '',
-                      cruiseSpeed: '',
-                      departure: '',
-                      passengers: 1,
+                      cruiseSpeed: formSnapshot.cruiseSpeed || '',
+                      departure: formSnapshot.departure || '',
+                      passengers: formSnapshot.passengers || 1,
                       route: plan.route || ''
                     });
-                    if (plan.calculations) {
-                      setCalculations(plan.calculations);
-                    }
-                    if (plan.validation) {
-                      setValidation(plan.validation);
-                    }
-                    setActiveTab('planejar');
+                    setCalculations(plan.calculations || null);
+                    setValidation(plan.validation || null);
+                    navigateToTab('planejar');
                     toast.success('Plano carregado para edição');
-                  }} className="text-primary hover:text-primary/80 hover:bg-primary/10">
+                  }} className="min-h-11 text-primary hover:text-primary/80 hover:bg-primary/10">
                           Editar
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleDeletePlan(plan.id)} className="text-red-400 hover:text-red-300 hover:bg-red-500/10">
+                        <Button variant="ghost" size="sm" onClick={() => handleDeletePlan(plan.id)} className="min-h-11 text-red-400 hover:text-red-300 hover:bg-red-500/10">
                           Excluir
                         </Button>
                       </div>

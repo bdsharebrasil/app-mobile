@@ -113,7 +113,7 @@ export const FlightRouteMap: React.FC<FlightRouteMapProps> = ({ points, classNam
       <MapContainerAny
         center={center}
         zoom={6}
-        style={{ height: '100%', width: '100%', minHeight: '400px' }}
+        style={{ height: '100%', width: '100%', minHeight: '240px' }}
         className="z-0"
       >
         <TileLayerAny url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />

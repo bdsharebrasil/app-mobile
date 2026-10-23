@@ -34,6 +34,13 @@ export interface FlightPlan {
     suggestedAlt: string;
     altitudeWarnings: string[];
     alternatives: string[];
+    formSnapshot?: {
+      flightRule?: 'V' | 'I' | 'Y' | 'Z';
+      registration?: string;
+      cruiseSpeed?: string;
+      departure?: string;
+      passengers?: number;
+    };
   };
   
   validation?: {
@@ -176,21 +183,21 @@ export function useFlightPlans() {
 
     try {
       const updateData = {
-        ...(updates.flight_date && { flight_date: updates.flight_date }),
-        ...(updates.departure_airport && { departure_airport: updates.departure_airport }),
-        ...(updates.arrival_airport && { arrival_airport: updates.arrival_airport }),
-        ...(updates.aircraft_id && { aircraft_id: updates.aircraft_id }),
-        ...(updates.pilot_in_command && { pilot_in_command: updates.pilot_in_command }),
-        ...(updates.alternate_airport && { alternate_airport: updates.alternate_airport }),
-        ...(updates.cruise_altitude && { cruise_altitude: updates.cruise_altitude }),
-        ...(updates.estimated_time && { estimated_time: updates.estimated_time }),
-        ...(updates.fuel_endurance && { fuel_endurance: updates.fuel_endurance }),
-        ...(updates.route && { route: updates.route }),
-        ...(updates.remarks && { remarks: updates.remarks }),
-        ...(updates.status && { status: updates.status }),
-        ...(updates.calculations && { calculations: updates.calculations }),
-        ...(updates.validation && { validation_data: updates.validation }),
-        ...(updates.weather && { weather_data: updates.weather }),
+        ...(updates.flight_date !== undefined && { flight_date: updates.flight_date }),
+        ...(updates.departure_airport !== undefined && { departure_airport: updates.departure_airport }),
+        ...(updates.arrival_airport !== undefined && { arrival_airport: updates.arrival_airport }),
+        ...(updates.aircraft_id !== undefined && { aircraft_id: updates.aircraft_id || null }),
+        ...(updates.pilot_in_command !== undefined && { pilot_in_command: updates.pilot_in_command }),
+        ...(updates.alternate_airport !== undefined && { alternate_airport: updates.alternate_airport || null }),
+        ...(updates.cruise_altitude !== undefined && { cruise_altitude: updates.cruise_altitude || null }),
+        ...(updates.estimated_time !== undefined && { estimated_time: updates.estimated_time || null }),
+        ...(updates.fuel_endurance !== undefined && { fuel_endurance: updates.fuel_endurance || null }),
+        ...(updates.route !== undefined && { route: updates.route || null }),
+        ...(updates.remarks !== undefined && { remarks: updates.remarks || null }),
+        ...(updates.status !== undefined && { status: updates.status }),
+        ...(updates.calculations !== undefined && { calculations: updates.calculations }),
+        ...(updates.validation !== undefined && { validation_data: updates.validation }),
+        ...(updates.weather !== undefined && { weather_data: updates.weather }),
         updated_at: new Date().toISOString(),
       };
 
