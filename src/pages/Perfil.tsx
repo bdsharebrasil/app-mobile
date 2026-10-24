@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Camera, Loader2, Save, Edit, User as UserIcon, Calendar, AlertCircle, CheckCircle, Clock, Lock, Eye, EyeOff, ArrowLeft, ShieldCheck, Star, Briefcase, Building2, User, CreditCard, LayoutDashboard, FileText, PiggyBank, Timer, ChevronRight } from "lucide-react";
+import { Camera, Loader2, Save, Edit, User as UserIcon, Calendar, AlertCircle, CheckCircle, Clock, Lock, Eye, EyeOff, ArrowLeft, ShieldCheck, Star, Briefcase, Building2, User, CreditCard, LayoutDashboard, FileText, PiggyBank, Timer, ChevronRight, LogOut } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MobileLayout } from "@/components/mobile/MobileLayout";
 import { Badge } from "@/components/ui/badge";
@@ -114,7 +114,7 @@ type FormState = {
 
 export default function Perfil() {
   const navigate = useNavigate();
-  const { user, roles } = useAuth();
+  const { user, roles, signOut } = useAuth();
   const { toast } = useToast();
   const isAdmin = roles.includes("admin");
   const isGestorMaster = roles.includes("gestor_master");
@@ -139,6 +139,7 @@ export default function Perfil() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
@@ -241,6 +242,12 @@ export default function Perfil() {
     setIsChangingPassword(false);
     if (error) toast({ title: "Erro ao alterar senha", description: error.message, variant: "destructive" });
     else { toast({ title: "Senha alterada com sucesso" }); setNewPassword(""); setConfirmPassword(""); }
+  };
+
+  const handleSignOut = async () => {
+    setIsSigningOut(true);
+    await signOut();
+    navigate("/login", { replace: true });
   };
 
   const handleSaveEditableFields = async () => {
@@ -631,6 +638,17 @@ export default function Perfil() {
               </motion.div>
             </TabsContent>
           </Tabs>
+
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleSignOut}
+            disabled={isSigningOut}
+            className="w-full h-12 rounded-xl border-destructive/30 text-destructive hover:bg-destructive/5"
+          >
+            {isSigningOut ? <Loader2 className="animate-spin mr-2" size={18} /> : <LogOut className="mr-2" size={18} />}
+            {isSigningOut ? "Saindo…" : "Sair da conta"}
+          </Button>
 
           <div className="flex flex-col items-center py-10 gap-2 opacity-40 hover:opacity-100 transition-opacity">
             <LayoutDashboard size={24} className="text-muted-foreground" />
