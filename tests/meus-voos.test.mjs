@@ -44,7 +44,8 @@ test("menu destaca Meus Voos com quantidade e instrução quando há voos em ope
   assert.match(dashboardSource, /Complete horários/);
   assert.match(dashboardSource, /ring-2 ring-amber-300/);
   assert.match(dashboardSource, /refetchInterval: 60_000/);
-  assert.match(flightQueryKeysSource, /\["em_voo", "em_rota", "em_solo", "pousado"\]/);
+  assert.match(flightQueryKeysSource, /"acionado"/);
+  assert.match(flightQueryKeysSource, /"em_voo", "em_rota", "em_solo", "pousado"/);
   assert.match(detailSource, /flightNeedsTimeCompletion\(flight\.status\)/);
   assert.match(detailSource, /Completar horários/);
 });
@@ -58,4 +59,21 @@ test("voo em operação permite preencher AC/DEP/POU/COR da perna e bloqueia per
   assert.match(operationsSource, /!leg\.lancamento_diario_id/);
   assert.match(operationsSource, /Completar horários da perna/);
   assert.match(operationsSource, /resumo da jornada atualizado/i);
+});
+
+test("início solicita acionamento, calcula apresentação e mostra decolagem com status amigável", () => {
+  const mutation = operationsSource.match(/const journeyMutation = useMutation\(\{ mutationFn: \(\) => ([\s\S]*?), onSuccess:/)?.[1] || "";
+  assert.match(mutation, /horario_acionamento: flightTimestamp\(flight, journeyTime\)/);
+  assert.doesNotMatch(mutation, /horario_apresentacao/);
+  assert.match(operationsSource, /Acionamento \(UTC\)/);
+  assert.match(operationsSource, /apresentação da tripulação será calculada automaticamente para 30 minutos antes/i);
+  assert.match(operationsSource, /horario_decolagem/);
+  assert.match(detailSource, /horario_decolagem: string \| null/);
+  assert.match(formatterSource, /acionado: "Acionado"/);
+  assert.match(formatterSource, /em_voo: "Em voo"/);
+  assert.match(formatterSource, /em_solo: "Em solo"/);
+  assert.match(operationsSource, /formatFlightJourneyStatus\(record\)/);
+  assert.match(operationsSource, /formatFlightLegStatus\(leg\)/);
+  assert.match(detailSource, /formatFlightJourneyStatus\(jornada, "Registrada"\)/);
+  assert.match(detailSource, /formatFlightLegStatus\(perna\)/);
 });

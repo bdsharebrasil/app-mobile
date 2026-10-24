@@ -8,7 +8,7 @@ import { MobileLayout } from "@/components/mobile/MobileLayout";
 import { FlightOperations } from "@/components/mobile/FlightOperations";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { apiClient } from "@/lib/api-client";
-import { formatFlightDate, formatScheduledFlightTime, formatZuluTime } from "@/lib/flight-format";
+import { formatFlightDate, formatFlightJourneyStatus, formatFlightLegStatus, formatScheduledFlightTime, formatZuluTime } from "@/lib/flight-format";
 import { flightListQueryKey, flightNeedsTimeCompletion } from "@/lib/flight-query-keys";
 
 type Flight = {
@@ -60,6 +60,7 @@ type FlightJourney = {
   status: string | null;
   horario_apresentacao: string | null;
   horario_acionamento: string | null;
+  horario_decolagem: string | null;
   horario_pouso: string | null;
   horario_corte: string | null;
   minutos_jornada: number | null;
@@ -87,7 +88,7 @@ type FlightDetail = {
 type FlightListResponse = { tripulante: { id: string; nome_completo: string; canac: string | null } | null; voos: Flight[] };
 
 const closedStatuses = new Set(["encerrada", "concluida"]);
-const activeStatuses = new Set(["aprovada", "em_voo", "em voo", "em_rota", "em rota", "em_solo", "pousado"]);
+const activeStatuses = new Set(["aprovada", "acionado", "decolado", "em_voo", "em voo", "em_rota", "em rota", "em_solo", "pousado"]);
 
 function dateLabel(value?: string | null) {
   if (!value) return "Data não informada";
@@ -109,8 +110,8 @@ function aircraftLabel(flight: Flight) {
 function statusLabel(status: string) {
   const normalized = String(status || "").trim().toLowerCase();
   if (closedStatuses.has(normalized)) return "Concluído";
-  if (["em_voo", "em voo", "em_rota", "em rota"].includes(normalized)) return "Em voo";
-  if (["em_solo", "pousado"].includes(normalized)) return "Em solo";
+  if (["decolado", "em_voo", "em voo", "em_rota", "em rota"].includes(normalized)) return "Em voo";
+  if (["acionado", "em_solo", "pousado"].includes(normalized)) return normalized === "acionado" ? "Acionado" : "Em solo";
   return "Aprovado";
 }
 
@@ -215,10 +216,10 @@ export default function MeusVoos() {
                 <section className="mt-4 rounded-2xl border border-white/10 bg-[#101e33] p-4">
                   <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-white"><Clock3 className="h-4 w-4 text-emerald-300" /> Jornadas registradas</h2>
                   {detail.jornadas.length ? <div className="space-y-3">{detail.jornadas.map((jornada) => <div key={jornada.id} className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-semibold text-slate-100">{formatFlightDate(jornada.data)} · {jornada.funcao_tripulante || "Tripulante"}</p><span className="rounded-full bg-sky-300/10 px-2 py-1 text-[10px] font-semibold text-sky-200">{jornada.status || "Registrada"}</span></div>
+                    <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-semibold text-slate-100">{formatFlightDate(jornada.data)} · {jornada.funcao_tripulante || "Tripulante"}</p><span className="rounded-full bg-sky-300/10 px-2 py-1 text-[10px] font-semibold text-sky-200">{formatFlightJourneyStatus(jornada, "Registrada")}</span></div>
                     <p className="mt-1 text-xs text-slate-400">{jornada.tripulante_nome || "Tripulante"}</p>
-                    <div className="mt-2 grid grid-cols-2 gap-2 text-xs"><span className="rounded-lg bg-black/15 px-2.5 py-2 text-slate-400">Apresentação <strong className="ml-1 text-slate-200">{formatZuluTime(jornada.horario_apresentacao)}</strong></span><span className="rounded-lg bg-black/15 px-2.5 py-2 text-slate-400">Acionamento <strong className="ml-1 text-slate-200">{formatZuluTime(jornada.horario_acionamento)}</strong></span></div>
-                    {jornada.pernas?.length > 0 && <div className="mt-3 space-y-2">{jornada.pernas.map((perna) => <div key={perna.id} className="rounded-lg bg-black/15 px-3 py-2 text-xs text-slate-300"><div className="flex items-center justify-between gap-2"><span className="font-semibold">Perna {perna.numero}: {perna.origem || "—"} → {perna.destino || "—"}</span><span className="text-slate-500">{perna.status}</span></div><p className="mt-1 text-slate-500">AC {formatZuluTime(perna.horario_ac)} · DEP {formatZuluTime(perna.horario_dep)} · POU {formatZuluTime(perna.horario_pouso)} · COR {formatZuluTime(perna.horario_corte)}</p></div>)}</div>}
+                    <div className="mt-2 grid grid-cols-2 gap-2 text-xs"><span className="rounded-lg bg-black/15 px-2.5 py-2 text-slate-400">Apresentação <strong className="ml-1 text-slate-200">{formatZuluTime(jornada.horario_apresentacao)}</strong></span><span className="rounded-lg bg-black/15 px-2.5 py-2 text-slate-400">Acionamento <strong className="ml-1 text-slate-200">{formatZuluTime(jornada.horario_acionamento)}</strong></span><span className="rounded-lg bg-black/15 px-2.5 py-2 text-slate-400">Decolagem <strong className="ml-1 text-slate-200">{formatZuluTime(jornada.horario_decolagem)}</strong></span></div>
+                    {jornada.pernas?.length > 0 && <div className="mt-3 space-y-2">{jornada.pernas.map((perna) => <div key={perna.id} className="rounded-lg bg-black/15 px-3 py-2 text-xs text-slate-300"><div className="flex items-center justify-between gap-2"><span className="font-semibold">Perna {perna.numero}: {perna.origem || "—"} → {perna.destino || "—"}</span><span className="text-slate-500">{formatFlightLegStatus(perna)}</span></div><p className="mt-1 text-slate-500">AC {formatZuluTime(perna.horario_ac)} · DEP {formatZuluTime(perna.horario_dep)} · POU {formatZuluTime(perna.horario_pouso)} · COR {formatZuluTime(perna.horario_corte)}</p></div>)}</div>}
                     <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-500"><span>Pouso: {formatZuluTime(jornada.horario_pouso)}</span><span>Corte: {formatZuluTime(jornada.horario_corte)}</span><span>Jornada: {jornada.minutos_jornada == null ? "—" : `${jornada.minutos_jornada} min`}</span></div>
                   </div>)}</div> : <p className="text-sm text-slate-400">Ainda não há jornadas registradas para este agendamento.</p>}
                 </section>
