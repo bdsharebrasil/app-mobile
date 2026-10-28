@@ -20,6 +20,7 @@ import DiarioBordo from "./pages/DiarioBordo";
 import PlanoVoo from "./pages/PlanoVoo";
 import Perfil from "./pages/Perfil";
 import RelatorioViagem from "./pages/financeiro/RelatorioViagem";
+import DespesasViagem from "./pages/financeiro/DespesasViagem";
 import GestaoCTM from "./pages/GestaoCTM";
 import RevisaoCoordenador from "./pages/RevisaoCoordenador";
 import MeusVoos from "./pages/MeusVoos";
@@ -67,6 +68,7 @@ const App = () => {
                     <Route path="/meus-voos/:flightId" element={renderProtected(<MeusVoos />)} />
                     <Route path="/notificacoes" element={renderProtected(<Notificacoes />)} />
                     <Route path="/financeiro/viagem" element={renderProtected(<RelatorioViagem />)} />
+                    <Route path="/financeiro/despesas-viagem" element={renderProtected(<DespesasViagem />)} />
                     <Route path="/manutencao/ctm" element={renderProtected(<GestaoCTM />)} />
                     <Route path="/perfil" element={renderProtected(<Perfil />)} />
                     <Route path="/revisao-coordenador" element={renderProtected(<RevisaoCoordenador />)} />

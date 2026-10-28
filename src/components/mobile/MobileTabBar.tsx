@@ -6,7 +6,7 @@ const navItems: Tab[] = [
   { title: "Home", icon: Home, href: "/" },
   { title: "Voos", icon: Plane, href: "/diario-bordo" },
   { title: "Manutenções", icon: Wrench, href: "/manutencao/ctm" },
-  { title: "Relatórios", icon: BarChart3, href: "/financeiro/viagem" },
+  { title: "Despesas de Viagem", icon: BarChart3, href: "/financeiro/despesas-viagem" },
   { title: "Perfil", icon: User, href: "/perfil" },
 ];
 

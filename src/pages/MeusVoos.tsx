@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft, CalendarDays, ChevronRight, Clock3, FolderOpen,
-  Hotel, Loader2, MapPin, MessageSquareText, Plane, RefreshCw,
+  Hotel, Loader2, MapPin, MessageSquareText, Plane, RefreshCw, ReceiptText,
 } from "lucide-react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { MobileLayout } from "@/components/mobile/MobileLayout";
@@ -86,6 +86,8 @@ type FlightDetail = {
 };
 
 type FlightListResponse = { tripulante: { id: string; nome_completo: string; canac: string | null } | null; voos: Flight[] };
+type VooComRelatorio = { solicitacao_id: string; relatorio_id: string | null; relatorio_status: string | null };
+type VoosComRelatorios = { voos: VooComRelatorio[] };
 
 const closedStatuses = new Set(["encerrada", "concluida"]);
 const activeStatuses = new Set(["aprovada", "acionado", "decolado", "em_voo", "em voo", "em_rota", "em rota", "em_solo", "pousado"]);
@@ -162,10 +164,16 @@ export default function MeusVoos() {
     queryFn: () => apiClient.get<FlightDetail>(`/api/colaborador/meus-voos/${encodeURIComponent(flightId || "")}`),
     enabled: Boolean(flightId),
   });
+  const relatoriosVoosQuery = useQuery({
+    queryKey: ['relatorios-despesa-meus-voos'],
+    queryFn: () => apiClient.get<VoosComRelatorios>('/api/financeiro/relatorios-despesa-viagem/meus-voos'),
+    enabled: Boolean(flightId),
+  });
   const flights = listQuery.data?.voos ?? [];
   const approvedFlights = flights.filter((item) => activeStatuses.has(String(item.status).trim().toLowerCase()));
   const completedFlights = flights.filter((item) => closedStatuses.has(String(item.status).toLowerCase()));
   const detail = detailQuery.data;
+  const vooComRelatorio = relatoriosVoosQuery.data?.voos.find((item) => item.solicitacao_id === flightId);
   const isFolder = Boolean(year && aircraftId);
 
   const goBack = () => navigate((location.state as { from?: string } | null)?.from || "/meus-voos");
@@ -212,6 +220,11 @@ export default function MeusVoos() {
                   <DetailRow label="Aprovado em" value={dateTimeLabel(flight.aprovado_em)} />
                 </section>
                 <FlightOperations flight={flight} />
+                {vooComRelatorio && <button type="button" onClick={() => navigate('/financeiro/despesas-viagem', { state: { solicitacao_id: vooComRelatorio.solicitacao_id } })} className="mt-4 flex min-h-16 w-full items-center gap-3 rounded-2xl border border-emerald-200/20 bg-emerald-300/[.08] p-4 text-left active:scale-[.99]">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-300/10 text-emerald-200"><ReceiptText className="h-5 w-5" /></span>
+                  <span className="min-w-0 flex-1"><strong className="block text-sm text-white">{vooComRelatorio.relatorio_id ? 'Continuar relatório de despesas' : 'Criar relatório de despesas'}</strong><span className="mt-1 block text-xs text-slate-400">Registre os gastos deste voo</span></span>
+                  <ChevronRight className="h-5 w-5 shrink-0 text-emerald-200" />
+                </button>}
 
                 <section className="mt-4 rounded-2xl border border-white/10 bg-[#101e33] p-4">
                   <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-white"><Clock3 className="h-4 w-4 text-emerald-300" /> Jornadas registradas</h2>

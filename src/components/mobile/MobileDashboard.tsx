@@ -65,9 +65,9 @@ const NAV_ITEMS: NavigationItem[] = [
   },
   {
     id: "reports",
-    title: "Relatórios",
+    title: "Despesas de Viagem",
     icon: CreditCard,
-    route: "/financeiro/viagem",
+    route: "/financeiro/despesas-viagem",
     color: "white",
   },
   {
