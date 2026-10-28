@@ -131,23 +131,40 @@ function FormularioDespesa({
   const [previsualizacao, setPrevisualizacao] = useState('');
   const [carregando, setCarregando] = useState(false);
   const [erroComprovante, setErroComprovante] = useState('');
+  const [erroDescricao, setErroDescricao] = useState('');
   const cameraRef = useRef<HTMLInputElement>(null);
   const arquivoRef = useRef<HTMLInputElement>(null);
   const outraPosicao = relatorio.tripulante_pos === 1 ? 2 : 1;
   const nomeOutro = outraPosicao === 1 ? relatorio.nome_tripulante : relatorio.nome_tripulante_2;
   const anexoAtual = arquivo ? null : anexo;
   const idAnexoAtual = anexoAtual?.id;
+  const tipoArquivoAnexo = arquivo?.type || anexoAtual?.tipo_arquivo || '';
+  const nomeArquivoAnexo = arquivo?.name || anexoAtual?.nome_arquivo || 'Comprovante anexado';
 
   useEffect(() => {
+    const overflowAnterior = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = overflowAnterior; };
+  }, []);
+
+  useEffect(() => {
+    let cancelado = false;
     let urlTemporaria = '';
-    if (idAnexoAtual) {
+    if (arquivo) {
+      urlTemporaria = URL.createObjectURL(arquivo);
+      setPrevisualizacao(urlTemporaria);
+    } else if (idAnexoAtual) {
       apiClient.getBlob(urlArquivoTripulante(relatorio.id, idAnexoAtual)).then((blob) => {
-        urlTemporaria = URL.createObjectURL(blob);
+        const urlCarregada = URL.createObjectURL(blob);
+        if (cancelado) { URL.revokeObjectURL(urlCarregada); return; }
+        urlTemporaria = urlCarregada;
         setPrevisualizacao(urlTemporaria);
-      }).catch(() => setPrevisualizacao(''));
+      }).catch(() => { if (!cancelado) setPrevisualizacao(''); });
+    } else {
+      setPrevisualizacao('');
     }
-    return () => { if (urlTemporaria) URL.revokeObjectURL(urlTemporaria); };
-  }, [idAnexoAtual, relatorio.id]);
+    return () => { cancelado = true; if (urlTemporaria) URL.revokeObjectURL(urlTemporaria); };
+  }, [arquivo, idAnexoAtual, relatorio.id]);
 
   const selecionarArquivo = async (evento: React.ChangeEvent<HTMLInputElement>) => {
     const selecionado = evento.target.files?.[0];
@@ -157,7 +174,6 @@ function FormularioDespesa({
       const comprimido = await comprimirComprovante(selecionado);
       setArquivo(comprimido);
       setErroComprovante('');
-      setPrevisualizacao(URL.createObjectURL(comprimido));
     } catch (erro) {
       setErroComprovante(erro instanceof Error ? erro.message : 'Não foi possível preparar o comprovante.');
     }
@@ -165,61 +181,76 @@ function FormularioDespesa({
 
   const salvar = async (adicionarOutra = false) => {
     if (!categoria || !data || valorDigitadoEmReais(valor) <= 0) return;
+    const descricaoLimpa = descricao.trim();
+    if (!descricaoLimpa) { setErroDescricao('A descrição da despesa é obrigatória.'); return; }
     setCarregando(true);
     try {
       await aoSalvar({
         id: inicial?.id || novoId(), categoria, data, valor: valorDigitadoEmReais(valor),
         pago_por: pagador === 'eu' ? `tripulante_${relatorio.tripulante_pos}` : pagador,
-        ...(descricao.trim() ? { descricao: descricao.trim() } : {}),
-      }, arquivo, anexoAtual?.id, adicionarOutra);
+        descricao: descricaoLimpa,
+      }, arquivo, anexo?.id, adicionarOutra);
       if (adicionarOutra) {
-        setCategoria(''); setData(dataHoje()); setValor(''); setPagador('eu'); setDescricao(''); setArquivo(null); setPrevisualizacao('');
+        setCategoria(''); setData(dataHoje()); setValor(''); setPagador('eu'); setDescricao(''); setErroDescricao(''); setArquivo(null);
       }
     } finally { setCarregando(false); }
   };
 
-  return <div className="fixed inset-0 z-[80] flex flex-col bg-[#071326] text-white" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
-    <header className="flex h-14 shrink-0 items-center justify-between border-b border-white/10 px-4">
-      <button type="button" onClick={aoCancelar} aria-label="Fechar formulário" className="flex h-11 w-11 items-center justify-center rounded-xl text-slate-300"><X className="h-5 w-5" /></button>
-      <h2 className="text-base font-semibold">{inicial ? 'Editar despesa' : 'Lançar despesa'}</h2>
-      <span className="w-11" />
+  return <div role="dialog" aria-modal="true" aria-labelledby="titulo-formulario-despesa" className="fixed inset-0 z-[80] flex min-h-0 flex-col overflow-hidden overscroll-none bg-[#071326] text-white" style={{ height: '100dvh', maxHeight: '100dvh', paddingTop: 'env(safe-area-inset-top)' }}>
+    <header className="shrink-0 border-b border-white/10 px-4">
+      <div className="mx-auto flex h-14 w-full max-w-lg items-center justify-between">
+        <button type="button" onClick={aoCancelar} aria-label="Fechar formulário" className="flex h-11 w-11 items-center justify-center rounded-xl text-slate-300"><X className="h-5 w-5" /></button>
+        <h2 id="titulo-formulario-despesa" className="text-base font-semibold">{inicial ? 'Editar despesa' : 'Lançar despesa'}</h2>
+        <span className="w-11" />
+      </div>
     </header>
-    <div className="flex-1 overflow-y-auto px-4 pb-6 pt-5">
-      <label className="mb-2 block text-sm font-semibold">Categoria</label>
-      <div className="grid grid-cols-2 gap-2">
-        {categorias.map((item) => <button type="button" key={item.valor} onClick={() => setCategoria(item.valor)} className={`flex min-h-12 items-center gap-2 rounded-xl border px-3 text-left text-sm font-medium ${categoria === item.valor ? 'border-emerald-300 bg-emerald-300/10 text-emerald-100' : 'border-white/10 bg-white/[.03] text-slate-300'}`}><item.Icone className="h-5 w-5" />{item.valor}</button>)}
+    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-8 pt-4" style={{ WebkitOverflowScrolling: 'touch' }}>
+      <div className="mx-auto w-full max-w-lg">
+        <label className="mb-2 block text-sm font-semibold">Categoria</label>
+        <div className="grid grid-cols-2 gap-2">
+          {categorias.map((item) => <button type="button" key={item.valor} onClick={() => setCategoria(item.valor)} className={`flex min-h-12 items-center gap-2 rounded-xl border px-3 text-left text-sm font-medium ${categoria === item.valor ? 'border-emerald-300 bg-emerald-300/10 text-emerald-100' : 'border-white/10 bg-white/[.03] text-slate-300'}`}><item.Icone className="h-5 w-5 shrink-0" />{item.valor}</button>)}
+        </div>
+        <label className="mb-2 mt-5 block text-sm font-semibold" htmlFor="data-despesa">Data</label>
+        <input id="data-despesa" type="date" value={data} onChange={(evento) => setData(evento.target.value)} className="h-12 w-full rounded-xl border border-white/10 bg-[#101e33] px-4 text-base text-white" />
+        <label className="mb-2 mt-5 block text-sm font-semibold" htmlFor="valor-despesa">Valor (R$)</label>
+        <div className="flex h-16 items-center rounded-2xl border border-white/10 bg-[#101e33] px-4"><span className="mr-3 text-sm text-slate-400">R$</span><input id="valor-despesa" inputMode="numeric" type="text" value={valor} onChange={(evento) => setValor(formatarValorDigitado(evento.target.value))} placeholder="0,00" aria-label="Valor da despesa em reais" className="w-full bg-transparent text-2xl font-bold text-white outline-none placeholder:text-slate-600" /></div>
+        <label className="mb-2 mt-5 block text-sm font-semibold">Pago por</label>
+        <div className="grid grid-cols-2 gap-2">
+          <button type="button" onClick={() => setPagador('eu')} className={`min-h-12 rounded-xl border px-3 text-sm font-semibold ${pagador === 'eu' || pagador === `tripulante_${relatorio.tripulante_pos}` ? 'border-emerald-300 bg-emerald-300/10 text-emerald-100' : 'border-white/10 bg-white/[.03] text-slate-300'}`}>Eu</button>
+          {relatorio.tripulante_id_2 && <button type="button" onClick={() => setPagador(`tripulante_${outraPosicao}`)} className={`min-h-12 rounded-xl border px-3 text-sm font-semibold ${pagador === `tripulante_${outraPosicao}` ? 'border-emerald-300 bg-emerald-300/10 text-emerald-100' : 'border-white/10 bg-white/[.03] text-slate-300'}`}>{nomeOutro || `Tripulante ${outraPosicao}`}</button>}
+          <button type="button" onClick={() => setPagador('cliente')} className={`min-h-12 rounded-xl border px-3 text-sm font-semibold ${pagador === 'cliente' ? 'border-emerald-300 bg-emerald-300/10 text-emerald-100' : 'border-white/10 bg-white/[.03] text-slate-300'}`}>Cliente</button>
+          <button type="button" onClick={() => setPagador('sharebrasil')} className={`min-h-12 rounded-xl border px-3 text-sm font-semibold ${pagador === 'sharebrasil' ? 'border-emerald-300 bg-emerald-300/10 text-emerald-100' : 'border-white/10 bg-white/[.03] text-slate-300'}`}>Share Brasil</button>
+        </div>
+        <label className="mb-2 mt-5 block text-sm font-semibold">Comprovante</label>
+        <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(evento) => void selecionarArquivo(evento)} />
+        <input ref={arquivoRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={(evento) => void selecionarArquivo(evento)} />
+        <div className="grid grid-cols-2 gap-2">
+          <button type="button" onClick={() => cameraRef.current?.click()} className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[.04] px-3 text-sm font-semibold"><Camera className="h-4 w-4 text-emerald-200" /> Tirar foto</button>
+          <button type="button" onClick={() => arquivoRef.current?.click()} className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[.04] px-3 text-sm font-semibold"><Upload className="h-4 w-4 text-emerald-200" /> Galeria/arquivo</button>
+        </div>
+        {(arquivo || anexoAtual) && <div className="mt-3 overflow-hidden rounded-xl border border-white/10 bg-white/[.03]">
+          <div className="flex min-h-28 items-center justify-center bg-black/20">
+            {previsualizacao && tipoArquivoAnexo.startsWith('image/') ? <img src={previsualizacao} alt="Prévia da imagem do comprovante" className="max-h-60 w-full object-contain" />
+              : previsualizacao && tipoArquivoAnexo === 'application/pdf' ? <iframe src={previsualizacao} title="Prévia do comprovante em PDF" className="h-56 w-full bg-white" />
+                : <div className="flex flex-col items-center gap-2 py-6 text-slate-400">{tipoArquivoAnexo === 'application/pdf' ? <FileText className="h-8 w-8" /> : <FileImage className="h-8 w-8" />}<span className="text-xs">Carregando prévia…</span></div>}
+          </div>
+          <div className="flex min-w-0 items-center gap-3 border-t border-white/10 p-3">
+            <span className="min-w-0 flex-1 truncate text-xs text-slate-300">{nomeArquivoAnexo}</span>
+            {arquivo && <button type="button" onClick={() => setArquivo(null)} aria-label="Remover comprovante selecionado" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-slate-400"><Trash2 className="h-4 w-4" /></button>}
+          </div>
+        </div>}
+        {erroComprovante && <p role="alert" className="mt-2 text-sm text-rose-300">{erroComprovante}</p>}
+        <label className="mb-2 mt-5 block text-sm font-semibold" htmlFor="descricao-despesa">Descrição <span className="text-rose-300">(obrigatória)</span></label>
+        <textarea id="descricao-despesa" required aria-required="true" aria-invalid={Boolean(erroDescricao)} aria-describedby={erroDescricao ? 'erro-descricao-despesa' : undefined} value={descricao} onChange={(evento) => { setDescricao(evento.target.value); setErroDescricao(''); }} maxLength={500} placeholder="Ex.: refeição da tripulação" rows={3} className={`w-full resize-none rounded-xl border bg-[#101e33] p-3 text-base text-white placeholder:text-slate-500 ${erroDescricao ? 'border-rose-400' : 'border-white/10'}`} />
+        {erroDescricao && <p id="erro-descricao-despesa" role="alert" className="mt-2 text-sm text-rose-300">{erroDescricao}</p>}
+        <p className="mb-2 mt-2 text-xs text-slate-500">A data pode ser diferente do período do voo. O financeiro poderá revisar o cabeçalho.</p>
       </div>
-      <label className="mb-2 mt-5 block text-sm font-semibold" htmlFor="data-despesa">Data</label>
-      <input id="data-despesa" type="date" value={data} onChange={(evento) => setData(evento.target.value)} className="h-12 w-full rounded-xl border border-white/10 bg-[#101e33] px-4 text-base text-white" />
-      <label className="mb-2 mt-5 block text-sm font-semibold" htmlFor="valor-despesa">Valor (R$)</label>
-      <div className="flex h-16 items-center rounded-2xl border border-white/10 bg-[#101e33] px-4"><span className="mr-3 text-sm text-slate-400">R$</span><input id="valor-despesa" inputMode="numeric" type="text" value={valor} onChange={(evento) => setValor(formatarValorDigitado(evento.target.value))} placeholder="0,00" aria-label="Valor da despesa em reais" className="w-full bg-transparent text-2xl font-bold text-white outline-none placeholder:text-slate-600" /></div>
-      <label className="mb-2 mt-5 block text-sm font-semibold">Pago por</label>
-      <div className="grid grid-cols-2 gap-2">
-        <button type="button" onClick={() => setPagador('eu')} className={`min-h-12 rounded-xl border px-3 text-sm font-semibold ${pagador === 'eu' || pagador === `tripulante_${relatorio.tripulante_pos}` ? 'border-emerald-300 bg-emerald-300/10 text-emerald-100' : 'border-white/10 bg-white/[.03] text-slate-300'}`}>Eu</button>
-        {relatorio.tripulante_id_2 && <button type="button" onClick={() => setPagador(`tripulante_${outraPosicao}`)} className={`min-h-12 rounded-xl border px-3 text-sm font-semibold ${pagador === `tripulante_${outraPosicao}` ? 'border-emerald-300 bg-emerald-300/10 text-emerald-100' : 'border-white/10 bg-white/[.03] text-slate-300'}`}>{nomeOutro || `Tripulante ${outraPosicao}`}</button>}
-        <button type="button" onClick={() => setPagador('cliente')} className={`min-h-12 rounded-xl border px-3 text-sm font-semibold ${pagador === 'cliente' ? 'border-emerald-300 bg-emerald-300/10 text-emerald-100' : 'border-white/10 bg-white/[.03] text-slate-300'}`}>Cliente</button>
-        <button type="button" onClick={() => setPagador('sharebrasil')} className={`min-h-12 rounded-xl border px-3 text-sm font-semibold ${pagador === 'sharebrasil' ? 'border-emerald-300 bg-emerald-300/10 text-emerald-100' : 'border-white/10 bg-white/[.03] text-slate-300'}`}>Share Brasil</button>
-      </div>
-      <label className="mb-2 mt-5 block text-sm font-semibold">Comprovante</label>
-      <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(evento) => void selecionarArquivo(evento)} />
-      <input ref={arquivoRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={(evento) => void selecionarArquivo(evento)} />
-      <div className="grid grid-cols-2 gap-2">
-        <button type="button" onClick={() => cameraRef.current?.click()} className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[.04] px-3 text-sm font-semibold"><Camera className="h-4 w-4 text-emerald-200" /> Tirar foto</button>
-        <button type="button" onClick={() => arquivoRef.current?.click()} className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[.04] px-3 text-sm font-semibold"><Upload className="h-4 w-4 text-emerald-200" /> Galeria/arquivo</button>
-      </div>
-      {(arquivo || anexoAtual) && <div className="mt-3 flex items-center gap-3 rounded-xl border border-white/10 bg-white/[.03] p-3">
-        {previsualizacao && (arquivo?.type || anexoAtual?.tipo_arquivo || '').startsWith('image/') ? <img src={previsualizacao} alt="Prévia do comprovante" className="h-14 w-14 rounded-lg object-cover" /> : <span className="flex h-14 w-14 items-center justify-center rounded-lg bg-white/10">{(arquivo?.type || anexoAtual?.tipo_arquivo) === 'application/pdf' ? <FileText /> : <FileImage />}</span>}
-        <span className="min-w-0 flex-1 truncate text-xs text-slate-300">{arquivo?.name || anexoAtual?.nome_arquivo || 'Comprovante anexado'}</span>
-        <button type="button" onClick={() => { setArquivo(null); setPrevisualizacao(''); }} aria-label="Remover comprovante selecionado" className="flex h-10 w-10 items-center justify-center rounded-lg text-slate-400"><Trash2 className="h-4 w-4" /></button>
-      </div>}
-      {erroComprovante && <p className="mt-2 text-sm text-rose-300">{erroComprovante}</p>}
-      <label className="mb-2 mt-5 block text-sm font-semibold" htmlFor="descricao-despesa">Descrição <span className="font-normal text-slate-500">(opcional)</span></label>
-      <textarea id="descricao-despesa" value={descricao} onChange={(evento) => setDescricao(evento.target.value)} maxLength={500} placeholder="Ex.: refeição da tripulação" rows={3} className="w-full resize-none rounded-xl border border-white/10 bg-[#101e33] p-3 text-sm text-white placeholder:text-slate-500" />
-      <p className="mt-2 text-xs text-slate-500">A data pode ser diferente do período do voo. O financeiro poderá revisar o cabeçalho.</p>
     </div>
     <footer className="shrink-0 border-t border-white/10 bg-[#071326] px-4 pt-3" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
-      <button type="button" onClick={() => void salvar(false)} disabled={!categoria || !data || valorDigitadoEmReais(valor) <= 0 || carregando} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-400 text-base font-bold text-[#071326] disabled:opacity-40">{carregando ? <Loader2 className="h-5 w-5 animate-spin" /> : <Check className="h-5 w-5" />} Salvar despesa</button>
-      <button type="button" onClick={() => void salvar(true)} disabled={!categoria || !data || valorDigitadoEmReais(valor) <= 0 || carregando} className="mt-2 h-10 w-full text-sm font-semibold text-emerald-200 disabled:opacity-40">Salvar e adicionar outra</button>
+      <div className="mx-auto w-full max-w-lg">
+        <button type="button" onClick={() => void salvar(false)} disabled={!categoria || !data || valorDigitadoEmReais(valor) <= 0 || carregando} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-400 px-3 text-base font-bold text-[#071326] disabled:opacity-40">{carregando ? <Loader2 className="h-5 w-5 animate-spin" /> : <Check className="h-5 w-5" />} Salvar despesa</button>
+        <button type="button" onClick={() => void salvar(true)} disabled={!categoria || !data || valorDigitadoEmReais(valor) <= 0 || carregando} className="mt-2 min-h-10 w-full px-2 text-sm font-semibold text-emerald-200 disabled:opacity-40">Salvar e adicionar outra</button>
+      </div>
     </footer>
   </div>;
 }
@@ -511,4 +542,3 @@ export default function DespesasViagem() {
     {formulario && relatorioAtual && <FormularioDespesa key={formulario.despesa?.id || 'nova'} relatorio={relatorioAtual} inicial={formulario.despesa} anexo={formulario.anexo} aoCancelar={() => setFormulario(null)} aoSalvar={salvarDespesa} />}
   </MobileLayout>;
 }
-
