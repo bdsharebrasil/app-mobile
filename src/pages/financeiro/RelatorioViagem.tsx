@@ -288,14 +288,14 @@ function ReportReviewScreen({ report, accessToken, onClose, onDecide, busy }: {
       <div className="premium-shell">
         <div className="premium-heading">
           <p className="premium-eyebrow">Despesas de viagem</p>
-          <h1 className="premium-title">{report.numero_relatorio || 'Relatório'}</h1>
+          <h1 className="premium-title" style={{ fontSize: 21.2 }}>{report.numero_relatorio || 'Relatório'}</h1>
           <p className="premium-subtitle">{report.rota || report.cliente_nome || 'Confira as despesas e os comprovantes.'}</p>
         </div>
         <div className="premium-review-grid">
           <aside className="premium-review-aside">
-            <div className="premium-hero">
+            <div className="premium-hero" style={{ marginBottom: 8, marginTop: -15, paddingTop: 1, paddingBottom: 1 }}>
               <p className="premium-hero-label">Total da viagem</p>
-              <p className="premium-amount">{currency(totals.total)}</p>
+              <p className="premium-amount" style={{ fontSize: 25.6 }}>{currency(totals.total)}</p>
               <Badge report={report} />
               <p className="premium-hero-caption">Sua participação: {currency(totals.tripulante)}</p>
             </div>
@@ -320,7 +320,7 @@ function ReportReviewScreen({ report, accessToken, onClose, onDecide, busy }: {
               <div className="premium-chips" role="group" aria-label="Filtrar despesas por pagador">
                 {(['total', ...availableGroups] as ExpenseGroup[]).map((item) => <button key={item} type="button" aria-pressed={group === item} onClick={(event) => { setGroup(item); event.currentTarget.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'auto' }); }}>{item === 'tripulante' ? 'Minhas despesas' : groupLabel(item)}</button>)}
               </div>
-              <div className="flex flex-wrap items-end justify-between gap-3 py-4">
+              <div className="flex flex-wrap items-end justify-between gap-3 py-4" style={{ letterSpacing: '2.8px', fontSize: 15 }}>
                 <div><p className="text-[15px] font-semibold">{groupLabel(group)}</p><p className="c-l2 text-[13px]">{groupDescription(group)} · {selectedExpenses.length}</p></div>
                 <strong className="premium-money">{currency(selectedTotal)}</strong>
               </div>
