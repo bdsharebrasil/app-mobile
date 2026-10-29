@@ -426,12 +426,14 @@ export default function PlanoVooPage() {
             <NativeButton kind="ghost" className="pv-back" onClick={() => navigate('/')} aria-label="Voltar para o início">
               <ArrowLeft aria-hidden="true" /><span>Início</span>
             </NativeButton>
+          </div>
+          <div className="pv-title-row">
+            <h1>Plano de voo</h1>
             <NativeButton kind="ghost" onClick={() => setPendingAction({ type: 'new' })} disabled={saving}
               style={{ backgroundColor: 'rgba(22,80,93,1)', color: 'rgba(217,232,255,1)', borderColor: 'rgba(69,122,192,0.98)', margin: '0 13px', padding: '2px 16px', minHeight: 41, minWidth: 19 }}>
               <Plus aria-hidden="true" /><span>Novo plano</span>
             </NativeButton>
           </div>
-          <div className="pv-title-row"><div><h1>Plano de voo</h1></div></div>
           <Segments<Workspace> id={`${uid}-module`} value={workspace} options={MODULES}
             onChange={showWorkspace} label="Área do plano de voo" modules />
         </header>
