@@ -43,6 +43,7 @@ export interface RelatorioViagemLocal {
   origem_criacao?: string | null;
   relatorio_id?: string | null;
   relatorio_status?: string | null;
+  pdf_url?: string | null;
 }
 
 export interface VooRelatorioLocal {

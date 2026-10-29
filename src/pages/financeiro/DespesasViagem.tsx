@@ -618,8 +618,18 @@ export default function DespesasViagem() {
     setRelatorioAtual({ ...relatorio, despesas: despesasDaLista(relatorio.despesas, relatorio.id) });
   }, [navegar]);
 
+  const abrirPdfDoRelatorio = (relatorio: RelatorioViagemLocal) => {
+    if (!relatorio.pdf_url) { toast.error('O PDF deste relatório ainda não está disponível.'); return; }
+    window.open(new URL(relatorio.pdf_url, window.location.origin).href, '_blank', 'noopener,noreferrer');
+  };
+
   const iniciarOuContinuar = useCallback(async (voo: VooRelatorioLocal) => {
     const relatorioLocal = relatorios.find((item) => item.id === voo.relatorio_id || item.numero_voo === voo.numero_voo);
+    if (voo.relatorio_status === 'enviado_cliente' || relatorioLocal?.status === 'enviado_cliente') {
+      if (relatorioLocal) abrirPdfDoRelatorio(relatorioLocal);
+      else toast.error('Não foi possível localizar o relatório deste voo.');
+      return;
+    }
     if (relatorioLocal) { await abrirRelatorio(relatorioLocal); return; }
     if (!navigator.onLine) {
       toast.error('Para iniciar um relatório, conecte-se à internet. Depois, você poderá lançar despesas offline.');
@@ -828,7 +838,7 @@ export default function DespesasViagem() {
                     <Selo status={voo.relatorio_status} />
                   </div>
                   <p className="c-l2 mt-3 flex flex-wrap items-center gap-2 text-[13px]"><CalendarDays className="h-4 w-4 shrink-0" />{dataVisivel(voo.data_agendada)}<span className="min-w-0 break-words">· {voo.matricula || 'Aeronave'} · {voo.cotista_nome || 'Cotista'}</span></p>
-                  <button type="button" disabled={Boolean(iniciandoId)} onClick={() => void iniciarOuContinuar(voo)} className="premium-button mt-4 w-full">{iniciandoId === voo.solicitacao_id ? <><Loader2 size={18} className="premium-spin" />Iniciando…</> : voo.relatorio_id ? 'Continuar relatório' : 'Iniciar relatório'}</button>
+                  <button type="button" disabled={Boolean(iniciandoId)} onClick={() => void iniciarOuContinuar(voo)} className="premium-button mt-4 w-full">{iniciandoId === voo.solicitacao_id ? <><Loader2 size={18} className="premium-spin" />Iniciando…</> : voo.relatorio_status === 'enviado_cliente' ? 'Ver relatório' : voo.relatorio_id ? 'Continuar relatório' : 'Iniciar relatório'}</button>
                 </article>)}</div>
                   : <div className="bg-c rounded-[16px]"><Vazio Icone={Plane} titulo="Nenhum voo escalado" texto="Voos com número de voo disponível aparecem aqui." /></div>
             ) : (
