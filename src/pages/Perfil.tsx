@@ -505,10 +505,10 @@ export default function Perfil() {
               </div>
 
               <div className="flex items-center gap-4 sm:gap-5 mt-7">
-                <div className="relative shrink-0">
-                  <div className="w-[84px] h-[84px] sm:w-24 sm:h-24 rounded-full bg-[#0B1427] border-[3px] border-[#0B1427] flex items-center justify-center overflow-hidden">
+                <div className="relative shrink-0 border-[1px] border-[rgba(51,97,110,0.01)]">
+                  <div className="w-[84px] h-[84px] sm:w-24 sm:h-24 rounded-[33px] bg-[#0B1427] border-[2px] border-[rgba(245,166,35,0.91)] flex items-center justify-center overflow-hidden">
                     {profile?.avatar_url ? (
-                      <img src={profile.avatar_url} className="w-full h-full object-cover" alt={displayName} />
+                      <img src={profile.avatar_url} className="w-full h-full object-cover border-[1px] border-[rgba(245,166,35,0.55)]" alt={displayName} />
                     ) : (
                       <span className="text-white/70 text-[26px] font-semibold">{avatarInitials}</span>
                     )}
@@ -527,11 +527,11 @@ export default function Perfil() {
                 <div className="flex-1 min-w-0">
                   <h2 className="text-white text-[21px] sm:text-2xl font-semibold tracking-tight truncate">{profile?.full_name || "Piloto"}</h2>
                   <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                    <span className="rounded-full px-2.5 py-0.5 text-[12px] font-medium text-white/85 bg-white/[0.08] border border-white/15">
+                    <span className="rounded-full px-2.5 py-0.5 text-[12px] font-medium text-[rgba(81,209,201,0.85)] bg-white/[0.08] border border-[rgba(97,245,190,1)]">
                       {profile?.tipo || "Tripulante"}
                     </span>
                     {profile?.canac && (
-                      <span className="rounded-full px-2.5 py-0.5 text-[12px] font-medium text-[#EBD3A0] bg-[#C9A25E]/10 border border-[#C9A25E]/30">
+                      <span className="rounded-full px-2.5 py-0.5 text-[12px] font-medium text-[rgba(127,202,95,1)] bg-[#C9A25E]/10 border border-[rgba(140,201,94,1)]">
                         ANAC {profile.canac}
                       </span>
                     )}
