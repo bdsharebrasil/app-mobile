@@ -340,7 +340,7 @@ function ReportReviewScreen({ report, accessToken, onClose, onDecide, busy }: {
                     {(linkedAttachments.length > 0 || safeLink(expense.comprovante_url)) && <div className="premium-attachments">
                       {linkedAttachments.map((attachment) => <button key={attachment.id} type="button" disabled={previewLoading} className="premium-attachment" onClick={() => void openAttachment(attachment)}>
                         {String(attachment.tipo_arquivo || '').startsWith('image/') ? <FileImage size={18} /> : <FileText size={18} />}
-                        <span>{attachment.nome_arquivo || 'Comprovante'}</span>
+                        <span>Ver comprovante</span>
                       </button>)}
                       {!linkedAttachments.length && safeLink(expense.comprovante_url) && <a className="premium-attachment" href={safeLink(expense.comprovante_url)} target="_blank" rel="noreferrer"><ExternalLink size={18} />Abrir comprovante</a>}
                     </div>}
