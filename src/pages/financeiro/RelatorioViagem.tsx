@@ -144,7 +144,7 @@ function safeLink(path?: string | null) {
   } catch { return undefined; }
 }
 function Stat({ icon: Icon, label, value }: { icon: ElementType; label: string; value: number }) {
-  return <div className="premium-stat"><Icon size={20} aria-hidden="true" /><strong>{value}</strong><span>{label}</span></div>;
+  return <div className="premium-stat" style={{ marginTop: 23, marginBottom: 23, paddingTop: 14, paddingBottom: 14 }}><Icon size={20} aria-hidden="true" /><strong>{value}</strong><span>{label}</span></div>;
 }
 function Empty({ title, description }: { title: string; description: string }) {
   return <div className="premium-empty"><ReceiptText size={32} aria-hidden="true" /><strong>{title}</strong><p>{description}</p></div>;
@@ -494,8 +494,8 @@ export default function RelatorioViagem() {
           <div className="premium-nav-end"><button type="button" disabled={loading} onClick={() => void loadReports()} className="premium-icon-button ios-press" aria-label="Atualizar relatórios"><RefreshCw size={20} className={loading ? 'premium-spin' : ''} /></button></div>
         </div></header>
         <div className="premium-shell">
-          <div className="premium-heading"><p className="premium-eyebrow">Share Brasil · Tripulação</p><h1 className="premium-title">Seus relatórios.</h1><p className="premium-subtitle">Tudo sobre suas despesas, aprovações e pagamentos, em um só lugar.</p></div>
-          <div className="premium-stats" aria-label="Resumo dos relatórios">
+          <div className="premium-heading"><p className="premium-eyebrow">Share Brasil · Tripulação</p><h1 className="premium-title">Seus relatórios.</h1></div>
+          <div className="premium-stats" aria-label="Resumo dos relatórios" style={{ gap: 26, marginBottom: -1, paddingTop: 2, paddingBottom: 2, marginTop: -31 }}>
             <Stat icon={Clock3} label="Pendentes" value={counts.pending} />
             <Stat icon={CheckCircle2} label="Aprovados" value={counts.approved} />
             <Stat icon={CircleDollarSign} label="Pagos" value={counts.paid} />
