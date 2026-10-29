@@ -288,13 +288,12 @@ export default function MeusVoos() {
         <div className="mx-auto mb-[26px] mt-[26px] max-w-2xl">
           <header className="mb-5 flex items-start justify-between gap-4">
             <div><p className="mb-1 text-xs font-semibold uppercase tracking-[0.22em] text-emerald-300">Área do tripulante</p><h1 className="text-2xl font-bold tracking-tight">Meus Voos</h1><p className="mt-1 text-sm text-slate-400">{crewName ? `Olá, ${crewName.split(" ")[0]}. Acompanhe sua programação.` : "Acompanhe sua programação e histórico."}</p></div>
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-emerald-300/20 bg-emerald-400/10 text-emerald-300"><Plane className="h-5 w-5" /></div>
           </header>
 
           {!listQuery.data?.tripulante ? <EmptyState title="Perfil de tripulante não vinculado" description="Não encontramos um cadastro de tripulante associado ao seu usuário." /> : (
             <Tabs value={activeTab} onValueChange={(tab) => navigate(tab === "concluidos" ? "/meus-voos?tab=concluidos" : "/meus-voos?tab=aprovados")}>
               <TabsList className="mb-5 grid h-auto w-full grid-cols-2 rounded-2xl border border-white/10 bg-white/[0.04] p-1">
-                <TabsTrigger value="aprovados" className="rounded-xl py-3 text-xs font-semibold text-slate-400 data-[state=active]:bg-emerald-300 data-[state=active]:text-[#062219] sm:text-sm">Ativos <span className="ml-1.5 rounded-full bg-black/10 px-2 py-0.5 text-[10px]">{approvedFlights.length}</span></TabsTrigger>
+                <TabsTrigger value="aprovados" className="rounded-xl py-3 text-xs font-semibold text-slate-400 data-[state=active]:bg-[#3D9C7D] data-[state=active]:text-[#08110F] sm:text-sm">Ativos <span className="ml-1.5 rounded-full bg-black/10 px-2 py-0.5 text-[10px]">{approvedFlights.length}</span></TabsTrigger>
                 <TabsTrigger value="concluidos" className="rounded-xl py-3 text-xs font-semibold text-slate-400 data-[state=active]:bg-emerald-300 data-[state=active]:text-[#062219] sm:text-sm">Concluídos <span className="ml-1.5 rounded-full bg-black/10 px-2 py-0.5 text-[10px]">{completedFlights.length}</span></TabsTrigger>
               </TabsList>
 

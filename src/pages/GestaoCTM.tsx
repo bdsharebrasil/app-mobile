@@ -115,10 +115,10 @@ function NavBar({
 }) {
   return (
     <div
-      className="sticky top-0 z-30 border-b border-black/[0.06] bg-[#F2F2F7]/80 backdrop-blur-xl backdrop-saturate-150"
+      className="sticky top-0 z-30 border-b border-black/[0.06] bg-[rgba(29,48,80,0.8)] backdrop-blur-xl backdrop-saturate-150"
       style={{ WebkitBackdropFilter: "blur(20px) saturate(1.5)" }}
     >
-      <div className="mx-auto flex h-[52px] w-full max-w-3xl items-center justify-between px-2 sm:px-4">
+      <div className="mx-auto my-0 flex h-[52px] w-full max-w-3xl items-center justify-between px-2 sm:px-4">
         <motion.button
           type="button"
           whileTap={{ opacity: 0.4 }}
@@ -126,7 +126,7 @@ function NavBar({
             haptic();
             onBack();
           }}
-          className="-ml-1 flex h-11 min-w-[44px] items-center gap-0.5 rounded-xl pr-3 text-[17px] text-[#007AFF] active:opacity-50"
+          className="-ml-1 mt-[15px] flex h-11 min-w-[44px] items-center gap-0.5 rounded-xl pr-3 text-[17px] text-[#007AFF] active:opacity-50"
           aria-label={`Voltar para ${backLabel}`}
         >
           <ChevronLeft className="h-7 w-7" strokeWidth={2.4} />
@@ -134,8 +134,8 @@ function NavBar({
         </motion.button>
         <div className="flex min-w-[44px] justify-end">{action}</div>
       </div>
-      <div className="mx-auto w-full max-w-3xl px-4 pb-2 pt-0 sm:px-6">
-        <h1 className="text-[34px] font-bold leading-[1.1] tracking-[-0.022em] text-black">
+      <div className="mx-auto mb-[3px] mt-[3px] w-full max-w-3xl px-4 pb-2 pt-0 sm:px-6">
+        <h1 className="py-[7px] text-[28px] font-medium leading-[28.8px] tracking-[-0.022em] text-[#E1EEEC]">
           {title}
         </h1>
       </div>
@@ -224,7 +224,7 @@ export default function GestaoCTM() {
   if (loading) {
     return (
       <MobileLayout>
-        <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 bg-[#F2F2F7] px-6">
+        <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 bg-[#090B10] px-6">
           <motion.div
             animate={{ rotate: 360 }}
             transition={{ duration: 1.6, repeat: Infinity, ease: "linear" }}
@@ -239,7 +239,7 @@ export default function GestaoCTM() {
 
   return (
     <MobileLayout>
-      <div className="min-h-screen bg-[#F2F2F7] font-[-apple-system,BlinkMacSystemFont,'SF_Pro_Text','Inter',system-ui,sans-serif] antialiased">
+      <div className="min-h-screen bg-[#090B10] font-[-apple-system,BlinkMacSystemFont,'SF_Pro_Text','Inter',system-ui,sans-serif] antialiased">
         <AnimatePresence mode="wait" initial={false}>
           {selectedAircraftId && selectedAircraft ? (
             /* ======================= DETALHE DA AERONAVE ======================= */
@@ -446,12 +446,12 @@ export default function GestaoCTM() {
               <NavBar title="Manutenção" backLabel="Início" onBack={() => navigate("/")} />
 
               <div
-                className="mx-auto w-full max-w-3xl space-y-5 px-4 pt-3 sm:px-6"
+                className="mx-auto w-full max-w-3xl space-y-5 bg-[#090B10] px-4 pt-3 sm:px-6"
                 style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 112px)" }}
               >
                 {/* Busca estilo iOS */}
                 <div className="flex h-11 items-center gap-2 rounded-[14px] bg-[#767680]/12 px-3">
-                  <Search className="h-[18px] w-[18px] shrink-0 text-black/45" strokeWidth={2.2} />
+                  <Search className="h-[18px] w-[18px] shrink-0 text-white" strokeWidth={2.2} />
                   <input
                     type="search"
                     inputMode="search"
@@ -462,7 +462,7 @@ export default function GestaoCTM() {
                     value={aircraftSearch}
                     onChange={(e) => setAircraftSearch(e.target.value)}
                     /* 17px evita o zoom automático do iOS Safari */
-                    className="h-full w-full bg-transparent text-[17px] text-black outline-none placeholder:text-black/40 [&::-webkit-search-cancel-button]:hidden"
+                    className="mx-[2px] mr-[48px] h-full min-w-0 flex-1 rounded-[10px] border border-[#091633] bg-[#AAB8B5] px-5 text-[17px] leading-[15.5px] text-[#F5EFEF] outline-none placeholder:text-black/40 [&::-webkit-search-cancel-button]:hidden"
                   />
                   <AnimatePresence>
                     {aircraftSearch && (
@@ -482,26 +482,20 @@ export default function GestaoCTM() {
                 </div>
 
                 {/* Resumo */}
-                <div className="flex items-center justify-between rounded-[20px] bg-white px-4 py-3.5 shadow-[0_0_0_0.5px_rgba(0,0,0,0.06)]">
-                  <div>
-                    <p className="text-[13px] text-black/50">Total de reports</p>
-                    <p className="text-[28px] font-bold leading-none tracking-tight text-black">
+                <div className="ml-[145px] mr-[134px] flex items-center justify-between gap-[5px] rounded-[20px] bg-[#556163] px-[65px] py-3.5 shadow-[0_0_0_0.5px_rgba(0,0,0,0.06)]">
+                  <div className="px-0">
+                    <p className="text-[13px] text-white">Total de reports</p>
+                    <p className="text-[28px] font-bold leading-none tracking-tight text-[#0D2138]">
                       {reports.length}
                     </p>
                   </div>
-                  <div className="text-right">
-                    <p className="text-[13px] text-black/50">Em aberto</p>
+                  <div className="px-[18px] text-right">
+                    <p className="text-[13px] text-white">Em aberto</p>
                     <p className="text-[28px] font-bold leading-none tracking-tight text-[#FF9500]">
                       {reports.filter((r) => r.status !== "resolved").length}
                     </p>
                   </div>
                 </div>
-
-                <p className="px-1 text-[13px] font-medium text-black/50">
-                  {visibleAircraft.length === 1
-                    ? "1 aeronave"
-                    : `${visibleAircraft.length} aeronaves`}
-                </p>
 
                 {/* Grid de aeronaves: 2 colunas no iPhone, 3 no tablet, 4 no iPad grande */}
                 {visibleAircraft.length === 0 ? (

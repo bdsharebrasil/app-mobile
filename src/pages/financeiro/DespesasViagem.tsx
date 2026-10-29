@@ -170,7 +170,7 @@ function BarraNavegacao({ rolou, titulo, esquerda, direita }: { rolou: boolean; 
   return <header className={`premium-nav ${rolou ? 'is-scrolled' : ''}`}>
     <div className="premium-shell premium-nav-inner">
       <div className="premium-nav-start">{esquerda}</div>
-      <span className="premium-nav-title" aria-hidden={!rolou} style={{ opacity: rolou ? 1 : 0 }}>{titulo}</span>
+      <span className="premium-nav-title bg-[#090B10]" aria-hidden={!rolou} style={{ opacity: rolou ? 1 : 0 }}>{titulo}</span>
       <div className="premium-nav-end">{direita}</div>
     </div>
   </header>;
