@@ -528,7 +528,6 @@ export default function Perfil() {
 
                 <div className="flex-1 min-w-0">
                   <h2 className="text-white text-[21px] sm:text-2xl font-semibold tracking-tight truncate">{profile?.full_name || "Piloto"}</h2>
-                  <p className="text-white/60 text-[14px] mt-0.5 truncate">{profile?.departamento || "Share Brasil"}</p>
                   <div className="flex flex-wrap items-center gap-1.5 mt-2">
                     <span className="rounded-full px-2.5 py-0.5 text-[12px] font-medium text-white/85 bg-white/[0.08] border border-white/15">
                       {profile?.tipo || "Tripulante"}
@@ -798,7 +797,6 @@ export default function Perfil() {
                   <div className={`${SURFACE} p-1.5 overflow-hidden`}>
                     <EmployeeDocumentsManager
                       userId={userId}
-                      userName={displayName}
                       isAdmin={isAdmin}
                       isFinanceiroMaster={roles.includes("financeiro_master")}
                       isGestorMaster={isGestorMaster}
