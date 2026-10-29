@@ -161,7 +161,7 @@ export function MobileDashboard() {
           </motion.div>
 
           {/* Navigation Grid */}
-          <div className="grid grid-cols-2 gap-4 mb-8">
+          <div className="grid grid-cols-2 gap-[35px] mb-8 px-[85px]">
             {filteredItems.map((item, index) => {
               const style = colorStyles[item.color];
               const needsTimes = item.id === "my-flights" && activeFlightCount > 0;
