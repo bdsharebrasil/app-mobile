@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Camera, Loader2, User, UserRound, Calendar, Clock, Eye, EyeOff, ShieldCheck, Star, AlertCircle,
+  Camera, Loader2, User, UserRound, Calendar, Clock, Eye, EyeOff, ShieldCheck, AlertCircle,
   FileText, PiggyBank, Timer, ChevronRight, LogOut, Phone, MapPin, Fingerprint, Plane, BadgeCheck, KeyRound,
 } from "lucide-react";
 import { motion, AnimatePresence, MotionConfig } from "framer-motion";
@@ -506,14 +506,12 @@ export default function Perfil() {
 
               <div className="flex items-center gap-4 sm:gap-5 mt-7">
                 <div className="relative shrink-0">
-                  <div className="p-[2px] rounded-full bg-gradient-to-br from-[#EBD3A0] via-[#C9A25E] to-[#7A5B26] shadow-[0_8px_24px_-8px_rgba(201,162,94,0.5)]">
-                    <div className="w-[84px] h-[84px] sm:w-24 sm:h-24 rounded-full bg-[#0B1427] border-[3px] border-[#0B1427] flex items-center justify-center overflow-hidden">
-                      {profile?.avatar_url ? (
-                        <img src={profile.avatar_url} className="w-full h-full object-cover" alt={displayName} />
-                      ) : (
-                        <span className="text-white/70 text-[26px] font-semibold">{avatarInitials}</span>
-                      )}
-                    </div>
+                  <div className="w-[84px] h-[84px] sm:w-24 sm:h-24 rounded-full bg-[#0B1427] border-[3px] border-[#0B1427] flex items-center justify-center overflow-hidden">
+                    {profile?.avatar_url ? (
+                      <img src={profile.avatar_url} className="w-full h-full object-cover" alt={displayName} />
+                    ) : (
+                      <span className="text-white/70 text-[26px] font-semibold">{avatarInitials}</span>
+                    )}
                   </div>
                   <button
                     type="button"
@@ -543,7 +541,7 @@ export default function Perfil() {
 
               <div className="flex gap-2.5 sm:gap-3 mt-6">
                 <GlassStat icon={Clock} label="Horas totais" value={`${Number(profile?.metricas?.horas_totais || 0).toFixed(1)}h`} />
-                <GlassStat icon={Star} label="Voos escalados" value={profile?.metricas?.voos_escalados ?? 0} />
+                <GlassStat icon={Plane} label="Voos escalados" value={profile?.metricas?.voos_escalados ?? 0} />
                 <GlassStat icon={AlertCircle} label="CTM abertos" value={profile?.metricas?.ctm_abertos ?? 0} />
               </div>
             </div>
