@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { ChangeEvent, ElementType, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft, Check, CheckCircle2, CircleDollarSign, Clock3, ExternalLink,
-  Eye, FileImage, FileText, ImagePlus, Info, Loader2, Plane, ReceiptText,
-  RefreshCw, ShieldCheck, Trash2, X, XCircle, ChevronRight, Calendar
+  ArrowLeft, CheckCircle2, ChevronRight, CircleDollarSign, Clock3,
+  ExternalLink, FileImage, FileText, ImagePlus, Info, Loader2,
+  Plane, ReceiptText, RefreshCw, Trash2, XCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { MobileLayout } from '@/components/mobile/MobileLayout';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { PremiumSheet } from '@/components/mobile/premium/PremiumSheet';
+import '@/components/mobile/premium/premium-mobile.css';
 import { useAuth } from '@/contexts/AuthContext';
 import { BACKEND } from '@/config/api';
 
@@ -119,21 +119,36 @@ function reportStatus(report: TravelReport) {
   return String(report.status || 'Pendente').replace(/_/g, ' ');
 }
 
-// --- Componentes de UI Premium ---
 
-const StatCard = ({ icon: Icon, label, value, valueClass = "" }: { icon: any, label: string, value: string | number, valueClass?: string }) => (
-  <div className="bg-card border border-border/50 rounded-2xl p-4 flex flex-col items-center justify-center gap-1 shadow-sm flex-1">
-    <div className="text-muted-foreground/50 mb-1">
-      <Icon size={20} strokeWidth={2} />
-    </div>
-    <span className={`text-xl font-bold tracking-tight leading-none ${valueClass || 'text-foreground'}`}>{value}</span>
-    <span className="text-muted-foreground text-[10px] font-semibold uppercase tracking-wide text-center mt-1">
-      {label}
-    </span>
-  </div>
-);
-
-// --- Subcomponente: Tela de Revisão ---
+function Section({ title, children }: { title: string; children: ReactNode }) {
+  return <section className="premium-section"><h2 className="premium-section-title">{title}</h2><div className="premium-group ios-lista">{children}</div></section>;
+}
+function InfoRow({ label, value }: { label: string; value: ReactNode }) {
+  return <div className="premium-info-row"><span>{label}</span><span>{value}</span></div>;
+}
+function badgeTone(report: TravelReport) {
+  if (report.pagamento_status === 'PAGO') return 'paid';
+  if (isPending(report)) return 'pending';
+  if (['Reprovado', 'Ajuste necessário'].includes(reportStatus(report))) return 'danger';
+  if (reportLabel(report) === 'Aprovado') return 'success';
+  return 'pending';
+}
+function Badge({ report }: { report: TravelReport }) {
+  return <span className={`premium-badge premium-badge--${badgeTone(report)}`}>{reportLabel(report)}</span>;
+}
+function safeLink(path?: string | null) {
+  if (!path) return undefined;
+  try {
+    const url = new URL(path, `${BACKEND.replace(/\/$/, '')}/`);
+    return ['http:', 'https:'].includes(url.protocol) ? url.href : undefined;
+  } catch { return undefined; }
+}
+function Stat({ icon: Icon, label, value }: { icon: ElementType; label: string; value: number }) {
+  return <div className="premium-stat"><Icon size={20} aria-hidden="true" /><strong>{value}</strong><span>{label}</span></div>;
+}
+function Empty({ title, description }: { title: string; description: string }) {
+  return <div className="premium-empty"><ReceiptText size={32} aria-hidden="true" /><strong>{title}</strong><p>{description}</p></div>;
+}
 
 function ReportReviewScreen({ report, accessToken, onClose, onDecide, busy }: {
   report: TravelReport; accessToken?: string; onClose: () => void;
@@ -163,7 +178,11 @@ function ReportReviewScreen({ report, accessToken, onClose, onDecide, busy }: {
   const [rejectionImage, setRejectionImage] = useState<File | null>(null);
   const [rejectionImagePreview, setRejectionImagePreview] = useState('');
   const rejectionImageInput = useRef<HTMLInputElement | null>(null);
-  const scrollRef = useRef<HTMLElement | null>(null);
+  const mounted = useRef(true);
+  const attachmentBusy = useRef(false);
+  const decisionBusy = useRef(false);
+  const [discardDecision, setDiscardDecision] = useState(false);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
 
   const approvalStatus = normalize(report.tripulante_pos === 1 ? report.status_aprovacao_tripulante : report.status_aprovacao_tripulante_2);
   const status = reportStatus(report);
@@ -189,8 +208,9 @@ function ReportReviewScreen({ report, accessToken, onClose, onDecide, busy }: {
   const attachmentsByExpense = useMemo(() => {
     const grouped = new Map<number, ExpenseAttachment[]>();
     attachments.forEach((attachment) => {
+      if (attachment.indice_despesa == null || attachment.indice_despesa === '') return;
       const index = Number(attachment.indice_despesa);
-      if (!Number.isFinite(index)) return;
+      if (!Number.isInteger(index) || index < 0) return;
       const list = grouped.get(index) || [];
       list.push(attachment); grouped.set(index, list);
     });
@@ -220,268 +240,179 @@ function ReportReviewScreen({ report, accessToken, onClose, onDecide, busy }: {
 
   const openAttachment = async (attachment: PreviewAttachment) => {
     if (!accessToken) { toast.error('Sessão expirada. Entre novamente.'); return; }
+    if (attachmentBusy.current) return;
+    attachmentBusy.current = true;
     setPreviewLoading(true);
     try {
       const response = await fetch(`${BACKEND}${attachment.url_arquivo}`, {
         headers: { Authorization: `Bearer ${accessToken}`, apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_DEFAULT_KEY },
       });
       if (!response.ok) throw new Error('Não foi possível abrir o comprovante.');
-      const url = URL.createObjectURL(await response.blob());
-      setPreview({ attachment, url });
-    } catch (error) { toast.error('Falha ao abrir anexo.'); } finally { setPreviewLoading(false); }
+      const blob = await response.blob();
+      if (!mounted.current) return;
+      const url = URL.createObjectURL(blob);
+      setPreview({ attachment: { ...attachment, tipo_arquivo: attachment.tipo_arquivo || blob.type }, url });
+    } catch { if (mounted.current) toast.error('Não foi possível abrir o comprovante. Tente novamente.'); } finally { attachmentBusy.current = false; if (mounted.current) setPreviewLoading(false); }
   };
 
   const confirmDecision = async () => {
+    if (!decision || busy || decisionBusy.current) return;
     const approvedDecision = decision === 'aprovar';
     if (!approvedDecision && !reason.trim()) { toast.error('Informe o motivo da rejeição.'); return; }
-    const saved = await onDecide(report, approvedDecision, reason.trim(), rejectionImage || undefined);
-    if (saved) { setDecision(null); setReason(''); setRejectionImage(null); }
+    decisionBusy.current = true;
+    try {
+      const saved = await onDecide(report, approvedDecision, reason.trim(), rejectionImage || undefined);
+      if (saved && mounted.current) { setDecision(null); setReason(''); setRejectionImage(null); }
+    } finally { decisionBusy.current = false; }
   };
 
-  const handleRejectionImage = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleRejectionImage = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.currentTarget.files?.[0];
     event.currentTarget.value = '';
     if (!file) return;
+    if (!['image/jpeg', 'image/png'].includes(file.type)) { toast.error('Escolha uma imagem JPEG ou PNG.'); return; }
     if (file.size > 5 * 1024 * 1024) { toast.error('A imagem deve ter no máximo 5 MB.'); return; }
     setRejectionImage(file);
   };
 
-  return (
-    <div className="fixed inset-0 z-[80] bg-background flex flex-col overflow-hidden">
-      
-      {/* Overlapping Header nativo iOS-like */}
-      <div className="bg-[#0A111F] pt-14 pb-24 px-5 shrink-0 relative">
-        <div className="flex items-center justify-between mb-6">
-          <button onClick={onClose} className="w-10 h-10 flex items-center justify-center -ml-2 text-white active:opacity-70 transition-opacity">
-            <ArrowLeft size={22} />
-          </button>
-          <div className="flex flex-col items-center">
-            <span className="text-white/60 text-[10px] font-bold uppercase tracking-wider">Revisão de Despesas</span>
-            <span className="text-white font-semibold">{report.numero_relatorio || 'Relatório'}</span>
-          </div>
-          <div className="w-10" /> {/* Spacer */}
-        </div>
-        
-        <div className="flex flex-col gap-1 items-center text-center">
-          <h2 className="text-white text-2xl font-bold tracking-tight">{currency(totals.total)}</h2>
-          <div className="flex items-center gap-1.5 mt-2">
-            <div className={`px-2.5 py-1 rounded-md text-[11px] font-semibold border ${approved ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : rejected ? 'bg-rose-500/20 text-rose-400 border-rose-500/30' : 'bg-amber-500/20 text-amber-400 border-amber-500/30'}`}>
-              {status}
-            </div>
-          </div>
-        </div>
+  const closeDecision = () => { if (!busy) { setDecision(null); setReason(''); setRejectionImage(null); } };
+  return <section className="premium-review ios-root" aria-label={`Revisão do relatório ${report.numero_relatorio}`}>
+    <header className="premium-nav is-scrolled">
+      <div className="premium-shell premium-nav-inner">
+        <div className="premium-nav-start"><button type="button" disabled={busy} onClick={onClose} className="premium-icon-button ios-press" aria-label="Voltar para relatórios"><ArrowLeft size={22} /></button></div>
+        <span className="premium-nav-title">Revisar relatório</span>
+        <span />
       </div>
-
-      <div className="flex-1 overflow-y-auto px-5 pb-32 -mt-10 relative z-10" ref={scrollRef}>
-        
-        {/* Informações Básicas (Grouped List) */}
-        <div className="bg-card rounded-2xl border border-border/40 shadow-sm overflow-hidden divide-y divide-border/40 mb-6">
-          <div className="flex justify-between items-center px-4 py-3.5">
-            <div className="flex items-center gap-3">
-              <Plane size={16} className="text-muted-foreground" />
-              <span className="text-[14px] font-medium text-muted-foreground">Voo</span>
-            </div>
-            <span className="text-[14px] font-semibold text-foreground">{report.numero_voo || '—'}</span>
-          </div>
-          <div className="flex justify-between items-center px-4 py-3.5">
-            <div className="flex items-center gap-3">
-              <ShieldCheck size={16} className="text-muted-foreground" />
-              <span className="text-[14px] font-medium text-muted-foreground">Aeronave</span>
-            </div>
-            <span className="text-[14px] font-semibold text-foreground">{report.aeronave_matricula || '—'}</span>
-          </div>
-          <div className="flex justify-between items-center px-4 py-3.5">
-            <div className="flex items-center gap-3">
-              <Calendar size={16} className="text-muted-foreground" />
-              <span className="text-[14px] font-medium text-muted-foreground">Período</span>
-            </div>
-            <span className="text-[14px] font-semibold text-foreground">{date(report.data_inicio)} a {date(report.data_fim)}</span>
-          </div>
-          <div className="flex justify-between items-center px-4 py-3.5">
-            <div className="flex items-center gap-3">
-              <FileText size={16} className="text-muted-foreground" />
-              <span className="text-[14px] font-medium text-muted-foreground">Tripulante</span>
-            </div>
-            <span className="text-[14px] font-semibold text-foreground">{report.tripulante_pos === 1 ? report.nome_tripulante || 'Tripulante 1' : report.nome_tripulante_2 || 'Tripulante 2'}</span>
-          </div>
-          {report.observacoes && (
-            <div className="px-4 py-3.5 flex flex-col gap-1.5">
-              <span className="text-[13px] font-semibold text-foreground">Observações</span>
-              <p className="text-[13px] text-muted-foreground">{report.observacoes}</p>
-            </div>
-          )}
+    </header>
+    <div className="premium-review-scroll">
+      <div className="premium-shell">
+        <div className="premium-heading">
+          <p className="premium-eyebrow">Despesas de viagem</p>
+          <h1 className="premium-title">{report.numero_relatorio || 'Relatório'}</h1>
+          <p className="premium-subtitle">{report.rota || report.cliente_nome || 'Confira as despesas e os comprovantes.'}</p>
         </div>
-
-        {/* Segmented Control Abas */}
-        <div className="flex w-full overflow-x-auto no-scrollbar bg-muted/40 p-1 rounded-[14px] mb-5 shadow-inner snap-x">
-          {(['total', ...availableGroups] as ExpenseGroup[]).map((item) => (
-            <button key={item} onClick={() => setGroup(item)} className={`snap-center shrink-0 flex flex-col items-center justify-center rounded-[10px] py-2 px-4 transition-all min-w-[100px] ${group === item ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground'}`}>
-              <span className="text-[10px] font-semibold uppercase tracking-wider mb-0.5">{groupLabel(item)}</span>
-              <span className={`text-[15px] font-bold ${group === item ? (item === 'tripulante' ? 'text-emerald-500' : 'text-primary') : ''}`}>{currency(totals[item])}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* Lista de Despesas (Grouped List) */}
-        <div className="mb-4">
-          <h3 className="text-[13px] font-semibold text-muted-foreground uppercase tracking-wide mb-2 px-1">
-            Despesas do Grupo: {groupLabel(group)}
-          </h3>
-          <div className="bg-card rounded-2xl border border-border/40 shadow-sm overflow-hidden divide-y divide-border/40">
-            {selectedExpenses.length > 0 ? (
-              selectedExpenseRows.map(({ expense, index }) => {
-                const linkedAttachments = attachmentsByExpense.get(index) || [];
-                return (
-                  <div key={index} className="p-4 flex flex-col gap-3 group active:bg-muted/20 transition-colors">
-                    <div className="flex justify-between items-start gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex gap-2 items-center mb-1">
-                          <span className="text-[10px] font-semibold text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-md">{expenseCategory(expense)}</span>
-                          {expense.data && <span className="text-[10px] text-muted-foreground">{date(expense.data)}</span>}
-                        </div>
-                        <p className="text-[15px] font-semibold text-foreground leading-snug">{expenseDescription(expense)}</p>
-                        <p className="text-[12px] text-muted-foreground mt-0.5">Pago por: {payerLabel(expense)}</p>
+        <div className="premium-review-grid">
+          <aside className="premium-review-aside">
+            <div className="premium-hero">
+              <p className="premium-hero-label">Total da viagem</p>
+              <p className="premium-amount">{currency(totals.total)}</p>
+              <Badge report={report} />
+              <p className="premium-hero-caption">Sua participação: {currency(totals.tripulante)}</p>
+            </div>
+            <Section title="Detalhes da viagem">
+              <InfoRow label="Voo" value={report.numero_voo || '—'} />
+              <InfoRow label="Aeronave" value={report.aeronave_matricula || '—'} />
+              <InfoRow label="Cliente" value={report.cliente_nome || '—'} />
+              <InfoRow label="Período" value={<>{date(report.data_inicio)}<br />a {date(report.data_fim)}</>} />
+              <InfoRow label="Tripulante" value={report.tripulante_pos === 1 ? report.nome_tripulante || 'Tripulante 1' : report.nome_tripulante_2 || 'Tripulante 2'} />
+            </Section>
+            {report.observacoes && <Section title="Observações"><p className="p-4 text-[15px] whitespace-pre-wrap c-l2">{report.observacoes}</p></Section>}
+            <Section title="Pagamento">
+              <InfoRow label="Situação" value={report.pagamento_status === 'PAGO' ? 'Pago' : report.pagamento_status === 'PENDENTE' ? 'Pendente' : 'Não programado'} />
+              {report.data_pagamento && <InfoRow label="Data" value={date(report.data_pagamento)} />}
+              {report.pagamento_valor != null && <InfoRow label="Valor" value={currency(report.pagamento_valor)} />}
+            </Section>
+            {safeLink(report.pdf_url) && <a className="premium-attachment mb-6" href={safeLink(report.pdf_url)} target="_blank" rel="noreferrer"><FileText size={18} />Abrir relatório em PDF<ExternalLink size={15} /></a>}
+          </aside>
+          <div className="min-w-0">
+            <section className="premium-section">
+              <h2 className="premium-section-title">Despesas por pagador</h2>
+              <div className="premium-chips" role="group" aria-label="Filtrar despesas por pagador">
+                {(['total', ...availableGroups] as ExpenseGroup[]).map((item) => <button key={item} type="button" aria-pressed={group === item} onClick={(event) => { setGroup(item); event.currentTarget.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'auto' }); }}>{item === 'tripulante' ? 'Minhas despesas' : groupLabel(item)}</button>)}
+              </div>
+              <div className="flex flex-wrap items-end justify-between gap-3 py-4">
+                <div><p className="text-[15px] font-semibold">{groupLabel(group)}</p><p className="c-l2 text-[13px]">{groupDescription(group)} · {selectedExpenses.length}</p></div>
+                <strong className="premium-money">{currency(selectedTotal)}</strong>
+              </div>
+              {selectedExpenseRows.length ? <div className="premium-group ios-lista">
+                {selectedExpenseRows.map(({ expense, index }) => {
+                  const linkedAttachments = attachmentsByExpense.get(index) || [];
+                  return <article key={expense.id || index} className="premium-expense">
+                    <div className="premium-expense-top">
+                      <div className="premium-expense-description">
+                        <div className="premium-expense-meta"><span>{expenseCategory(expense)}</span>{expense.data && <span>{date(expense.data)}</span>}</div>
+                        <strong>{expenseDescription(expense)}</strong>
+                        <p>Pago por {payerLabel(expense)}</p>
+                        {expense.observacoes && <p className="mt-2 whitespace-pre-wrap">{expense.observacoes}</p>}
                       </div>
-                      <span className="text-[15px] font-bold text-foreground">{currency(amountOf(expense))}</span>
+                      <span className="premium-money">{currency(amountOf(expense))}</span>
                     </div>
-                    
-                    {(linkedAttachments.length > 0 || expense.comprovante_url) && (
-                      <div className="flex gap-2 overflow-x-auto no-scrollbar pt-2">
-                        {linkedAttachments.map((attachment) => (
-                          <button key={attachment.id} onClick={() => openAttachment(attachment)} className="flex items-center gap-2 bg-muted/40 border border-border/40 rounded-xl px-3 py-2 text-[12px] font-medium text-foreground shrink-0 active:opacity-70">
-                            {String(attachment.tipo_arquivo || '').startsWith('image/') ? <FileImage size={14} className="text-primary" /> : <FileText size={14} />}
-                            <span className="max-w-[120px] truncate">{attachment.nome_arquivo || 'Comprovante'}</span>
-                          </button>
-                        ))}
-                        {linkedAttachments.length === 0 && expense.comprovante_url && (
-                          <a href={expense.comprovante_url} target="_blank" rel="noreferrer" className="flex items-center gap-2 bg-muted/40 border border-border/40 rounded-xl px-3 py-2 text-[12px] font-medium text-primary shrink-0 active:opacity-70">
-                            <Eye size={14} /> Abrir anexo
-                          </a>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })
-            ) : (
-              <div className="p-8 text-center text-muted-foreground text-sm font-medium">Nenhuma despesa neste grupo.</div>
-            )}
+                    {(linkedAttachments.length > 0 || safeLink(expense.comprovante_url)) && <div className="premium-attachments">
+                      {linkedAttachments.map((attachment) => <button key={attachment.id} type="button" disabled={previewLoading} className="premium-attachment" onClick={() => void openAttachment(attachment)}>
+                        {String(attachment.tipo_arquivo || '').startsWith('image/') ? <FileImage size={18} /> : <FileText size={18} />}
+                        <span>{attachment.nome_arquivo || 'Comprovante'}</span>
+                      </button>)}
+                      {!linkedAttachments.length && safeLink(expense.comprovante_url) && <a className="premium-attachment" href={safeLink(expense.comprovante_url)} target="_blank" rel="noreferrer"><ExternalLink size={18} />Abrir comprovante</a>}
+                    </div>}
+                  </article>;
+                })}
+              </div> : <Empty title="Nenhuma despesa neste grupo" description="Selecione outro pagador para continuar a revisão." />}
+            </section>
+            {previewLoading && <p role="status" className="c-l2 mb-4 flex items-center gap-2 text-[14px]"><Loader2 size={18} className="premium-spin" />Abrindo comprovante…</p>}
+            {attachments.filter((attachment) => attachment.indice_despesa == null || attachment.indice_despesa === '').length > 0 && <Section title="Outros comprovantes"><div className="premium-attachments p-4">
+              {attachments.filter((attachment) => attachment.indice_despesa == null || attachment.indice_despesa === '').map((attachment) => <button key={attachment.id} type="button" className="premium-attachment" disabled={previewLoading} onClick={() => void openAttachment(attachment)}><FileText size={18} /><span>{attachment.nome_arquivo || 'Comprovante'}</span></button>)}
+            </div></Section>}
+            {adjustmentRequests.length > 0 && <details className="premium-group premium-history mb-7">
+              <summary>Histórico de ajustes · {adjustmentRequests.length}</summary>
+              {[...adjustmentRequests].reverse().map((request, index) => <article key={request.id} className="premium-history-entry">
+                <time>{request.criado_em ? date(request.criado_em) : `Ajuste ${adjustmentRequests.length - index}`}</time>
+                <p>{request.motivo}</p>
+                {!!request.anexos?.length && <div className="premium-attachments">{request.anexos.map((attachment) => <button key={attachment.id} type="button" className="premium-attachment" disabled={previewLoading} onClick={() => void openAttachment(attachment)}><FileImage size={18} /><span>{attachment.nome_arquivo || 'Anexo do ajuste'}</span></button>)}</div>}
+              </article>)}
+            </details>}
           </div>
         </div>
-
-        {/* Histórico de Ajustes */}
-        {adjustmentRequests.length > 0 && (
-          <Accordion type="single" collapsible className="bg-card rounded-2xl border border-border/40 shadow-sm overflow-hidden mb-6">
-            <AccordionItem value="history" className="border-0">
-              <AccordionTrigger className="px-4 py-4 hover:no-underline text-[14px] font-semibold text-foreground">
-                <div className="flex gap-2 items-center text-rose-500">
-                  <Info size={16} /> Histórico de Ajustes ({adjustmentRequests.length})
-                </div>
-              </AccordionTrigger>
-              <AccordionContent className="px-4 pb-4 divide-y divide-border/40">
-                {[...adjustmentRequests].reverse().map((req, i) => (
-                  <div key={req.id} className="py-3 first:pt-0 last:pb-0">
-                    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">
-                      {req.criado_em ? date(req.criado_em) : `Ajuste ${adjustmentRequests.length - i}`}
-                    </p>
-                    <p className="text-[13px] text-foreground leading-relaxed">{req.motivo}</p>
-                  </div>
-                ))}
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
-        )}
       </div>
-
-      {/* Floating Bottom Bar Actions */}
-      <div className="fixed bottom-0 inset-x-0 bg-background/80 backdrop-blur-xl border-t border-border/50 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] z-40">
-        {canDecide ? (
-          <div className="flex gap-3 max-w-4xl mx-auto">
-            {!canRetryApprovalSync && (
-              <Button disabled={busy} variant="outline" onClick={() => { setDecision('rejeitar'); setReason(''); setRejectionImage(null); }} className="flex-1 h-12 rounded-xl border-rose-500/20 text-rose-500 hover:bg-rose-500/10 font-semibold text-[15px]">
-                Solicitar Ajuste
-              </Button>
-            )}
-            <Button disabled={busy} onClick={() => { setDecision('aprovar'); }} className="flex-1 h-12 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 font-semibold text-[15px]">
-              {canRetryApprovalSync ? 'Tentar novamente' : 'Aprovar Relatório'}
-            </Button>
-          </div>
-        ) : (
-          <div className="max-w-4xl mx-auto flex items-center justify-center gap-2 py-2 text-muted-foreground font-medium text-[14px]">
-            {approved ? <CheckCircle2 size={18} className="text-emerald-500" /> : rejected ? <XCircle size={18} className="text-rose-500" /> : <Clock3 size={18} />}
-            {approved ? 'Relatório Aprovado' : rejected ? 'Relatório em Ajuste' : 'Aguardando Revisão'}
-          </div>
-        )}
-      </div>
-
-      {/* Bottom Sheet Modais (Decisão) */}
-      {decision && (
-        <div className="fixed inset-0 z-[100] flex justify-center items-end bg-black/50 backdrop-blur-sm">
-          <div className="bg-card w-full max-w-lg rounded-t-[32px] p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-2xl animate-in slide-in-from-bottom-full duration-300 border-t border-border/40">
-            <div className="w-12 h-1.5 bg-muted-foreground/20 rounded-full mx-auto mb-6" />
-            <h2 className="text-xl font-bold text-foreground mb-2">
-              {decision === 'aprovar' ? 'Confirmar Aprovação' : 'Solicitar Ajuste'}
-            </h2>
-            
-            {decision === 'aprovar' ? (
-              <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 mb-6">
-                <p className="text-[14px] text-emerald-600 dark:text-emerald-400 font-medium">
-                  {canRetryApprovalSync ? 'Concluir sincronização.' : <>Você está aprovando este relatório e assumindo a responsabilidade pelas despesas vinculadas a você (<strong>{currency(totals.tripulante)}</strong>).</>}
-                </p>
-              </div>
-            ) : (
-              <div className="mb-6 space-y-4">
-                <p className="text-[13px] text-muted-foreground">Detalhe o que precisa ser corrigido pelo usuário neste relatório.</p>
-                <Textarea value={reason} onChange={e => setReason(e.target.value)} placeholder="Descreva o motivo do ajuste..." className="bg-background/50 border-border/60 rounded-xl h-28 text-[14px] p-3 resize-none" />
-                
-                <input ref={rejectionImageInput} type="file" accept="image/jpeg,image/png" className="hidden" onChange={handleRejectionImage} />
-                {!rejectionImage ? (
-                  <Button variant="outline" onClick={() => rejectionImageInput.current?.click()} className="w-full h-12 rounded-xl border-dashed border-border/60 text-muted-foreground font-semibold">
-                    <ImagePlus size={16} className="mr-2" /> Anexar imagem (Opcional)
-                  </Button>
-                ) : (
-                  <div className="flex items-center gap-3 bg-muted/30 border border-border/40 rounded-xl p-2 pl-3">
-                    <span className="flex-1 truncate text-[13px] font-medium text-foreground">{rejectionImage.name}</span>
-                    <Button variant="ghost" size="icon" onClick={() => setRejectionImage(null)} className="text-muted-foreground"><Trash2 size={16} /></Button>
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div className="flex gap-3 mt-2">
-              <Button variant="outline" onClick={() => setDecision(null)} className="flex-1 h-12 rounded-xl font-semibold border-border/60 text-foreground">Cancelar</Button>
-              <Button onClick={confirmDecision} disabled={busy || (decision === 'rejeitar' && !reason.trim())} className={`flex-1 h-12 rounded-xl font-semibold text-white ${decision === 'aprovar' ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-rose-500 hover:bg-rose-600'}`}>
-                {busy ? <Loader2 className="animate-spin" size={18} /> : 'Confirmar'}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Visualizador de Imagem / Comprovante Modal */}
-      {preview && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/90 p-4 backdrop-blur-md">
-          <div className="w-full max-w-3xl flex flex-col max-h-[90vh]">
-            <div className="flex justify-between items-center mb-4">
-              <p className="text-white text-sm font-semibold truncate max-w-[80%]">{preview.attachment.nome_arquivo}</p>
-              <button onClick={() => setPreview(null)} className="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 text-white active:scale-95"><X size={20} /></button>
-            </div>
-            <div className="flex-1 overflow-hidden flex items-center justify-center rounded-2xl bg-white/5">
-              {previewLoading ? <Loader2 className="animate-spin text-white" size={32} /> : 
-                String(preview.attachment.tipo_arquivo || '').startsWith('image/') ? 
-                  <img src={preview.url} className="max-w-full max-h-full object-contain rounded-xl" alt="Comprovante" />
-                : <iframe src={preview.url} className="w-full h-full bg-white rounded-xl" title="Documento" />
-              }
-            </div>
-          </div>
-        </div>
-      )}
     </div>
-  );
+    <footer className="premium-bottom-bar">
+      <div className="premium-shell">
+        {canDecide ? <div className="premium-bottom-actions">
+          {!canRetryApprovalSync && <button type="button" disabled={busy} className="premium-button premium-button--secondary" onClick={() => { setDecision('rejeitar'); setReason(''); setRejectionImage(null); }}>Solicitar ajuste</button>}
+          <button type="button" disabled={busy} className="premium-button" onClick={() => setDecision('aprovar')}>{canRetryApprovalSync ? 'Tentar novamente' : 'Aprovar relatório'}</button>
+        </div> : <p className="c-l2 flex items-center justify-center gap-2 py-3 text-[15px]">{approved ? <CheckCircle2 size={20} className="c-ok" /> : rejected ? <XCircle size={20} className="c-bad" /> : <Clock3 size={20} />}{approved ? 'Relatório aprovado' : rejected ? 'Relatório em ajuste' : status}</p>}
+      </div>
+    </footer>
+    {decision && <PremiumSheet compacto titulo={decision === 'aprovar' ? 'Aprovar relatório' : 'Solicitar ajuste'} bloqueado={busy}
+      aoFechar={closeDecision} antesDeFechar={() => {
+        if (decision === 'rejeitar' && (reason.trim() || rejectionImage)) { setDiscardDecision(true); return false; }
+        return true;
+      }}
+      footer={<div className="premium-bottom-actions">
+        <button type="button" disabled={busy} className="premium-button premium-button--secondary" onClick={() => {
+          if (decision === 'rejeitar' && (reason.trim() || rejectionImage)) setDiscardDecision(true); else closeDecision();
+        }}>Cancelar</button>
+        <button type="button" disabled={busy || (decision === 'rejeitar' && !reason.trim())} className={`premium-button ${decision === 'rejeitar' ? 'premium-button--danger' : ''}`} onClick={() => void confirmDecision()}>
+          {busy ? <><Loader2 size={18} className="premium-spin" />Enviando…</> : decision === 'aprovar' ? 'Confirmar aprovação' : 'Enviar solicitação'}
+        </button>
+      </div>}>
+      {decision === 'aprovar' ? <div className="premium-notice">
+        <CheckCircle2 size={28} className="c-tint mb-3" />
+        <p>{canRetryApprovalSync ? 'Vamos tentar concluir a sincronização desta aprovação.' : <>Ao confirmar, você aprova as despesas vinculadas a você, no valor de <strong className="c-l1">{currency(totals.tripulante)}</strong>.</>}</p>
+      </div> : <>
+        <p className="c-l2 text-[15px] mb-5">Explique o que precisa ser corrigido para que o financeiro possa revisar o relatório.</p>
+        <label htmlFor="motivo-ajuste" className="premium-field-label">Motivo do ajuste</label>
+        <textarea id="motivo-ajuste" value={reason} required maxLength={2000} onChange={(event) => setReason(event.target.value)} placeholder="Descreva o que precisa de ajuste…" className="premium-textarea" />
+        <p className="c-l3 text-right text-[12px] mt-2">{reason.length}/2000</p>
+        <input ref={rejectionImageInput} type="file" accept="image/jpeg,image/png" className="hidden" onChange={handleRejectionImage} />
+        {!rejectionImage ? <button type="button" className="premium-button premium-button--secondary w-full mt-5" onClick={() => rejectionImageInput.current?.click()}><ImagePlus size={20} />Anexar imagem</button> : <div className="premium-group mt-5 p-3">
+          {rejectionImagePreview && <img src={rejectionImagePreview} className="premium-preview-image" alt="Imagem anexada ao ajuste" />}
+          <div className="flex min-w-0 items-center gap-3 mt-2"><span className="c-l2 flex-1 min-w-0 truncate text-[13px]">{rejectionImage.name}</span><button type="button" className="premium-icon-button" aria-label="Remover imagem" onClick={() => setRejectionImage(null)}><Trash2 size={20} /></button></div>
+        </div>}
+        <p className="c-l2 text-[13px] mt-3">Opcional. JPEG ou PNG de até 5 MB.</p>
+      </>}
+    </PremiumSheet>}
+    {discardDecision && <PremiumSheet compacto titulo="Descartar solicitação?" aoFechar={() => setDiscardDecision(false)}>
+      <p className="premium-notice">O motivo e a imagem ainda não foram enviados.</p>
+      <button type="button" className="premium-button premium-button--danger w-full" onClick={() => { setDiscardDecision(false); closeDecision(); }}>Descartar alterações</button>
+    </PremiumSheet>}
+    {preview && <PremiumSheet titulo={preview.attachment.nome_arquivo || 'Comprovante'} rotuloEsquerda={null} aoFechar={() => setPreview(null)}>
+      {String(preview.attachment.tipo_arquivo || '').startsWith('image/') ? <img src={preview.url} className="premium-preview-image" alt="Comprovante da despesa" /> : <>
+        <a className="premium-attachment mb-4" href={preview.url} target="_blank" rel="noreferrer"><ExternalLink size={18} />Abrir documento em outra aba</a>
+        <iframe src={preview.url} title="Comprovante da despesa" className="premium-preview-pdf" />
+      </>}
+    </PremiumSheet>}
+  </section>;
 }
-
-
-// --- Main Component: Relatório Viagem ---
 
 export default function RelatorioViagem() {
   const navigate = useNavigate();
@@ -490,6 +421,8 @@ export default function RelatorioViagem() {
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<'Todos' | 'Pendente' | 'Aprovado' | 'Pago'>('Todos');
+  const [loadError, setLoadError] = useState('');
+  const inFlightDecision = useRef(false);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const request = useCallback(async (path: string, init?: RequestInit) => {
@@ -504,13 +437,16 @@ export default function RelatorioViagem() {
   }, [session?.access_token]);
 
   const loadReports = useCallback(async (silent = false) => {
-    if (!session?.access_token) return;
+    if (!session?.access_token) { setLoading(false); setLoadError('Entre novamente para consultar seus relatórios.'); return; }
     setLoading(true);
+    setLoadError('');
     try {
       const data = await request(endpoint);
       setReports(Array.isArray(data.relatorios) ? data.relatorios : []);
     } catch (error) {
-      if (!silent) toast.error(error instanceof Error ? error.message : 'Erro ao carregar relatórios.');
+      const message = error instanceof Error ? error.message : 'Erro ao carregar relatórios.';
+      setLoadError(message);
+      if (!silent) toast.error(message);
     } finally { setLoading(false); }
   }, [request, session?.access_token]);
   
@@ -530,6 +466,8 @@ export default function RelatorioViagem() {
   }), [reports]);
 
   const decide = async (report: TravelReport, approved: boolean, reason: string, rejectionImage?: File) => {
+    if (inFlightDecision.current) return false;
+    inFlightDecision.current = true;
     setBusyId(report.id);
     try {
       const body = new FormData();
@@ -542,100 +480,41 @@ export default function RelatorioViagem() {
       await loadReports(); return true;
     } catch (error) {
       await loadReports(true); toast.error('Não foi possível registrar decisão.'); return false;
-    } finally { setBusyId(null); }
+    } finally { inFlightDecision.current = false; setBusyId(null); }
   };
 
   const selectedReport = reports.find((report) => report.id === selectedId) || null;
 
-  return (
-    <MobileLayout hideTabBar={Boolean(selectedReport)}>
-      {selectedReport ? (
-        <ReportReviewScreen key={selectedReport.id} report={selectedReport} accessToken={session?.access_token} onClose={() => setSelectedId(null)} onDecide={decide} busy={busyId === selectedReport.id} />
-      ) : (
-        <div className="flex flex-col min-h-screen bg-background pb-24">
-          
-          {/* Overlapping Header nativo */}
-          <div className="bg-[#0A111F] pt-14 pb-20 px-5 relative shrink-0">
-            <div className="flex items-center justify-between mb-6">
-              <button onClick={() => navigate('/')} className="w-10 h-10 flex items-center justify-center -ml-2 text-white active:opacity-70">
-                <ArrowLeft size={22} />
-              </button>
-              <h1 className="text-white text-lg font-bold tracking-tight">Despesas de Viagem</h1>
-              <button onClick={() => loadReports()} className="w-10 h-10 flex items-center justify-center -mr-2 text-white active:opacity-70">
-                <RefreshCw size={20} className={loading ? 'animate-spin' : ''} />
-              </button>
-            </div>
-            <p className="text-white/60 text-[14px] text-center max-w-[280px] mx-auto leading-relaxed">
-              Acompanhe aprovações e o status de pagamento dos seus relatórios.
-            </p>
+  return <MobileLayout hideTabBar={Boolean(selectedReport)}>
+    <div className="ios-root">
+      {selectedReport ? <ReportReviewScreen key={selectedReport.id} report={selectedReport} accessToken={session?.access_token} onClose={() => setSelectedId(null)} onDecide={decide} busy={busyId === selectedReport.id} /> : <main className="premium-page">
+        <header className="premium-nav is-scrolled"><div className="premium-shell premium-nav-inner">
+          <div className="premium-nav-start"><button type="button" onClick={() => navigate('/')} className="premium-icon-button ios-press" aria-label="Voltar ao início"><ArrowLeft size={22} /></button></div>
+          <span className="premium-nav-title">Financeiro</span>
+          <div className="premium-nav-end"><button type="button" disabled={loading} onClick={() => void loadReports()} className="premium-icon-button ios-press" aria-label="Atualizar relatórios"><RefreshCw size={20} className={loading ? 'premium-spin' : ''} /></button></div>
+        </div></header>
+        <div className="premium-shell">
+          <div className="premium-heading"><p className="premium-eyebrow">Share Brasil · Tripulação</p><h1 className="premium-title">Seus relatórios.</h1><p className="premium-subtitle">Tudo sobre suas despesas, aprovações e pagamentos, em um só lugar.</p></div>
+          <div className="premium-stats" aria-label="Resumo dos relatórios">
+            <Stat icon={Clock3} label="Pendentes" value={counts.pending} />
+            <Stat icon={CheckCircle2} label="Aprovados" value={counts.approved} />
+            <Stat icon={CircleDollarSign} label="Pagos" value={counts.paid} />
           </div>
-
-          {/* Stats Flutuantes */}
-          <div className="px-5 -mt-8 relative z-10">
-            <div className="flex gap-3">
-              <StatCard icon={Clock3} label="Pendentes" value={counts.pending} valueClass="text-amber-500" />
-              <StatCard icon={CheckCircle2} label="Aprovados" value={counts.approved} valueClass="text-emerald-500" />
-              <StatCard icon={CircleDollarSign} label="Pagos" value={counts.paid} valueClass="text-primary" />
-            </div>
+          <div className="premium-segments mb-6" role="group" aria-label="Filtrar relatórios por situação">
+            {(['Todos', 'Pendente', 'Aprovado', 'Pago'] as const).map((item) => <button key={item} type="button" aria-pressed={filter === item} onClick={() => setFilter(item)}>{item === 'Pendente' ? 'Pendentes' : item === 'Aprovado' ? 'Aprovados' : item === 'Pago' ? 'Pagos' : item}</button>)}
           </div>
-
-          <div className="px-5 mt-6 space-y-4">
-            {/* Segmented Control Nativel-like */}
-            <div className="flex bg-muted/40 p-1 rounded-[14px] shadow-inner mb-2 w-full overflow-x-auto no-scrollbar">
-              {(['Todos', 'Pendente', 'Aprovado', 'Pago'] as const).map((item) => (
-                <button 
-                  key={item} onClick={() => setFilter(item)}
-                  className={`flex-1 min-w-[80px] rounded-[10px] py-2 text-[13px] font-semibold transition-all ${filter === item ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-                >
-                  {item}
-                </button>
-              ))}
+          {loadError && <div role="alert" className="premium-notice"><Info size={20} className="mb-2" /><p>{loadError}</p><button type="button" disabled={loading} className="premium-text-button mt-2" onClick={() => void loadReports()}>Tentar novamente</button></div>}
+          {loading && reports.length === 0 ? <div role="status" className="premium-empty"><Loader2 size={28} className="premium-spin" /><p>Carregando seus relatórios…</p></div> : !filteredReports.length ? (!loadError && <Empty title="Nenhum relatório por aqui" description={filter === 'Todos' ? 'Seus relatórios aparecerão aqui quando estiverem disponíveis.' : 'Tente selecionar outra situação no filtro acima.'} />) : <>
+            <p className="premium-section-title" role="status">{filteredReports.length} {filteredReports.length === 1 ? 'relatório' : 'relatórios'}{loading ? ' · Atualizando…' : ''}</p>
+            <div className="premium-card-grid">
+              {filteredReports.map((report) => <button key={report.id} type="button" className="premium-report-card ios-press" onClick={() => setSelectedId(report.id)} aria-label={`Abrir ${report.numero_relatorio || 'relatório'}, ${reportLabel(report)}`}>
+                <div className="premium-card-top"><span className="premium-card-icon"><Plane size={22} /></span><div className="premium-card-copy"><strong>{report.numero_relatorio || 'Relatório de viagem'}</strong><p>{report.cliente_nome || 'Cliente'} · {report.aeronave_matricula || 'Aeronave'}</p><p>{date(report.data_inicio)} a {date(report.data_fim)}</p></div><ChevronRight size={18} className="c-l3 shrink-0 mt-1" /></div>
+                <div className="premium-card-bottom"><span className="premium-money">{currency(report.total_valor ?? parseExpenses(report.despesas).reduce((sum, expense) => sum + amountOf(expense), 0))}</span><Badge report={report} /></div>
+              </button>)}
             </div>
-
-            {loading ? (
-              <div className="flex justify-center py-16"><Loader2 className="animate-spin text-muted-foreground" size={32} /></div>
-            ) : filteredReports.length === 0 ? (
-              <div className="py-12 bg-card rounded-2xl border border-border/40 text-center flex flex-col items-center shadow-sm">
-                <ReceiptText size={32} className="text-muted-foreground/30 mb-3" />
-                <p className="text-[14px] font-medium text-muted-foreground">Nenhum relatório encontrado.</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {filteredReports.map((report) => {
-                  const pending = isPending(report);
-                  const paid = report.pagamento_status === 'PAGO';
-                  const needsFix = report.status === 'ajuste_necessario';
-                  
-                  return (
-                    <div key={report.id} onClick={() => setSelectedId(report.id)} className="bg-card rounded-2xl border border-border/40 p-4 shadow-sm active:bg-muted/20 transition-colors flex flex-col cursor-pointer">
-                      <div className="flex gap-4">
-                        <div className={`mt-0.5 shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${paid ? 'bg-primary/10 text-primary' : pending ? 'bg-amber-500/10 text-amber-500' : needsFix ? 'bg-rose-500/10 text-rose-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
-                          {paid ? <CircleDollarSign size={20} /> : pending ? <Clock3 size={20} /> : needsFix ? <XCircle size={20} /> : <CheckCircle2 size={20} />}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between mb-0.5">
-                            <h2 className="text-[15px] font-bold text-foreground truncate mr-2">{report.numero_relatorio || 'Relatório'}</h2>
-                            <ChevronRight size={16} className="text-muted-foreground shrink-0" />
-                          </div>
-                          <p className="text-[13px] text-muted-foreground truncate">{report.cliente_nome || 'Cliente'} · {report.aeronave_matricula}</p>
-                          <p className="text-[11px] text-muted-foreground/70 uppercase tracking-wide mt-1 font-semibold">{date(report.data_inicio)} a {date(report.data_fim)}</p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center justify-between mt-4 pt-4 border-t border-border/40">
-                        <span className="text-[15px] font-bold text-foreground">{currency(report.total_valor)}</span>
-                        <div className={`px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wider ${paid ? 'bg-primary/10 text-primary' : pending ? 'bg-amber-500/10 text-amber-500' : needsFix ? 'bg-rose-500/10 text-rose-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
-                          {reportLabel(report)}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          </>}
         </div>
-      )}
-    </MobileLayout>
-  );
+      </main>}
+    </div>
+  </MobileLayout>;
 }
