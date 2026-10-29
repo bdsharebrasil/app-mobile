@@ -442,11 +442,11 @@ export default function PlanoVooPage() {
 
         <div ref={sectionRef} className="pv-workspace">
           <div role="tabpanel" id={`${uid}-module-panel-plano`} aria-labelledby={`${uid}-module-tab-plano`} hidden={workspace !== 'plano'}>
-            <div className="pv-plan-nav">
-              <nav className="pv-segments" aria-label="Etapas do plano">
+            <div className="pv-plan-nav" style={{ marginLeft: 'auto', marginRight: 'auto', justifyContent: 'center' }}>
+              <nav className="pv-segments" aria-label="Etapas do plano" style={{ gap: 20 }}>
                 {STEPS.map(item => <button key={item.value} type="button" id={`${uid}-step-tab-${item.value}`}
                   aria-current={step === item.value ? 'step' : undefined} aria-controls={`${uid}-step-panel-${item.value}`}
-                  onClick={() => setStep(item.value)}>{item.label}</button>)}
+                  onClick={() => setStep(item.value)} style={{ border: '1px solid rgba(62,118,161,1)' }}>{item.label}</button>)}
               </nav>
             </div>
 
