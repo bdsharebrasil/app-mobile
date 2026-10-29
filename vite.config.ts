@@ -18,6 +18,11 @@ export default defineConfig(({ mode }) => {
           target: env.VITE_BACKEND_URL || 'https://api-workers.sharebrasil.workers.dev',
           changeOrigin: true,
         },
+        '/supabase': {
+          target: env.VITE_SUPABASE_URL || 'https://jilmlmdgeyzubylncpjy.supabase.co',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/supabase/, ''),
+        },
       },
     },
     plugins: [

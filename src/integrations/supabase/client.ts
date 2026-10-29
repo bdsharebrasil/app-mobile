@@ -1,7 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://jilmlmdgeyzubylncpjy.supabase.co";
+const SUPABASE_URL = import.meta.env.DEV
+  ? `${window.location.origin}/supabase`
+  : import.meta.env.VITE_SUPABASE_URL || "https://jilmlmdgeyzubylncpjy.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_DEFAULT_KEY || "sb_publishable_7xFUuqzVjAb5LA22UN0S-A_R1B-ZKiE";
 
 // Guard localStorage access for server environments
