@@ -448,14 +448,6 @@ export default function PlanoVooPage() {
                   aria-current={step === item.value ? 'step' : undefined} aria-controls={`${uid}-step-panel-${item.value}`}
                   onClick={() => setStep(item.value)}>{item.label}</button>)}
               </nav>
-              <div className="pv-tools" aria-label="Consultas da rota">
-                <NativeButton kind="ghost" aria-pressed={step === 'notams'} onClick={() => showTool(step === 'notams' ? 'rota' : 'notams')}>
-                  <Shield aria-hidden="true" /><span>NOTAMs</span>{notamCount !== null && <span className="pv-counter">{notamCount}</span>}
-                </NativeButton>
-                <NativeButton kind="ghost" aria-pressed={step === 'cartas'} onClick={() => showTool(step === 'cartas' ? 'rota' : 'cartas')}>
-                  <FileText aria-hidden="true" /><span>Cartas</span>
-                </NativeButton>
-              </div>
             </div>
 
             {/* hidden mantém o rascunho ICAO montado, sem deixar outro painel visível. */}
