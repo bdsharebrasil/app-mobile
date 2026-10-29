@@ -7,8 +7,8 @@ import {
   ReceiptText, RefreshCw, Trash2, Upload, User, Utensils, WifiOff,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { PremiumSheet } from '@/components/mobile/premium/PremiumSheet';
-import '@/components/mobile/premium/premium-mobile.css';
+import { PremiumSheet } from '@/components/mobile/PremiumSheet';
+import '@/components/mobile/premium-mobile.css';
 import { MobileLayout } from '@/components/mobile/MobileLayout';
 import { apiClient } from '@/lib/api-client';
 import {

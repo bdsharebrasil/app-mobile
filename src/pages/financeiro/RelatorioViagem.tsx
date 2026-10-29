@@ -8,8 +8,8 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { MobileLayout } from '@/components/mobile/MobileLayout';
-import { PremiumSheet } from '@/components/mobile/premium/PremiumSheet';
-import '@/components/mobile/premium/premium-mobile.css';
+import { PremiumSheet } from '@/components/mobile/PremiumSheet';
+import '@/components/mobile/premium-mobile.css';
 import { useAuth } from '@/contexts/AuthContext';
 import { BACKEND } from '@/config/api';
 
@@ -139,7 +139,7 @@ function Badge({ report }: { report: TravelReport }) {
 function safeLink(path?: string | null) {
   if (!path) return undefined;
   try {
-    const url = new URL(path, `${BACKEND.replace(/\/$/, '')}/`);
+    const url = new URL(path, BACKEND ? `${BACKEND.replace(/\/$/, '')}/` : window.location.origin);
     return ['http:', 'https:'].includes(url.protocol) ? url.href : undefined;
   } catch { return undefined; }
 }
