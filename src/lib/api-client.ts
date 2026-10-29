@@ -1,7 +1,7 @@
 // Cliente centralizado para comunicação autenticada com o Cloudflare Worker/D1.
 import { supabase } from '@/integrations/supabase/client';
 
-const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'https://api-workers.sharebrasil.workers.dev';
+const API_BASE_URL = import.meta.env.DEV ? '' : import.meta.env.VITE_BACKEND_URL || 'https://api-workers.sharebrasil.workers.dev';
 
 interface ApiError {
   error: string;
