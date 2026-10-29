@@ -37,7 +37,7 @@ export default function MeteorologiaMobile() {
   const wind = consultado?.weather.wind;
   const windValue = !wind?.speed_kt && wind?.speed_kt !== 0 ? '—' : `${wind.variable ? 'Variável' : `${wind.direction_deg ?? '—'}°`} · ${wind.speed_kt} kt${wind.gust_kt ? ` G${wind.gust_kt}` : ''}`;
   return <section className="space-y-4 text-white">
-    <header><p className="text-[10px] font-extrabold uppercase tracking-[.18em] text-sky-400">Operações · AISWEB/DECEA</p><h2 className="mt-1 text-2xl font-extrabold">Meteorologia</h2><p className="mt-1 text-sm leading-5 text-slate-400">Consulte METAR e TAF e acompanhe as camadas meteorológicas no mapa.</p></header>
+    <header><h2 className="mt-1 text-2xl font-extrabold">Meteorologia</h2><p className="mt-1 text-sm leading-5 text-slate-400">Consulte METAR e TAF e acompanhe as camadas meteorológicas no mapa.</p></header>
     <form onSubmit={(event) => void consultar(event)} className="space-y-3 rounded-2xl border border-white/10 bg-[#101e33] p-4">
       <label htmlFor="meteo-icao" className="text-xs font-bold uppercase tracking-wide text-slate-300">Código ICAO do aeródromo</label>
       <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2"><Input id="meteo-icao" value={icao} onChange={(event) => setIcao(event.target.value.toUpperCase())} maxLength={4} placeholder="Ex.: SBGR" className={fieldClass} /><Button type="submit" disabled={loading} className="min-h-12 rounded-xl bg-sky-500 px-4 font-bold text-slate-950 hover:bg-sky-400">{loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CloudSun className="mr-2 h-4 w-4" />}Consultar</Button></div>
