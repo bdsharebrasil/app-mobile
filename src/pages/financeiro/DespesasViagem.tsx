@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { ChangeEvent, CSSProperties, ElementType, ReactNode } from 'react';
+import type { ChangeEvent, ElementType, ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Bed, CalendarDays, Camera, Car, Check, ChevronLeft, ChevronRight, CircleDollarSign,
@@ -7,6 +7,8 @@ import {
   ReceiptText, RefreshCw, Trash2, Upload, User, Utensils, WifiOff,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { PremiumSheet } from '@/components/mobile/PremiumSheet';
+import '@/components/mobile/premium-mobile.css';
 import { MobileLayout } from '@/components/mobile/MobileLayout';
 import { apiClient } from '@/lib/api-client';
 import {
@@ -121,28 +123,6 @@ function valorDigitadoEmReais(valor: string) {
 /* ───────────────────────── Sistema visual (estilo iOS) ─────────────────────────
    Todas as cores/raios ficam em variáveis CSS. Para trocar o tema, mude só aqui. */
 
-const estilosGlobais = `
-.ios-root{--tint:#0A84FF;--ok:#30D158;--warn:#FF9F0A;--bad:#FF453A;--bg:#000;--card:#1C1C1E;--sheet:#1C1C1E;
-  --sep:rgba(84,84,88,.55);--l1:#fff;--l2:rgba(235,235,245,.6);--l3:rgba(235,235,245,.3);--fill:rgba(118,118,128,.24);
-  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display",system-ui,sans-serif;
-  -webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;
-  color:var(--l1);background:var(--bg);letter-spacing:-.01em}
-.ios-root button,.ios-root [role=tab]{touch-action:manipulation;font-family:inherit}
-.ios-root input,.ios-root textarea{font-size:17px;font-family:inherit;color:inherit;outline:none;border-radius:0;letter-spacing:-.01em}
-.ios-root input:not([type=date]),.ios-root textarea{-webkit-appearance:none;appearance:none}
-.ios-root ::placeholder{color:var(--l3)}
-.c-l1{color:var(--l1)}.c-l2{color:var(--l2)}.c-l3{color:var(--l3)}.c-tint{color:var(--tint)}.c-bad{color:var(--bad)}.c-ok{color:var(--ok)}
-.bg-c{background:var(--card)}.bg-tint{background:var(--tint)}.bg-fill{background:var(--fill)}
-.ios-lista>*+*{border-top:.5px solid var(--sep)}
-.ios-press{transition:transform .18s cubic-bezier(.32,.72,0,1),opacity .18s ease}
-.ios-press:active{transform:scale(.97);opacity:.85}
-.ios-row{transition:background .15s ease}
-.ios-row:active{background:rgba(255,255,255,.07)}
-@keyframes ios-sheet-in{from{transform:translateY(100%)}to{transform:translateY(0)}}
-@keyframes ios-fade{from{opacity:0}to{opacity:1}}
-@media (prefers-reduced-motion:reduce){.ios-root *{animation-duration:.01ms!important;transition-duration:.01ms!important}}
-`;
-
 const EASE = 'cubic-bezier(.32,.72,0,1)';
 
 function useRolou(limite = 36) {
@@ -164,53 +144,42 @@ function IconeApp({ Icone, cor, tamanho = 30 }: { Icone: ElementType; cor: strin
 
 function Selo({ status }: { status?: string | null }) {
   const { rotulo, cor } = statusInfo(status);
-  return <span className="shrink-0 rounded-full px-2 py-[3px] text-[11px] font-semibold" style={{ color: cor, background: `${cor}26` }}>{rotulo}</span>;
+  return <span className="premium-badge" style={{ color: cor, background: `${cor}26` }}>{rotulo}</span>;
 }
 
 function Grupo({ titulo, rodape, children }: { titulo?: string; rodape?: ReactNode; children: ReactNode }) {
-  return <section className="mb-6">
-    {titulo && <h3 className="c-l2 px-4 pb-1.5 text-[13px] uppercase tracking-wide">{titulo}</h3>}
-    <div className="bg-c ios-lista overflow-hidden rounded-[12px]">{children}</div>
-    {rodape && <p className="c-l2 px-4 pt-1.5 text-[13px] leading-snug">{rodape}</p>}
+  return <section className="premium-section">
+    {titulo && <h3 className="premium-section-title">{titulo}</h3>}
+    <div className="premium-group ios-lista">{children}</div>
+    {rodape && <p className="premium-group-note">{rodape}</p>}
   </section>;
 }
 
 function LinhaValor({ rotulo, valor, cor }: { rotulo: string; valor: ReactNode; cor?: string }) {
-  return <div className="flex min-h-[44px] items-center justify-between gap-4 px-4 py-2">
-    <span className="flex min-w-0 items-center gap-2.5 text-[17px]">
-      {cor && <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: cor }} />}
-      <span className="truncate">{rotulo}</span>
-    </span>
-    <span className="c-l2 max-w-[55%] truncate text-right text-[17px] tabular-nums">{valor}</span>
+  return <div className="premium-info-row">
+    <span>{cor && <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: cor }} />}{rotulo}</span>
+    <span>{valor}</span>
   </div>;
 }
 
-function BotaoCirculo({ rotulo, onClick, children }: { rotulo: string; onClick: () => void; children: ReactNode }) {
-  return <button type="button" aria-label={rotulo} onClick={onClick} className="ios-press bg-fill c-tint flex h-[34px] w-[34px] items-center justify-center rounded-full">{children}</button>;
+function BotaoCirculo({ rotulo, onClick, children, disabled = false }: { rotulo: string; onClick: () => void; children: ReactNode; disabled?: boolean }) {
+  return <button type="button" aria-label={rotulo} disabled={disabled} onClick={onClick} className="premium-icon-button ios-press">{children}</button>;
 }
 
 function BarraNavegacao({ rolou, titulo, esquerda, direita }: { rolou: boolean; titulo: string; esquerda?: ReactNode; direita?: ReactNode }) {
-  return <header className="sticky top-0 z-30" style={{
-    paddingTop: 'env(safe-area-inset-top)',
-    background: rolou ? 'rgba(0,0,0,.72)' : 'transparent',
-    backdropFilter: rolou ? 'saturate(180%) blur(22px)' : 'none',
-    WebkitBackdropFilter: rolou ? 'saturate(180%) blur(22px)' : 'none',
-    borderBottom: `.5px solid ${rolou ? 'var(--sep)' : 'transparent'}`,
-    transition: 'background .2s ease, border-color .2s ease',
-  }}>
-    <div className="mx-auto grid h-11 max-w-xl grid-cols-[1fr_auto_1fr] items-center px-4">
-      <div className="flex justify-start">{esquerda}</div>
-      <h1 className="max-w-[48vw] truncate text-[17px] font-semibold" style={{ opacity: rolou ? 1 : 0, transition: 'opacity .2s ease' }}>{titulo}</h1>
-      <div className="flex justify-end">{direita}</div>
+  return <header className={`premium-nav ${rolou ? 'is-scrolled' : ''}`}>
+    <div className="premium-shell premium-nav-inner">
+      <div className="premium-nav-start">{esquerda}</div>
+      <span className="premium-nav-title bg-[#090B10]" aria-hidden={!rolou} style={{ opacity: rolou ? 1 : 0 }}>{titulo}</span>
+      <div className="premium-nav-end">{direita}</div>
     </div>
   </header>;
 }
 
 function Segmentado<T extends string>({ opcoes, valor, aoMudar }: { opcoes: Array<{ valor: T; rotulo: string }>; valor: T; aoMudar: (valor: T) => void }) {
-  const indice = Math.max(0, opcoes.findIndex((item) => item.valor === valor));
-  return <div role="tablist" className="bg-fill relative flex rounded-[9px] p-[2px]">
-    <span aria-hidden className="absolute bottom-[2px] left-[2px] top-[2px] rounded-[7px] bg-[#636366] shadow-md" style={{ width: `calc((100% - 4px) / ${opcoes.length})`, transform: `translateX(${indice * 100}%)`, transition: `transform .32s ${EASE}` }} />
-    {opcoes.map((item) => <button key={item.valor} type="button" role="tab" aria-selected={item.valor === valor} onClick={() => { haptico(6); aoMudar(item.valor); }} className="relative z-10 min-h-[32px] flex-1 px-2 text-[13px] font-semibold">{item.rotulo}</button>)}
+  return <div role="group" aria-label="Visualização das despesas" className="premium-segments">
+    {opcoes.map((item) => <button key={item.valor} type="button" aria-pressed={item.valor === valor}
+      onClick={() => { haptico(6); aoMudar(item.valor); }}>{item.rotulo}</button>)}
   </div>;
 }
 
@@ -222,87 +191,23 @@ function Vazio({ Icone, titulo, texto }: { Icone: ElementType; titulo: string; t
   </div>;
 }
 
-/* Folha modal (sheet) com arraste para fechar */
-function Folha({ titulo, rotuloEsquerda = 'Cancelar', acaoDireita, aoFechar, children }: {
-  titulo: string;
-  rotuloEsquerda?: string | null;
-  acaoDireita?: { rotulo: string; onClick: (fechar: () => void) => void; desabilitado?: boolean; carregando?: boolean };
-  aoFechar: () => void;
-  children: ReactNode;
-}) {
-  const [saindo, setSaindo] = useState(false);
-  const [arraste, setArraste] = useState(0);
-  const [arrastando, setArrastando] = useState(false);
-  const inicioY = useRef(0);
+/* One accessible sheet implementation shared by both pages. */
+const Folha = PremiumSheet;
 
-  const fechar = useCallback(() => {
-    if (saindo) return;
-    setSaindo(true);
-    window.setTimeout(aoFechar, 280);
-  }, [aoFechar, saindo]);
-
-  useEffect(() => {
-    const anterior = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = anterior; };
-  }, []);
-
-  useEffect(() => {
-    const aoTeclar = (evento: KeyboardEvent) => { if (evento.key === 'Escape') fechar(); };
-    window.addEventListener('keydown', aoTeclar);
-    return () => window.removeEventListener('keydown', aoTeclar);
-  }, [fechar]);
-
-  return <div className="fixed inset-0 z-[80]" role="dialog" aria-modal="true" aria-label={titulo}>
-    <div className="absolute inset-0 bg-black/50" onClick={fechar} style={{ animation: 'ios-fade .3s ease', opacity: saindo ? 0 : 1, transition: 'opacity .28s ease' }} />
-    <div className="absolute inset-x-0 bottom-0 mx-auto flex max-w-xl flex-col overflow-hidden rounded-t-[14px]" style={{
-      height: 'calc(100dvh - env(safe-area-inset-top) - 12px)',
-      background: 'var(--sheet)',
-      '--card': '#2C2C2E',
-      transform: saindo ? 'translateY(100%)' : `translateY(${arraste}px)`,
-      transition: arrastando ? 'none' : `transform .3s ${EASE}`,
-      animation: `ios-sheet-in .45s ${EASE}`,
-    } as CSSProperties}>
-      <div className="shrink-0" onTouchStart={(evento) => { inicioY.current = evento.touches[0].clientY; setArrastando(true); }}
-        onTouchMove={(evento) => setArraste(Math.max(0, evento.touches[0].clientY - inicioY.current))}
-        onTouchEnd={() => { setArrastando(false); if (arraste > 110) fechar(); else setArraste(0); }}>
-        <div className="mx-auto mt-2 h-[5px] w-9 rounded-full bg-white/25" />
-        <div className="grid h-[52px] grid-cols-[1fr_auto_1fr] items-center px-4">
-          {rotuloEsquerda ? <button type="button" onClick={fechar} className="c-tint h-11 justify-self-start pr-3 text-[17px]">{rotuloEsquerda}</button> : <span />}
-          <h2 className="max-w-[46vw] truncate text-[17px] font-semibold">{titulo}</h2>
-          {acaoDireita ? <button type="button" disabled={acaoDireita.desabilitado || acaoDireita.carregando} onClick={() => acaoDireita.onClick(fechar)} className="c-tint flex h-11 items-center justify-self-end pl-3 text-[17px] font-semibold disabled:opacity-40">
-            {acaoDireita.carregando ? <Loader2 className="h-5 w-5 animate-spin" /> : acaoDireita.rotulo}
-          </button> : <span />}
-        </div>
-      </div>
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-2" style={{ WebkitOverflowScrolling: 'touch', paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}>
-        {children}
-      </div>
-    </div>
-  </div>;
-}
-
-/* Action sheet estilo iOS (confirmações e seletores) */
 function FolhaAcoes({ titulo, mensagem, opcoes, aoCancelar }: {
   titulo?: string; mensagem?: string;
   opcoes: Array<{ rotulo: string; destrutivo?: boolean; selecionado?: boolean; onClick: () => void }>;
   aoCancelar: () => void;
 }) {
-  return <div className="fixed inset-0 z-[90]" role="dialog" aria-modal="true" aria-label={titulo || 'Opções'}>
-    <div className="absolute inset-0 bg-black/40" onClick={aoCancelar} style={{ animation: 'ios-fade .25s ease' }} />
-    <div className="absolute inset-x-0 bottom-0 mx-auto max-w-xl px-2" style={{ animation: `ios-sheet-in .38s ${EASE}`, paddingBottom: 'max(.5rem, env(safe-area-inset-bottom))' }}>
-      <div className="ios-lista overflow-hidden rounded-[14px] bg-[rgba(44,44,46,.96)]" style={{ backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)' }}>
-        {(titulo || mensagem) && <div className="px-4 py-3 text-center">
-          {titulo && <p className="c-l2 text-[13px] font-semibold">{titulo}</p>}
-          {mensagem && <p className="c-l2 text-[13px]">{mensagem}</p>}
-        </div>}
-        {opcoes.map((opcao) => <button key={opcao.rotulo} type="button" onClick={opcao.onClick} className={`ios-row flex h-[57px] w-full items-center justify-center gap-2 text-[20px] ${opcao.destrutivo ? 'c-bad' : 'c-tint'} ${opcao.selecionado ? 'font-semibold' : ''}`}>
-          {opcao.selecionado && <Check className="h-5 w-5" strokeWidth={2.6} />}{opcao.rotulo}
-        </button>)}
-      </div>
-      <button type="button" onClick={aoCancelar} className="c-tint ios-press mt-2 h-[57px] w-full rounded-[14px] bg-[#2C2C2E] text-[20px] font-semibold">Cancelar</button>
+  return <Folha compacto titulo={titulo || 'Opções'} aoFechar={aoCancelar}>
+    {mensagem && <p className="premium-notice">{mensagem}</p>}
+    <div className="premium-group ios-lista">
+      {opcoes.map((opcao) => <button key={opcao.rotulo} type="button" onClick={opcao.onClick}
+        className={`ios-row flex min-h-[56px] w-full items-center justify-center gap-2 px-4 py-3 text-[17px] ${opcao.destrutivo ? 'c-bad' : 'c-tint'} ${opcao.selecionado ? 'font-semibold' : ''}`}>
+        {opcao.selecionado && <Check className="h-5 w-5" />}{opcao.rotulo}
+      </button>)}
     </div>
-  </div>;
+  </Folha>;
 }
 
 /* Linha com deslizar para excluir */
@@ -318,7 +223,7 @@ function LinhaDeslizavel({ habilitado, aoExcluir, children }: { habilitado: bool
 
   const fechar = () => { setAberto(false); setDeslocamento(0); };
 
-  return <div className="relative overflow-hidden">
+  return <div className="premium-swipe relative overflow-hidden">
     <button type="button" onClick={() => { fechar(); aoExcluir(); }} aria-label="Excluir despesa" tabIndex={aberto ? 0 : -1} className="absolute inset-y-0 right-0 flex flex-col items-center justify-center gap-1 text-[13px] font-semibold text-white" style={{ width: LARGURA, background: 'var(--bad)' }}>
       <Trash2 className="h-5 w-5" />Excluir
     </button>
@@ -333,6 +238,7 @@ function LinhaDeslizavel({ habilitado, aoExcluir, children }: { habilitado: bool
         setArrastando(true);
         setDeslocamento(Math.min(0, Math.max(-LARGURA * 1.4, inicio.current.base + dx)));
       }}
+      onTouchCancel={() => { setArrastando(false); eixo.current = null; setDeslocamento(aberto ? -LARGURA : 0); }}
       onTouchEnd={() => {
         if (eixo.current === 'h') {
           const abrir = deslocamento < -LARGURA / 2;
@@ -353,13 +259,13 @@ function LinhaDeslizavel({ habilitado, aoExcluir, children }: { habilitado: bool
 function GrupoRelatorios({ titulo, itens, aoAbrir }: { titulo: string; itens: RelatorioViagemLocal[]; aoAbrir: (relatorio: RelatorioViagemLocal) => void }) {
   if (!itens.length) return null;
   return <Grupo titulo={`${titulo} · ${itens.length}`}>
-    {itens.map((relatorio) => <button key={relatorio.id} type="button" onClick={() => aoAbrir(relatorio)} className="ios-row flex w-full items-center gap-3 px-4 py-3 text-left">
+    {itens.map((relatorio) => <button key={relatorio.id} type="button" onClick={() => aoAbrir(relatorio)} className="ios-row flex w-full flex-wrap items-center gap-3 px-4 py-4 text-left">
       <IconeApp Icone={ReceiptText} cor={statusInfo(relatorio.status).cor} tamanho={34} />
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[17px] font-semibold">{relatorio.numero_relatorio || 'Relatório de despesas'}</span>
-        <span className="c-l2 block truncate text-[13px]">{relatorio.numero_voo || 'Voo'} · {relatorio.aeronave_matricula || 'Aeronave'} · {dataVisivel(relatorio.data_inicio)}</span>
+        <span className="block text-[16px] font-semibold break-words">{relatorio.numero_relatorio || 'Relatório de despesas'}</span>
+        <span className="c-l2 block text-[13px] break-words">{relatorio.numero_voo || 'Voo'} · {relatorio.aeronave_matricula || 'Aeronave'} · {dataVisivel(relatorio.data_inicio)}</span>
       </span>
-      <span className="flex shrink-0 flex-col items-end gap-1">
+      <span className="ml-auto flex min-w-0 max-w-full flex-col items-end gap-1">
         <span className="text-[15px] font-semibold tabular-nums">{moeda(totaisDoRelatorio(despesasDaLista(relatorio.despesas, relatorio.id), relatorio.tripulante_pos).geral)}</span>
         <Selo status={relatorio.status} />
       </span>
@@ -386,11 +292,16 @@ function FormularioDespesa({
   const [pagador, setPagador] = useState(inicial?.pago_por || 'eu');
   const [descricao, setDescricao] = useState(inicial?.descricao || '');
   const [arquivo, setArquivo] = useState<File | null>(null);
+  const [processandoArquivo, setProcessandoArquivo] = useState(false);
   const [previsualizacao, setPrevisualizacao] = useState('');
   const [carregando, setCarregando] = useState(false);
   const [erroComprovante, setErroComprovante] = useState('');
   const [erroDescricao, setErroDescricao] = useState('');
   const [seletorPagador, setSeletorPagador] = useState(false);
+  const [descartar, setDescartar] = useState(false);
+  const salvandoRef = useRef(false);
+  const mudou = categoria !== (inicial?.categoria || '') || data !== (inicial?.data || dataHoje()) || descricao !== (inicial?.descricao || '') || Boolean(arquivo) || valorDigitadoEmReais(valor) !== Number(inicial?.valor || 0) || pagador !== (inicial?.pago_por || 'eu');
+  const antesDeFechar = () => { if (mudou) { setDescartar(true); return false; } return true; };
   const cameraRef = useRef<HTMLInputElement>(null);
   const arquivoRef = useRef<HTMLInputElement>(null);
   const topoRef = useRef<HTMLDivElement>(null);
@@ -401,7 +312,7 @@ function FormularioDespesa({
   const tipoArquivoAnexo = arquivo?.type || anexoAtual?.tipo_arquivo || '';
   const nomeArquivoAnexo = arquivo?.name || anexoAtual?.nome_arquivo || 'Comprovante anexado';
   const valorNumerico = valorDigitadoEmReais(valor);
-  const podeSalvar = Boolean(categoria) && Boolean(data) && valorNumerico > 0 && !carregando;
+  const podeSalvar = Boolean(categoria) && Boolean(data) && valorNumerico > 0 && !carregando && !processandoArquivo;
 
   const pagadorAtual = pagador === `tripulante_${relatorio.tripulante_pos}` ? 'eu' : pagador;
   const opcoesPagador = [
@@ -434,21 +345,24 @@ function FormularioDespesa({
   const selecionarArquivo = async (evento: ChangeEvent<HTMLInputElement>) => {
     const selecionado = evento.target.files?.[0];
     evento.target.value = '';
-    if (!selecionado) return;
+    if (!selecionado || processandoArquivo) return;
+    setProcessandoArquivo(true);
     try {
+      if (selecionado.size > 20 * 1024 * 1024) throw new Error('Escolha um arquivo de até 20 MB.');
       const comprimido = await comprimirComprovante(selecionado);
       setArquivo(comprimido);
       setErroComprovante('');
       haptico(8);
     } catch (erro) {
       setErroComprovante(erro instanceof Error ? erro.message : 'Não foi possível preparar o comprovante.');
-    }
+    } finally { setProcessandoArquivo(false); }
   };
 
   const salvar = async (adicionarOutra = false) => {
-    if (!podeSalvar) return;
+    if (!podeSalvar || salvandoRef.current) return;
     const descricaoLimpa = descricao.trim();
     if (!descricaoLimpa) { setErroDescricao('A descrição da despesa é obrigatória.'); haptico([30, 40, 30]); return; }
+    salvandoRef.current = true;
     setCarregando(true);
     try {
       await aoSalvar({
@@ -458,14 +372,16 @@ function FormularioDespesa({
       }, arquivo, anexo?.id, adicionarOutra);
       if (adicionarOutra) {
         setCategoria(''); setData(dataHoje()); setValor(''); setPagador('eu'); setDescricao(''); setErroDescricao(''); setArquivo(null);
-        topoRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        topoRef.current?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
       }
-    } finally { setCarregando(false); }
+    } catch { /* aoSalvar already reports persistence errors; keep the form open. */ }
+    finally { salvandoRef.current = false; setCarregando(false); }
   };
 
   return <>
-    <Folha titulo={inicial ? 'Editar despesa' : 'Nova despesa'} aoFechar={aoCancelar}
+    <Folha titulo={inicial ? 'Editar despesa' : 'Nova despesa'} aoFechar={aoCancelar} antesDeFechar={antesDeFechar} bloqueado={carregando || processandoArquivo}
       acaoDireita={{ rotulo: 'Salvar', desabilitado: !podeSalvar, carregando, onClick: () => { void salvar(false); } }}>
+      <fieldset disabled={carregando || processandoArquivo} className="min-w-0 border-0 p-0 m-0">
       <div ref={topoRef} />
 
       {/* Valor em destaque */}
@@ -473,15 +389,15 @@ function FormularioDespesa({
         <span className="c-l2 block text-[13px]">Valor da despesa</span>
         <span className="mt-1 flex items-baseline justify-center gap-1.5">
           <span className="c-l2 text-[24px] font-medium">R$</span>
-          <input id="valor-despesa" inputMode="numeric" enterKeyHint="done" autoComplete="off" type="text" value={valor} autoFocus={!inicial}
+          <input id="valor-despesa" inputMode="numeric" enterKeyHint="done" autoComplete="off" type="text" value={valor} 
             onChange={(evento) => setValor(formatarValorDigitado(evento.target.value))} placeholder="0,00" aria-label="Valor da despesa em reais"
-            className="bg-transparent text-center text-[48px] font-bold tabular-nums tracking-tight" style={{ width: `${Math.max(valor.length, 4) + 0.5}ch`, maxWidth: '70vw' }} />
+            className="bg-transparent text-center font-bold tabular-nums tracking-tight" style={{ fontSize: 'clamp(32px, 8vw, 48px)', width: `${Math.max(valor.length, 4) + 0.5}ch`, maxWidth: '75%' }} />
         </span>
       </label>
 
       {/* Categoria */}
       <Grupo titulo="Categoria">
-        <div className="grid grid-cols-3 gap-2 p-3">
+        <div className="grid grid-cols-2 min-[380px]:grid-cols-3 gap-2 p-3">
           {categorias.map((item) => {
             const ativo = categoria === item.valor;
             return <button type="button" key={item.valor} aria-pressed={ativo} onClick={() => { setCategoria(item.valor); haptico(8); }}
@@ -521,12 +437,12 @@ function FormularioDespesa({
       {/* Comprovante */}
       <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(evento) => void selecionarArquivo(evento)} />
       <input ref={arquivoRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={(evento) => void selecionarArquivo(evento)} />
-      <Grupo titulo="Comprovante" rodape={erroComprovante ? <span role="alert" className="c-bad">{erroComprovante}</span> : 'Foto, imagem da galeria ou PDF.'}>
-        <button type="button" onClick={() => cameraRef.current?.click()} className="ios-row flex min-h-[48px] w-full items-center justify-between gap-3 px-4 text-left">
+      <Grupo titulo={processandoArquivo ? 'Preparando comprovante…' : 'Comprovante'} rodape={erroComprovante ? <span role="alert" className="c-bad">{erroComprovante}</span> : 'Foto, imagem da galeria ou PDF.'}>
+        <button type="button" disabled={processandoArquivo || carregando} onClick={() => cameraRef.current?.click()} className="ios-row flex min-h-[48px] w-full items-center justify-between gap-3 px-4 text-left">
           <span className="flex items-center gap-3"><IconeApp Icone={Camera} cor="#0A84FF" tamanho={29} /><span className="text-[17px]">Tirar foto</span></span>
           <ChevronRight className="c-l3 h-4 w-4" strokeWidth={2.6} />
         </button>
-        <button type="button" onClick={() => arquivoRef.current?.click()} className="ios-row flex min-h-[48px] w-full items-center justify-between gap-3 px-4 text-left">
+        <button type="button" disabled={processandoArquivo || carregando} onClick={() => arquivoRef.current?.click()} className="ios-row flex min-h-[48px] w-full items-center justify-between gap-3 px-4 text-left">
           <span className="flex items-center gap-3"><IconeApp Icone={Upload} cor="#5E5CE6" tamanho={29} /><span className="text-[17px]">Galeria ou arquivo</span></span>
           <ChevronRight className="c-l3 h-4 w-4" strokeWidth={2.6} />
         </button>
@@ -538,7 +454,7 @@ function FormularioDespesa({
           </div>
           <div className="mt-2 flex items-center gap-3">
             <span className="c-l2 min-w-0 flex-1 truncate text-[13px]">{nomeArquivoAnexo}</span>
-            {arquivo && <button type="button" onClick={() => setArquivo(null)} aria-label="Remover comprovante selecionado" className="c-bad h-9 shrink-0 px-1 text-[15px]">Remover</button>}
+            {arquivo && <button type="button" onClick={() => setArquivo(null)} aria-label="Remover comprovante selecionado" className="c-bad min-h-[48px] shrink-0 px-2 text-[15px]">Remover</button>}
           </div>
         </div>}
       </Grupo>
@@ -550,8 +466,11 @@ function FormularioDespesa({
       {inicial && <Grupo>
         <button type="button" onClick={() => aoExcluir(inicial)} className="ios-row c-bad h-[50px] w-full text-[17px]">Excluir despesa</button>
       </Grupo>}
+      </fieldset>
     </Folha>
 
+    {descartar && <FolhaAcoes titulo="Descartar alterações?" mensagem="As alterações desta despesa ainda não foram salvas."
+      opcoes={[{ rotulo: 'Descartar alterações', destrutivo: true, onClick: aoCancelar }]} aoCancelar={() => setDescartar(false)} />}
     {seletorPagador && <FolhaAcoes titulo="Pago por"
       opcoes={opcoesPagador.map((item) => ({ rotulo: item.rotulo, selecionado: item.valor === pagadorAtual, onClick: () => { setPagador(item.valor); setSeletorPagador(false); haptico(8); } }))}
       aoCancelar={() => setSeletorPagador(false)} />}
@@ -578,6 +497,8 @@ export default function DespesasViagem() {
   const [abrindoAnexo, setAbrindoAnexo] = useState('');
   const registrosRef = useRef(new Set<string>());
   const aberturaAutomatica = useRef(false);
+  const inicioPendente = useRef(false);
+  const [iniciandoId, setIniciandoId] = useState<string | null>(null);
   const rolou = useRolou();
 
   const mostrarRelatorios = useCallback((servidor: RelatorioViagemLocal[], locais: RegistroRelatorioViagem[]) => {
@@ -697,13 +618,26 @@ export default function DespesasViagem() {
     setRelatorioAtual({ ...relatorio, despesas: despesasDaLista(relatorio.despesas, relatorio.id) });
   }, [navegar]);
 
+  const abrirPdfDoRelatorio = (relatorio: RelatorioViagemLocal) => {
+    if (!relatorio.pdf_url) { toast.error('O PDF deste relatório ainda não está disponível.'); return; }
+    window.open(new URL(relatorio.pdf_url, window.location.origin).href, '_blank', 'noopener,noreferrer');
+  };
+
   const iniciarOuContinuar = useCallback(async (voo: VooRelatorioLocal) => {
     const relatorioLocal = relatorios.find((item) => item.id === voo.relatorio_id || item.numero_voo === voo.numero_voo);
+    if (voo.relatorio_status === 'enviado_cliente' || relatorioLocal?.status === 'enviado_cliente') {
+      if (relatorioLocal) abrirPdfDoRelatorio(relatorioLocal);
+      else toast.error('Não foi possível localizar o relatório deste voo.');
+      return;
+    }
     if (relatorioLocal) { await abrirRelatorio(relatorioLocal); return; }
     if (!navigator.onLine) {
       toast.error('Para iniciar um relatório, conecte-se à internet. Depois, você poderá lançar despesas offline.');
       return;
     }
+    if (inicioPendente.current) return;
+    inicioPendente.current = true;
+    setIniciandoId(voo.solicitacao_id);
     try {
       const resposta = await apiClient.post<{ relatorio: RelatorioViagemLocal }>(`${raiz}/iniciar-do-voo`, { numero_voo: voo.numero_voo });
       const relatorio = { ...resposta.relatorio, despesas: despesasDaLista(resposta.relatorio.despesas, resposta.relatorio.id) };
@@ -712,6 +646,7 @@ export default function DespesasViagem() {
       setRelatorios((atuais) => atuais.some((item) => item.id === relatorio.id) ? atuais.map((item) => item.id === relatorio.id ? relatorio : item) : [relatorio, ...atuais]);
       await abrirRelatorio(relatorio);
     } catch (erro) { toast.error(erro instanceof Error ? erro.message : 'Não foi possível iniciar o relatório deste voo.'); }
+    finally { inicioPendente.current = false; setIniciandoId(null); }
   }, [abrirRelatorio, relatorios]);
 
   useEffect(() => {
@@ -793,17 +728,17 @@ export default function DespesasViagem() {
   const registroPendente = (id: string) => relatoriosPendentes.has(relatorioAtual?.id || '') && despesas.some((despesa) => despesa.id === id);
 
   return <MobileLayout hideTabBar={Boolean(relatorioAtual)}>
-    <div className="ios-root min-h-[100dvh]">
-      <style>{estilosGlobais}</style>
+    <div className="ios-root min-h-[100svh]">
 
-      {relatorioAtual ? <main style={{ paddingBottom: 'calc(110px + env(safe-area-inset-bottom))' }}>
+
+      {relatorioAtual ? <main className="premium-page premium-page--detail">
         <BarraNavegacao rolou={rolou} titulo={relatorioAtual.numero_voo || 'Relatório'}
-          esquerda={<button type="button" onClick={() => { setRelatorioAtual(null); setFormulario(null); }} className="ios-press c-tint -ml-2 flex h-11 items-center pr-3 text-[17px]"><ChevronLeft className="h-[28px] w-[28px]" strokeWidth={2.4} />Despesas</button>}
+          esquerda={<button type="button" onClick={() => { setRelatorioAtual(null); setFormulario(null); }} aria-label="Voltar para despesas" className="premium-icon-button ios-press"><ChevronLeft className="h-[28px] w-[28px]" strokeWidth={2.4} /></button>}
           direita={podeEditar ? <BotaoCirculo rotulo="Lançar despesa" onClick={() => setFormulario({})}><Plus className="h-5 w-5" strokeWidth={2.6} /></BotaoCirculo> : undefined} />
-        <div className="mx-auto max-w-xl px-4">
-          <div className="pb-5 pt-1">
+        <div className="premium-shell">
+          <div className="premium-heading">
             <p className="c-l2 text-[13px] font-semibold">Relatório {relatorioAtual.numero_relatorio}</p>
-            <h1 className="text-[34px] font-bold leading-tight tracking-tight">{relatorioAtual.numero_voo || 'Despesas'}</h1>
+            <h1 className="premium-title">{relatorioAtual.numero_voo || 'Despesas'}</h1>
             <p className="c-l2 text-[15px]">{relatorioAtual.rota || 'Trecho não informado'}</p>
             {sincronizando.has(relatorioAtual.id) && <p className="c-tint mt-2 flex items-center gap-1.5 text-[13px] font-medium"><RefreshCw className="h-3.5 w-3.5 animate-spin" /> Sincronizando…</p>}
           </div>
@@ -812,67 +747,76 @@ export default function DespesasViagem() {
             Este relatório está <strong>{statusInfo(relatorioAtual.status).rotulo.toLowerCase()}</strong> e só pode ser editado pelo financeiro. O fluxo de aprovação continua na tela de Relatórios.
           </div>}
 
-          {resumo && <>
-            <section className="bg-c mb-6 rounded-[16px] px-5 py-6 text-center">
-              <p className="c-l2 text-[13px]">Total lançado</p>
-              <p className="mt-1 text-[40px] font-bold tabular-nums tracking-tight">{moeda(resumo.geral)}</p>
-            </section>
-            <Grupo titulo="Quem pagou">
-              <LinhaValor rotulo="Eu" cor="#0A84FF" valor={moeda(resumo.eu)} />
-              {relatorioAtual.tripulante_id_2 && <LinhaValor rotulo={(relatorioAtual.tripulante_pos === 1 ? relatorioAtual.nome_tripulante_2 : relatorioAtual.nome_tripulante) || 'Outro tripulante'} cor="#BF5AF2" valor={moeda(resumo.outro)} />}
-              <LinhaValor rotulo="Cliente" cor="#FF9F0A" valor={moeda(resumo.cliente)} />
-              <LinhaValor rotulo="Share Brasil" cor="#30D158" valor={moeda(resumo.share)} />
-            </Grupo>
-          </>}
-
-          <Grupo titulo={`Despesas · ${despesas.length}`} rodape={podeEditar && despesas.length ? 'Deslize uma despesa para a esquerda para excluir.' : undefined}>
-            {!despesas.length ? <Vazio Icone={ReceiptText} titulo="Nenhuma despesa lançada" texto={podeEditar ? 'Toque em Lançar despesa para começar.' : undefined} />
-              : despesasEmOrdem(relatorioAtual).map(({ despesa, indice }) => {
-                const anexo = anexoDoIndice(indice);
-                const categoriaVisual = categoriaDe(despesa.categoria);
-                const pendente = registroPendente(despesa.id) || sincronizando.has(relatorioAtual.id);
-                return <LinhaDeslizavel key={despesa.id} habilitado={Boolean(podeEditar)} aoExcluir={() => setExcluindo(despesa)}>
-                  <div className="flex items-center">
-                    <button type="button" onClick={() => podeEditar && setFormulario({ despesa, anexo })} disabled={!podeEditar} aria-label={`Editar ${despesa.categoria}`} className="ios-row flex min-h-[64px] min-w-0 flex-1 items-center gap-3 py-3 pl-4 text-left disabled:cursor-default">
-                      <IconeApp Icone={categoriaVisual.Icone} cor={categoriaVisual.cor} tamanho={38} />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[17px] font-medium">{despesa.descricao || despesa.categoria}</span>
-                        <span className="c-l2 block truncate text-[13px]">{dataVisivel(despesa.data)} · {pagadorNome(despesa.pago_por, relatorioAtual)}</span>
-                        {pendente && <span className="mt-0.5 inline-flex items-center gap-1 text-[11px] font-medium" style={{ color: '#FFB340' }}><Clock3 className="h-3 w-3" />{navigator.onLine ? 'Sincronizando…' : 'Pendente de envio'}</span>}
-                      </span>
-                      <span className="shrink-0 text-[17px] font-semibold tabular-nums">{moeda(despesa.valor)}</span>
-                    </button>
-                    {anexo ? <button type="button" onClick={() => void abrirComprovante(anexo)} aria-label="Abrir comprovante" className="c-tint flex h-[64px] w-12 shrink-0 items-center justify-center">
-                      {abrindoAnexo === anexo.id ? <Loader2 className="h-5 w-5 animate-spin" /> : <Paperclip className="h-5 w-5" />}
-                    </button> : <span className="w-3 shrink-0" />}
-                  </div>
-                </LinhaDeslizavel>;
-              })}
-          </Grupo>
-
-          <Grupo titulo="Detalhes do voo">
-            <LinhaValor rotulo="Cotista" valor={relatorioAtual.cliente_nome || relatorioAtual.cotista_nome || '—'} />
-            <LinhaValor rotulo="Aeronave" valor={relatorioAtual.aeronave_matricula || '—'} />
-            <LinhaValor rotulo="Início" valor={dataVisivel(relatorioAtual.data_inicio)} />
-            <LinhaValor rotulo="Tripulante 1" valor={relatorioAtual.nome_tripulante || '—'} />
-            {relatorioAtual.tripulante_id_2 && relatorioAtual.nome_tripulante_2 && <LinhaValor rotulo="Tripulante 2" valor={relatorioAtual.nome_tripulante_2} />}
-          </Grupo>
+          <div className="premium-review-grid">
+            <aside className="premium-review-aside">
+              {resumo && <>
+                <section className="premium-hero" aria-label="Resumo da viagem">
+                  <p className="premium-hero-label">Total lançado nesta viagem</p>
+                  <p className="premium-amount">{moeda(resumo.geral)}</p>
+                  <Selo status={relatorioAtual.status} />
+                  <p className="premium-hero-caption">{despesas.length} {despesas.length === 1 ? 'despesa registrada' : 'despesas registradas'}</p>
+                </section>
+                <Grupo titulo="Quem pagou">
+                  <LinhaValor rotulo="Eu" cor="#409CFF" valor={moeda(resumo.eu)} />
+                  {relatorioAtual.tripulante_id_2 && <LinhaValor rotulo={(relatorioAtual.tripulante_pos === 1 ? relatorioAtual.nome_tripulante_2 : relatorioAtual.nome_tripulante) || 'Outro tripulante'} cor="#BF5AF2" valor={moeda(resumo.outro)} />}
+                  <LinhaValor rotulo="Cliente" cor="#FFBF69" valor={moeda(resumo.cliente)} />
+                  <LinhaValor rotulo="Share Brasil" cor="#58D68D" valor={moeda(resumo.share)} />
+                </Grupo>
+              </>}
+              <Grupo titulo="Detalhes do voo">
+                <LinhaValor rotulo="Cotista" valor={relatorioAtual.cliente_nome || relatorioAtual.cotista_nome || '—'} />
+                <LinhaValor rotulo="Aeronave" valor={relatorioAtual.aeronave_matricula || '—'} />
+                <LinhaValor rotulo="Início" valor={dataVisivel(relatorioAtual.data_inicio)} />
+                <LinhaValor rotulo="Tripulante 1" valor={relatorioAtual.nome_tripulante || '—'} />
+                {relatorioAtual.tripulante_id_2 && relatorioAtual.nome_tripulante_2 && <LinhaValor rotulo="Tripulante 2" valor={relatorioAtual.nome_tripulante_2} />}
+              </Grupo>
+            </aside>
+            <div className="min-w-0">
+              <Grupo titulo={`Despesas · ${despesas.length}`} rodape={podeEditar && despesas.length ? 'Toque para editar ou deslize para a esquerda para excluir.' : undefined}>
+                {!despesas.length ? <Vazio Icone={ReceiptText} titulo="Sua viagem começa aqui" texto={podeEditar ? 'Registre sua primeira despesa. Você pode adicionar o comprovante depois.' : 'Nenhuma despesa lançada.'} />
+                  : despesasEmOrdem(relatorioAtual).map(({ despesa, indice }) => {
+                    const anexo = anexoDoIndice(indice);
+                    const categoriaVisual = categoriaDe(despesa.categoria);
+                    const pendente = registroPendente(despesa.id) || sincronizando.has(relatorioAtual.id);
+                    return <LinhaDeslizavel key={despesa.id} habilitado={Boolean(podeEditar)} aoExcluir={() => setExcluindo(despesa)}>
+                      <div className="flex items-stretch">
+                        <button type="button" onClick={() => podeEditar && setFormulario({ despesa, anexo })} disabled={!podeEditar}
+                          aria-label={`Editar ${despesa.descricao || despesa.categoria}, ${moeda(despesa.valor)}`}
+                          className="premium-expense-main ios-row flex min-h-[80px] min-w-0 flex-1 items-center gap-3 py-4 pl-4 pr-2 text-left disabled:opacity-100">
+                          <IconeApp Icone={categoriaVisual.Icone} cor={categoriaVisual.cor} tamanho={36} />
+                          <span className="min-w-0 flex-1 basis-[130px]">
+                            <span className="block text-[16px] font-semibold break-words">{despesa.descricao || despesa.categoria}</span>
+                            <span className="c-l2 block text-[13px] break-words mt-1">{dataVisivel(despesa.data)} · {pagadorNome(despesa.pago_por, relatorioAtual)}</span>
+                            {pendente && <span className="mt-1 inline-flex items-center gap-1 text-[12px]" style={{ color: 'var(--warn)' }}><Clock3 className="h-3 w-3" />{navigator.onLine ? 'Pendente de sincronização' : 'Pendente de envio'}</span>}
+                          </span>
+                          <span className="text-[16px] font-semibold tabular-nums">{moeda(despesa.valor)}</span>
+                        </button>
+                        {anexo ? <button type="button" disabled={Boolean(abrindoAnexo)} onClick={() => void abrirComprovante(anexo)} aria-label={`Abrir comprovante de ${despesa.descricao || despesa.categoria}`} className="c-tint flex w-12 min-h-[48px] shrink-0 items-center justify-center">
+                          {abrindoAnexo === anexo.id ? <Loader2 className="h-5 w-5 animate-spin" /> : <Paperclip className="h-5 w-5" />}
+                        </button> : <span className="w-2 shrink-0" />}
+                      </div>
+                    </LinhaDeslizavel>;
+                  })}
+              </Grupo>
+            </div>
+          </div>
         </div>
 
-        {podeEditar && <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40" style={{ background: 'linear-gradient(to top, rgba(0,0,0,.96) 45%, rgba(0,0,0,0))', paddingTop: 32, paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
-          <div className="pointer-events-auto mx-auto max-w-xl px-4">
-            <button type="button" onClick={() => setFormulario({})} className="ios-press bg-tint flex h-[54px] w-full items-center justify-center gap-2 rounded-[16px] text-[17px] font-semibold text-white"><Plus className="h-5 w-5" strokeWidth={2.6} />Lançar despesa</button>
+        {podeEditar && <div className="premium-bottom-bar">
+          <div className="premium-shell">
+            <button type="button" onClick={() => setFormulario({})} className="premium-button w-full"><Plus className="h-5 w-5" />Lançar despesa</button>
           </div>
         </div>}
       </main>
 
-        : <main style={{ paddingBottom: 'calc(24px + env(safe-area-inset-bottom))' }}>
+        : <main className="premium-page">
           <BarraNavegacao rolou={rolou} titulo="Despesas"
-            direita={<BotaoCirculo rotulo="Atualizar despesas" onClick={() => void carregarDados(true)}><RefreshCw className={`h-4 w-4 ${atualizando ? 'animate-spin' : ''}`} /></BotaoCirculo>} />
-          <div className="mx-auto max-w-xl px-4">
-            <div className="pb-4 pt-1">
-              <h1 className="text-[34px] font-bold tracking-tight">Despesas</h1>
-              <p className="c-l2 mt-0.5 text-[15px]">Lance durante o voo; o financeiro finaliza depois.</p>
+            esquerda={<BotaoCirculo rotulo="Voltar ao início" onClick={() => navegar('/')}><ChevronLeft size={24} /></BotaoCirculo>}
+            direita={<BotaoCirculo rotulo="Atualizar despesas" disabled={atualizando || carregando} onClick={() => void carregarDados(true)}><RefreshCw className={`h-4 w-4 ${atualizando ? 'animate-spin' : ''}`} /></BotaoCirculo>} />
+          <div className="premium-shell">
+            <div className="premium-heading">
+              <p className="premium-eyebrow">Share Brasil · Tripulação</p><h1 className="premium-title">Despesas de viagem</h1>
+              <p className="premium-subtitle">Lance durante o voo; o financeiro finaliza depois.</p>
             </div>
 
             {avisoOffline && <div className="mb-4 flex items-start gap-2.5 rounded-[12px] p-3 text-[15px] leading-snug" style={{ background: 'rgba(255,159,10,.14)', color: '#FFB340' }}>
@@ -885,7 +829,7 @@ export default function DespesasViagem() {
 
             {aba === 'voos' ? (
               carregando ? <div className="space-y-3"><div className="bg-c h-[148px] animate-pulse rounded-[16px]" /><div className="bg-c h-[148px] animate-pulse rounded-[16px]" /></div>
-                : voos.length ? <div className="space-y-3">{voos.map((voo) => <article key={voo.solicitacao_id} className="bg-c rounded-[16px] p-4">
+                : voos.length ? <div className="premium-card-grid">{voos.map((voo) => <article key={voo.solicitacao_id} className="premium-flight-card">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-3">
                       <IconeApp Icone={Plane} cor="#0A84FF" tamanho={38} />
@@ -893,8 +837,8 @@ export default function DespesasViagem() {
                     </div>
                     <Selo status={voo.relatorio_status} />
                   </div>
-                  <p className="c-l2 mt-3 flex items-center gap-2 text-[13px]"><CalendarDays className="h-4 w-4 shrink-0" />{dataVisivel(voo.data_agendada)}<span className="truncate">· {voo.matricula || 'Aeronave'} · {voo.cotista_nome || 'Cotista'}</span></p>
-                  <button type="button" onClick={() => void iniciarOuContinuar(voo)} className="ios-press bg-tint mt-4 flex h-[48px] w-full items-center justify-center rounded-[14px] text-[17px] font-semibold text-white">{voo.relatorio_id ? 'Continuar relatório' : 'Iniciar relatório'}</button>
+                  <p className="c-l2 mt-3 flex flex-wrap items-center gap-2 text-[13px]"><CalendarDays className="h-4 w-4 shrink-0" />{dataVisivel(voo.data_agendada)}<span className="min-w-0 break-words">· {voo.matricula || 'Aeronave'} · {voo.cotista_nome || 'Cotista'}</span></p>
+                  <button type="button" disabled={Boolean(iniciandoId)} onClick={() => void iniciarOuContinuar(voo)} className="premium-button mt-4 w-full">{iniciandoId === voo.solicitacao_id ? <><Loader2 size={18} className="premium-spin" />Iniciando…</> : voo.relatorio_status === 'enviado_cliente' ? 'Ver relatório' : voo.relatorio_id ? 'Continuar relatório' : 'Iniciar relatório'}</button>
                 </article>)}</div>
                   : <div className="bg-c rounded-[16px]"><Vazio Icone={Plane} titulo="Nenhum voo escalado" texto="Voos com número de voo disponível aparecem aqui." /></div>
             ) : (
@@ -917,8 +861,8 @@ export default function DespesasViagem() {
 
       {visualizador && <Folha titulo={visualizador.nome} rotuloEsquerda={null} aoFechar={() => setVisualizador(null)} acaoDireita={{ rotulo: 'Concluir', onClick: (fechar) => fechar() }}>
         {visualizador.tipo === 'application/pdf'
-          ? <iframe src={visualizador.url} title="Comprovante em PDF" className="h-[75dvh] w-full rounded-[12px] bg-white" />
-          : <img src={visualizador.url} alt="Comprovante" className="mx-auto max-h-[78dvh] w-full rounded-[12px] object-contain" />}
+          ? <><a href={visualizador.url} target="_blank" rel="noreferrer" className="premium-attachment mb-4">Abrir PDF em outra aba</a><iframe src={visualizador.url} title="Comprovante em PDF" className="premium-preview-pdf" /></>
+          : <img src={visualizador.url} alt="Comprovante" className="premium-preview-image" />}
       </Folha>}
 
       {excluindo && <FolhaAcoes titulo="Excluir esta despesa?" mensagem={`${excluindo.descricao || excluindo.categoria} · ${moeda(excluindo.valor)}`}

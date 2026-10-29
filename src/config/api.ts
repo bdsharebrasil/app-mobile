@@ -4,15 +4,10 @@
  */
 
 const getBackendUrl = (): string => {
-  if (import.meta.env.VITE_BACKEND_URL) {
-    return import.meta.env.VITE_BACKEND_URL;
-  }
-  // Fallback para desenvolvimento
   if (import.meta.env.DEV) {
-    return 'http://localhost:3001';
+    return '';
   }
-  // Produção
-  return 'https://api-workers.sharebrasil.workers.dev';
+  return import.meta.env.VITE_BACKEND_URL || 'https://api-workers.sharebrasil.workers.dev';
 };
 
 const BACKEND_URL = getBackendUrl();

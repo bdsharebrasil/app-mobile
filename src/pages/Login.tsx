@@ -135,10 +135,10 @@ export default function Login() {
       <InstallPrompt />
       <style>{`
         @keyframes login-flight {
-          0% { opacity: 0; transform: translate3d(-25vw, var(--flight-y), 0) rotate(90deg) scale(.8); }
+          0% { opacity: 0; transform: translate3d(-25vw, var(--flight-y), 0) rotate(45deg) scale(.8); }
           15% { opacity: var(--flight-opacity); }
           85% { opacity: var(--flight-opacity); }
-          100% { opacity: 0; transform: translate3d(125vw, var(--flight-y), 0) rotate(90deg) scale(1); }
+          100% { opacity: 0; transform: translate3d(125vw, var(--flight-y), 0) rotate(45deg) scale(1); }
         }
         .login-flight { animation: login-flight var(--flight-duration) linear var(--flight-delay) infinite; }
       `}</style>
@@ -147,7 +147,7 @@ export default function Login() {
         className="pointer-events-none absolute inset-0 z-0 bg-no-repeat bg-center opacity-20 mix-blend-screen"
         style={{
           backgroundImage: "url('https://upload.wikimedia.org/wikipedia/commons/8/80/World_map_-_low_resolution.svg')",
-          backgroundSize: "90% auto",
+          backgroundSize: "cover",
           filter: "invert(70%) sepia(100%) saturate(300%) hue-rotate(150deg) brightness(120%) drop-shadow(0 0 10px rgba(57,208,255,0.2))",
           maskImage: "radial-gradient(circle at center, black 30%, transparent 80%)",
           WebkitMaskImage: "radial-gradient(circle at center, black 30%, transparent 80%)",
@@ -174,14 +174,14 @@ export default function Login() {
         ))}
       </div>
 
-      <section className="relative z-20 w-full max-w-[416px] rounded-[28px] border border-white/10 bg-[#061223]/75 px-6 py-8 shadow-[0_40px_80px_-20px_rgba(0,10,20,.85)] backdrop-blur-xl sm:rounded-[32px] sm:px-8 sm:py-10">
-        <div className="text-center">
-          <img src="/logoshare.branco.png" alt="Logo Share Brasil" className="mx-auto h-20 w-auto object-contain" />
-          <p className="mt-1.5 text-sm text-[#94a3b8]">Acesso ao Portal do Tripulante</p>
+      <section className="relative z-20 -my-[13px] w-full max-w-[416px] rounded-[28px] border border-white/10 bg-[#061223]/75 px-6 py-4 shadow-[0_40px_80px_-20px_rgba(0,10,20,.85)] backdrop-blur-xl sm:rounded-[32px] sm:px-8 sm:py-10">
+        <div className="py-0 text-center">
+          <img src="/logoshare.branco.png" alt="Logo Share Brasil" className="mx-auto h-20 w-auto object-contain py-px" />
+          <p className="-mt-3.5 py-px text-sm text-[#94a3b8]">Acesso ao Portal do Tripulante</p>
         </div>
 
-        <form className="mt-7 space-y-5" onSubmit={handleSubmit}>
-          <div className="space-y-2">
+        <form className="mt-[11px] space-y-5 py-0" onSubmit={handleSubmit}>
+          <div className="-my-1.5 space-y-2 py-0">
             <Label htmlFor="username" className="ml-1 text-sm font-medium text-[#cbd5e1]">
               LOGIN
             </Label>

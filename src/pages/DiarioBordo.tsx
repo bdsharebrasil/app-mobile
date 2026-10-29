@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { AlertTriangle, ArrowLeft, CalendarDays, ChevronLeft, ChevronRight, Clock3, MapPin, Plane, Plus, RefreshCw } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, CalendarDays, ChevronLeft, ChevronRight, Clock3, MapPin, Plus, RefreshCw } from 'lucide-react';
 import { MobileLayout } from '@/components/mobile/MobileLayout';
 import { MobileDiarioAircraftSelector } from '@/components/diario/MobileDiarioAircraftSelector';
 import { MobileDiarioEntryForm } from '@/components/diario/MobileDiarioEntryForm';
@@ -81,7 +81,7 @@ const DiarioBordo = () => {
       {step === 'select-aircraft' && <MobileDiarioAircraftSelector onSelect={handleSelectAircraft} onBack={() => navigate('/')} />}
       {step === 'aircraft-logbook' && selectedAircraftId && (
         <main className="min-h-[calc(100dvh-5rem)] bg-[#071326] px-4 pb-28 pt-4 text-white sm:px-6">
-          <div className="mx-auto max-w-2xl">
+          <div className="mx-auto my-[26px] max-w-2xl px-[17px]">
             <header className="mb-4 flex items-center gap-3">
               <button type="button" onClick={resetAircraft} aria-label="Voltar para aeronaves" className="flex h-11 w-11 items-center justify-center rounded-xl text-slate-300 hover:bg-white/[0.06]"><ArrowLeft className="h-5 w-5" /></button>
               <div className="min-w-0 flex-1"><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-200">Diário de bordo</p><h1 className="truncate text-xl font-bold">{selectedAircraftReg}</h1></div>
@@ -91,7 +91,7 @@ const DiarioBordo = () => {
             <section className="mb-4 overflow-hidden rounded-3xl border border-white/10 bg-[#101e33]">
               {selectedAircraftImage && <img src={selectedAircraftImage} alt={`Aeronave ${selectedAircraftReg}`} className="h-36 w-full object-cover" />}
               <div className="p-4">
-                <div className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.17em] text-sky-300"><Plane className="h-4 w-4" /> Aeronave</div>
+                <div className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.17em] text-sky-300">Aeronave</div>
                 <div className="grid grid-cols-2 gap-2.5">
                   <div className="rounded-xl border border-white/[0.08] bg-[#0a1729] p-3"><p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Matrícula</p><p className="mt-1 truncate text-sm font-bold">{aircraft?.matricula_registro || selectedAircraftReg}</p></div>
                   <div className="rounded-xl border border-white/[0.08] bg-[#0a1729] p-3"><p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Modelo</p><p className="mt-1 truncate text-sm font-bold">{aircraft?.modelo || '—'}</p></div>

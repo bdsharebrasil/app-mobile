@@ -46,7 +46,6 @@ const getCategoryIcon = (category: string) => {
 
 interface EmployeeDocumentsManagerProps {
   userId: string;
-  userName: string;
   isAdmin?: boolean;
   isFinanceiroMaster?: boolean;
   isGestorMaster?: boolean;
@@ -58,7 +57,6 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 export function EmployeeDocumentsManager({
   userId,
-  userName,
   isAdmin = false,
   isFinanceiroMaster = false,
   isGestorMaster = false,
@@ -238,13 +236,12 @@ export function EmployeeDocumentsManager({
       {/* Header Premium Nativo */}
       <div className="flex flex-col gap-1 px-1">
         <h2 className="text-2xl font-semibold tracking-tight text-foreground">Documentos</h2>
-        <p className="text-sm text-muted-foreground">Repositório digital de {userName.split(' ')[0]}</p>
       </div>
 
       {canEdit && (
         <Button 
           onClick={() => setUploadDialogOpen(true)} 
-          className="w-full rounded-2xl h-14 text-base font-medium shadow-sm hover:shadow-md transition-all gap-2"
+          className="mt-[14px] w-full rounded-[89px] h-14 px-[54px] gap-[14px] text-base font-[200] leading-[15px] min-h-0 overflow-hidden bg-[#0E2F6E] text-[#D3DAEE] shadow-sm hover:shadow-md hover:bg-[#0E2F6E] transition-all"
         >
           <Plus className="h-5 w-5" strokeWidth={2} />
           Adicionar Novo Documento
@@ -252,7 +249,7 @@ export function EmployeeDocumentsManager({
       )}
 
       {/* Horizontal Scroll Categories (Estilo iOS/Android Premium) */}
-      <div className="flex overflow-x-auto no-scrollbar pb-2 -mx-4 px-4 gap-2 snap-x">
+      <div className="flex overflow-x-auto no-scrollbar pb-2 pl-[17px] -ml-[11px] -mr-[20px] gap-[5px] snap-x">
         <button
           onClick={() => setActiveFilter("Todos")}
           className={`snap-start flex-shrink-0 px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-200 ${
