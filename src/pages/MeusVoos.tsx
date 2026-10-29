@@ -285,7 +285,7 @@ export default function MeusVoos() {
   return (
     <MobileLayout>
       <main className="min-h-[calc(100dvh-5.5rem)] bg-[#071326] px-4 pb-28 pt-5 text-white sm:px-6">
-        <div className="mx-auto max-w-2xl">
+        <div className="mx-auto mb-[26px] mt-[26px] max-w-2xl">
           <header className="mb-5 flex items-start justify-between gap-4">
             <div><p className="mb-1 text-xs font-semibold uppercase tracking-[0.22em] text-emerald-300">Área do tripulante</p><h1 className="text-2xl font-bold tracking-tight">Meus Voos</h1><p className="mt-1 text-sm text-slate-400">{crewName ? `Olá, ${crewName.split(" ")[0]}. Acompanhe sua programação.` : "Acompanhe sua programação e histórico."}</p></div>
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-emerald-300/20 bg-emerald-400/10 text-emerald-300"><Plane className="h-5 w-5" /></div>
