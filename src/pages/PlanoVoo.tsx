@@ -25,9 +25,6 @@ import MeteorologiaMobile from '@/components/plano-voo/MeteorologiaMobile';
 import InformacoesAerodromoMobile from '@/components/plano-voo/InformacoesAerodromoMobile';
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import useHandleStreamResponse from '@/utils/useHandleStreamResponse';
-import KeyboardAvoidingAnimatedView from '@/components/KeyboardAvoidingAnimatedView';
-import GlassContainer from '@/components/GlassContainer';
 interface FlightFormData {
   origin: string;
   destination: string;

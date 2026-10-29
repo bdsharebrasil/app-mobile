@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -29,16 +28,6 @@ import Notificacoes from "./pages/Notificacoes";
 const queryClient = new QueryClient();
 
 const App = () => {
-  useEffect(() => {
-    import("@/lib/pdfWorkerConfig")
-      .then(({ configurePDFWorker }) => {
-        configurePDFWorker();
-      })
-      .catch((err) => {
-        console.warn('Aviso: Não foi possível configurar o worker de PDF.', err);
-      });
-  }, []);
-
   const renderProtected = (element: JSX.Element) => (
     <ProtectedRoute>{element}</ProtectedRoute>
   );
