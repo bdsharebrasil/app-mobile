@@ -190,15 +190,15 @@ export default function MeusVoos() {
               <div className="rounded-2xl border border-rose-300/20 bg-rose-400/[0.07] p-5 text-center"><p className="text-sm text-rose-100">Não foi possível abrir este voo.</p><button onClick={() => void detailQuery.refetch()} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2 text-sm"><RefreshCw className="h-4 w-4" /> Tentar novamente</button></div>
             ) : (
               <>
-                <section className="relative overflow-hidden rounded-[28px] border border-emerald-200/15 bg-gradient-to-br from-[#103b3b] via-[#122b3c] to-[#101d34] p-5 shadow-xl shadow-black/20 sm:p-7">
-                  <div className="absolute -right-8 -top-8 h-36 w-36 rounded-full bg-emerald-300/10 blur-2xl" />
-                  <div className="relative">
-                    <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-200"><Plane className="h-4 w-4" /> Detalhes do voo</div>
-                    <div className="mt-4 flex flex-wrap items-end justify-between gap-3">
-                      <div><h1 className="text-3xl font-bold tracking-tight">{flight.numero_voo || "Voo"}</h1><p className="mt-1 text-sm text-slate-300">{aircraftLabel(flight)}</p></div>
+                <section className="relative mx-[22px] overflow-hidden rounded-[28px] border border-[rgba(9,78,51,0.86)] bg-gradient-to-br from-[#103b3b] via-[#122b3c] to-[#101d34] px-5 py-[21px] shadow-xl shadow-black/20 sm:px-7 sm:py-[21px]">
+                  <div className="absolute -right-8 -top-8 h-36 w-36 rounded-full bg-[rgba(6,56,35,0.43)] blur-2xl" />
+                  <div className="relative -my-[18px] py-0">
+                    <div className="-mx-6 my-[6px] flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-200">Detalhes do voo</div>
+                    <div className="-mt-px flex flex-wrap items-end justify-between gap-3 text-[14px]">
+                      <div><h1 className="text-[24px] font-bold tracking-tight">{flight.numero_voo || "Voo"}</h1><p className="mt-1 text-sm text-slate-300">{aircraftLabel(flight)}</p></div>
                       <span className="rounded-full border border-white/10 bg-white/[0.07] px-3 py-1.5 text-xs font-semibold text-white">{statusLabel(flight.status)}</span>
                     </div>
-                    <div className="mt-5 flex items-center gap-3 rounded-2xl border border-white/10 bg-black/10 p-3">
+                    <div className="ml-[16px] mr-[21px] mt-[7px] flex items-center gap-3 rounded-2xl border border-white/10 bg-black/10 px-[43px] py-[7px]">
                       <span className="min-w-0 flex-1"><span className="block text-[10px] uppercase tracking-wider text-slate-400">Origem</span><span className="mt-1 block truncate text-lg font-bold">{flight.origem || "—"}</span></span>
                       <Plane className="h-4 w-4 shrink-0 text-emerald-300" />
                       <span className="min-w-0 flex-1 text-right"><span className="block text-[10px] uppercase tracking-wider text-slate-400">Destino</span><span className="mt-1 block truncate text-lg font-bold">{flight.destino || "—"}</span></span>
