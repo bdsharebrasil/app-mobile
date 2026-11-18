@@ -1,0 +1,12 @@
+.date-picker-popover { transform-origin: var(--trigger-anchor-point); }
+.date-picker-popover[data-exiting] { animation: date-picker-out var(--mk-dur-exit) var(--mk-ease-in); }
+@keyframes date-picker-out { to { opacity: 0; } }
+.date-picker-cell { min-width: 36px; min-height: 40px; display: grid; place-items: center; border-radius: var(--mk-r-control); cursor: pointer; }
+.date-picker-day { display: grid; place-items: center; width: 32px; height: 32px; border-radius: var(--mk-r-pill); }
+.date-picker-cell[data-selected] .date-picker-day { background: var(--mk-accent); color: var(--mk-accent-fg); }
+.date-picker-cell[data-unavailable] { text-decoration: line-through; color: var(--mk-text-muted); }
+.date-picker-cell[data-outside-month] { visibility: hidden; }
+.date-picker-cell[data-focus-visible] { outline: 2px solid var(--mk-focus); outline-offset: -2px; }
+.date-picker-popover th { font-size: 14px; font-weight: 500; color: var(--mk-text-muted); }
+@media (pointer: coarse) { .date-picker-cell { min-height: 44px; } }
+@media (prefers-reduced-motion: reduce) { .date-picker-popover[data-exiting] { animation: none; } }

@@ -1,0 +1,120 @@
+/*
+ * Floating label skin. The label floats from CSS state alone, so it
+ * is right for typed, prefilled, programmatic and browser-autofilled values without waiting for
+ * a React event: focus, a nonempty value (:not(:placeholder-shown), the input keeps a " "
+ * placeholder) or :autofill. Rise and shrink 180 ms ease-out; return 120 ms ease-in, and only
+ * when the field is empty and blurred. Durations mirror ./timing.ts. All transitions live inside
+ * prefers-reduced-motion: no-preference, so reduced motion places the label at once.
+ */
+.mk-float {
+  position: relative;
+}
+
+.mk-float-input {
+  display: block;
+  width: 100%;
+  height: 56px;
+  padding: 22px 44px 6px 12px;
+  border: 1px solid var(--mk-control-border);
+  border-radius: var(--mk-r-control);
+  background: var(--mk-surface);
+  color: var(--mk-text);
+  font: inherit;
+  font-size: 16px;
+  line-height: 24px;
+}
+
+.mk-float-input::placeholder {
+  color: transparent;
+}
+
+.mk-float-input:focus,
+.mk-float-input[aria-invalid="true"] {
+  border-color: var(--mk-accent);
+  box-shadow: inset 0 0 0 1px var(--mk-accent);
+}
+
+.mk-float-label {
+  position: absolute;
+  top: 16px;
+  left: 13px;
+  max-width: calc(100% - 56px);
+  overflow: hidden;
+  color: var(--mk-text-muted);
+  font-size: 16px;
+  line-height: 24px;
+  pointer-events: none;
+  text-overflow: ellipsis;
+  transform-origin: left top;
+  white-space: nowrap;
+}
+
+/* Floated: 12 px above the value. Separate rules so a browser without :autofill keeps the rest. */
+.mk-float:has(.mk-float-input:focus) .mk-float-label,
+.mk-float:has(.mk-float-input:not(:placeholder-shown)) .mk-float-label {
+  color: var(--mk-text);
+  transform: translateY(-10px) scale(0.75);
+}
+
+.mk-float:has(.mk-float-input:autofill) .mk-float-label {
+  color: var(--mk-text);
+  transform: translateY(-10px) scale(0.75);
+}
+
+.mk-float:has(.mk-float-input:-webkit-autofill) .mk-float-label {
+  color: var(--mk-text);
+  transform: translateY(-10px) scale(0.75);
+}
+
+.mk-float-clear {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 0;
+  border-radius: var(--mk-r-control);
+  background: transparent;
+  color: var(--mk-text-muted);
+  cursor: pointer;
+}
+
+.mk-float-clear:hover {
+  color: var(--mk-text);
+}
+
+.mk-float-clear > span {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--mk-secondary);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .mk-float-input {
+    transition:
+      border-color 120ms var(--mk-ease-in),
+      box-shadow 120ms var(--mk-ease-in);
+  }
+
+  .mk-float-label {
+    transition:
+      transform 120ms var(--mk-ease-in),
+      color 120ms var(--mk-ease-in);
+  }
+
+  .mk-float-input:focus {
+    transition-duration: 180ms;
+    transition-timing-function: var(--mk-ease-out);
+  }
+
+  .mk-float:has(.mk-float-input:focus) .mk-float-label,
+  .mk-float:has(.mk-float-input:not(:placeholder-shown)) .mk-float-label {
+    transition-duration: 180ms;
+    transition-timing-function: var(--mk-ease-out);
+  }
+}

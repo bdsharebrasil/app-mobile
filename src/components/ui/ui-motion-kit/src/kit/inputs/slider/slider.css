@@ -1,0 +1,92 @@
+/*
+ * Slider skin. Base UI positions the thumb (inset-inline-start) and sizes the
+ * indicator; this file adds the bubble and the motion. Bubble in 180 ms ease-out, out 120 ms
+ * ease-in. Keyboard value changes ease over 180 ms (the component sets data-keyboard on the root
+ * for those); pointer drags and track presses follow the pointer directly. Durations mirror
+ * ./timing.ts. All transitions live inside prefers-reduced-motion: no-preference, so reduced
+ * motion changes value, geometry and bubble at once.
+ */
+.mk-slider-thumb {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--mk-accent);
+  border-radius: 50%;
+  background: var(--mk-surface);
+  box-shadow: 0 1px 2px rgb(10 12 16 / 0.2);
+  cursor: grab;
+}
+
+.mk-slider-thumb[data-dragging] {
+  cursor: grabbing;
+}
+
+/* The range input inside the thumb is visually hidden, so the focus ring is drawn on the thumb. */
+.mk-slider-thumb:has(:focus-visible) {
+  outline: 2px solid var(--mk-focus);
+  outline-offset: 2px;
+}
+
+.mk-slider-thumb[data-disabled] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.mk-slider-bubble {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: var(--mk-accent);
+  color: var(--mk-accent-fg);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 22px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  opacity: 0;
+  pointer-events: none;
+  translate: -50% 4px;
+}
+
+.mk-slider-bubble::after {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  border: 5px solid transparent;
+  border-top-color: var(--mk-accent);
+  content: "";
+  translate: -50% 0;
+}
+
+.mk-slider-thumb:hover .mk-slider-bubble,
+.mk-slider-thumb[data-dragging] .mk-slider-bubble,
+.mk-slider-thumb:has(:focus-visible) .mk-slider-bubble {
+  opacity: 1;
+  translate: -50% 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .mk-slider-bubble {
+    transition:
+      opacity 120ms var(--mk-ease-in),
+      translate 120ms var(--mk-ease-in);
+  }
+
+  .mk-slider-thumb:hover .mk-slider-bubble,
+  .mk-slider-thumb[data-dragging] .mk-slider-bubble,
+  .mk-slider-thumb:has(:focus-visible) .mk-slider-bubble {
+    transition-duration: 180ms;
+    transition-timing-function: var(--mk-ease-out);
+  }
+
+  .mk-slider[data-keyboard] .mk-slider-thumb {
+    transition: inset-inline-start 180ms var(--mk-ease-out);
+  }
+
+  .mk-slider[data-keyboard] .mk-slider-indicator {
+    transition:
+      inset-inline-start 180ms var(--mk-ease-out),
+      width 180ms var(--mk-ease-out);
+  }
+}
