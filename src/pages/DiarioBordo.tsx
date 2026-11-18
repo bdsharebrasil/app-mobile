@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { AlertTriangle, ArrowLeft, CalendarDays, ChevronLeft, ChevronRight, Clock3, MapPin, Plus, RefreshCw } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, CalendarDays, ChevronLeft, ChevronRight, Clock3, MapPin, Plane, Plus, RefreshCw } from 'lucide-react';
 import { MobileLayout } from '@/components/mobile/MobileLayout';
 import { MobileDiarioAircraftSelector } from '@/components/diario/MobileDiarioAircraftSelector';
 import { MobileDiarioEntryForm } from '@/components/diario/MobileDiarioEntryForm';

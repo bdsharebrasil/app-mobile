@@ -612,7 +612,7 @@ export default function DespesasViagem() {
 
   const abrirRelatorio = useCallback(async (relatorio: RelatorioViagemLocal) => {
     if (['aguardando_aprovacao', 'ajuste_concluido', 'ajuste_necessario'].includes(relatorio.status)) {
-      navegar('/financeiro/viagem');
+      navegar('/financeiro/relatorios-viagem');
       return;
     }
     setRelatorioAtual({ ...relatorio, despesas: despesasDaLista(relatorio.despesas, relatorio.id) });
@@ -849,7 +849,7 @@ export default function DespesasViagem() {
                 <GrupoRelatorios titulo="Concluídos" itens={concluidos} aoAbrir={abrirRelatorioDeCartao} />
                 {!relatorios.length && <div className="bg-c mb-6 rounded-[16px]"><Vazio Icone={CircleDollarSign} titulo="Nenhum relatório ainda" texto="Inicie um relatório a partir de um dos seus voos." /></div>}
                 <Grupo>
-                  <button type="button" onClick={() => navegar('/financeiro/viagem')} className="ios-row flex min-h-[50px] w-full items-center justify-between px-4 text-left text-[17px]"><span className="c-tint">Aprovações existentes</span><ChevronRight className="c-l3 h-4 w-4" strokeWidth={2.6} /></button>
+                  <button type="button" onClick={() => navegar('/financeiro/relatorios-viagem')} className="ios-row flex min-h-[50px] w-full items-center justify-between px-4 text-left text-[17px]"><span className="c-tint">Aprovações existentes</span><ChevronRight className="c-l3 h-4 w-4" strokeWidth={2.6} /></button>
                 </Grupo>
               </>
             )}

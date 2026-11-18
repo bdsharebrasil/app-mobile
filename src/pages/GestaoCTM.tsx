@@ -482,14 +482,14 @@ export default function GestaoCTM() {
                 </div>
 
                 {/* Resumo */}
-                <div className="ml-[145px] mr-[134px] flex items-center justify-between gap-[5px] rounded-[20px] bg-[#556163] px-[65px] py-3.5 shadow-[0_0_0_0.5px_rgba(0,0,0,0.06)]">
-                  <div className="px-0">
+                <div className="mx-auto flex w-full max-w-md items-center justify-around gap-4 rounded-[20px] bg-[#556163] px-6 py-3.5 shadow-[0_0_0_0.5px_rgba(0,0,0,0.06)]">
+                  <div className="text-center">
                     <p className="text-[13px] text-white">Total de reports</p>
                     <p className="text-[28px] font-bold leading-none tracking-tight text-[#0D2138]">
                       {reports.length}
                     </p>
                   </div>
-                  <div className="px-[18px] text-right">
+                  <div className="text-center">
                     <p className="text-[13px] text-white">Em aberto</p>
                     <p className="text-[28px] font-bold leading-none tracking-tight text-[#FF9500]">
                       {reports.filter((r) => r.status !== "resolved").length}

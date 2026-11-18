@@ -53,7 +53,7 @@ const NAV_ITEMS: NavigationItem[] = [
     id: "payroll",
     title: "Folha de Pagamento",
     icon: DollarSign,
-    route: "/financeiro/viagem",
+    route: "/financeiro/folha",
     color: "green",
   },
   {
@@ -161,7 +161,7 @@ export function MobileDashboard() {
           </motion.div>
 
           {/* Navigation Grid */}
-          <div className="grid grid-cols-2 gap-[35px] mb-8 px-[85px]">
+          <div className="grid grid-cols-2 grid-rows-4 grid-flow-col gap-3 mb-8">
             {filteredItems.map((item, index) => {
               const style = colorStyles[item.color];
               const needsTimes = item.id === "my-flights" && activeFlightCount > 0;
@@ -182,19 +182,19 @@ export function MobileDashboard() {
                   whileHover={{ scale: 1.05 }}
                 >
                   <div
-                    className={`${style.bg} relative ${needsTimes ? "h-36 ring-2 ring-amber-300 shadow-amber-300/20" : "h-32"} rounded-3xl flex flex-col items-center justify-center cursor-pointer transition-all duration-300 shadow-lg hover:shadow-xl`}
+                    className={`${style.bg} relative aspect-square w-4/5 mx-auto ${needsTimes ? "ring-2 ring-amber-300 shadow-amber-300/20" : ""} rounded-[22%] flex flex-col items-center justify-center gap-1.5 p-2 cursor-pointer transition-all duration-300 shadow-lg hover:shadow-xl`}
                   >
-                    {needsTimes && <span className="absolute right-3 top-3 inline-flex h-6 min-w-6 items-center justify-center gap-1 rounded-full bg-amber-300 px-1.5 text-[10px] font-bold text-[#1a2844]"><Clock3 className="h-3 w-3" />{activeFlightCount}</span>}
+                    {needsTimes && <span className="absolute right-2 top-2 inline-flex h-5 min-w-5 items-center justify-center gap-0.5 rounded-full bg-amber-300 px-1 text-[10px] font-bold text-[#1a2844]"><Clock3 className="h-2.5 w-2.5" />{activeFlightCount}</span>}
                     <item.icon
-                      className={`w-12 h-12 ${needsTimes ? "text-amber-200" : style.icon} mb-2`}
+                      className={`w-9 h-9 ${needsTimes ? "text-amber-200" : style.icon}`}
                       strokeWidth={1.5}
                     />
                     <span
-                      className={`${style.text} text-xs font-semibold text-center px-2 line-clamp-2`}
+                      className={`${style.text} text-[11px] leading-tight font-semibold text-center line-clamp-2`}
                     >
                       {item.title}
                     </span>
-                    {needsTimes && <span className="mt-1 px-2 text-center text-[10px] font-bold leading-tight text-amber-200">Complete horários</span>}
+                    {needsTimes && <span className="text-center text-[9px] font-bold leading-tight text-amber-200">Complete horários</span>}
                   </div>
                 </motion.button>
               );
