@@ -1,32 +1,36 @@
-import { useNavigate } from "react-router-dom";
-import { Home, Plane, Wrench, BarChart3, User } from "lucide-react";
-import { ExpandableTabs, type Tab } from "@/components/ui/expandable-tabs";
+import { NavLink, useLocation } from "react-router-dom";
+import { BarChart3, Home, Plane, User, Wrench } from "lucide-react";
 
-const navItems: Tab[] = [
-  { title: "Home", icon: Home, href: "/" },
-  { title: "Voos", icon: Plane, href: "/diario-bordo" },
-  { title: "Manutenções", icon: Wrench, href: "/manutencao/ctm" },
-  { title: "Despesas de Viagem", icon: BarChart3, href: "/financeiro/despesas-viagem" },
-  { title: "Perfil", icon: User, href: "/perfil" },
+const navItems = [
+  { title: "Início", ariaLabel: "Página inicial", icon: Home, href: "/", paths: ["/"] },
+  { title: "Voos", ariaLabel: "Diário de bordo e voos", icon: Plane, href: "/diario-bordo", paths: ["/diario-bordo", "/meus-voos", "/plano-voo"] },
+  { title: "Manut.", ariaLabel: "Manutenção de aeronaves", icon: Wrench, href: "/manutencao/ctm", paths: ["/manutencao"] },
+  { title: "Despesas", ariaLabel: "Despesas de viagem", icon: BarChart3, href: "/financeiro/despesas-viagem", paths: ["/financeiro"] },
+  { title: "Perfil", ariaLabel: "Meu perfil", icon: User, href: "/perfil", paths: ["/perfil"] },
 ];
 
 export const MobileTabBar = () => {
-  const navigate = useNavigate();
-
-  const handleNavigate = (index: number | null) => {
-    if (index !== null) {
-      navigate(navItems[index].href);
-    }
-  };
-
+  const { pathname } = useLocation();
   return (
-    <div className="fixed bottom-4 left-4 right-4 md:bottom-6 md:left-1/2 md:-translate-x-1/2 md:max-w-lg z-50">
-      <ExpandableTabs
-        tabs={navItems}
-        className="bg-[#0d1e38]/90 backdrop-blur-md border border-white/20 shadow-xl w-full"
-        activeColor="text-[#0abf53]"
-        onChange={handleNavigate}
-      />
+  <nav aria-label="Navegação principal" className="mobile-tab-bar">
+    <div className="mobile-tab-bar__inner">
+      {navItems.map(({ title, ariaLabel, icon: Icon, href, paths }) => {
+        const isActive = paths.some((path) => path === "/" ? pathname === path : pathname === path || pathname.startsWith(`${path}/`));
+        return (
+        <NavLink
+          key={href}
+          to={href}
+          aria-label={ariaLabel}
+          aria-current={isActive ? "page" : undefined}
+          className={`mobile-tab-bar__item${isActive ? " is-active" : ""}`}
+          end={href === "/"}
+        >
+          <Icon aria-hidden="true" className="mobile-tab-bar__icon" strokeWidth={2} />
+          <span className="mobile-tab-bar__label">{title}</span>
+        </NavLink>
+        );
+      })}
     </div>
+  </nav>
   );
 };
