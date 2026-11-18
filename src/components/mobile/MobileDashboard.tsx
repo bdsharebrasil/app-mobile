@@ -53,7 +53,7 @@ const NAV_ITEMS: NavigationItem[] = [
     id: "payroll",
     title: "Folha de Pagamento",
     icon: DollarSign,
-    route: "/financeiro/viagem",
+    route: "/financeiro/folha",
     color: "green",
   },
   {
