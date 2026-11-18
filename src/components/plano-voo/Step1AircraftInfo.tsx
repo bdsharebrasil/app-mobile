@@ -18,7 +18,7 @@ import {
   Info,
   Gauge,
 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { apiClient } from '@/lib/api-client';
 import { calculateDistance, calculateMagneticHeading } from '@/lib/aviation';
 import {
   getSuggestedSpeedCode,
@@ -73,30 +73,24 @@ export function Step1AircraftInfo({ formData, updateFormData, onViewMap }: Step1
 
   const fetchData = async () => {
     try {
-      const [aircraftRes, aerodromesRes] = await Promise.all([
-        supabase
-          .from('aircraft')
-          .select('id, registration, model, manufacturer')
-          .eq('status', 'Ativa'),
-        supabase.from('aerodromes').select('*').order('designativo'),
+      const [aircraftResponse, aerodromeResponse] = await Promise.all([
+        apiClient.get<{ aeronaves: Array<Record<string, any>> }>('/api/sharebrasil/aeronaves'),
+        apiClient.get<{ aerodromos: Array<{ id: string; name: string; coordenadas: string | null }> }>('/api/aerodromos'),
       ]);
-
-      if (aircraftRes.data) {
-        setAircraft(aircraftRes.data);
-      }
-      if (aerodromesRes.data) {
-        setAerodromes(aerodromesRes.data);
-        const options: AutocompleteOption[] = aerodromesRes.data.map((a) => ({
-          id: a.designativo,
-          label: `${a.designativo} - ${a.name}`,
-        }));
-        setAerodromesOptions(options);
-      }
+      const aircraftRows: Aircraft[] = (aircraftResponse.aeronaves || []).map((item) => ({
+        id: item.id, registration: item.matricula_registro || item.registration || '',
+        model: item.modelo || item.model || '', manufacturer: item.fabricante || item.manufacturer || '',
+      }));
+      const aerodromeRows: Aerodrome[] = (aerodromeResponse.aerodromos || []).map((item) => ({
+        id: item.id, designativo: item.id, name: item.name, coordenadas: item.coordenadas,
+      }));
+      setAircraft(aircraftRows);
+      setAerodromes(aerodromeRows);
+      setAerodromesOptions(aerodromeRows.map((a) => ({ id: a.designativo, label: `${a.designativo} - ${a.name}` })));
     } catch (error) {
-      console.error('Erro ao carregar dados:', error);
+      console.error('Erro ao carregar dados pelo Worker:', error);
     }
   };
-
   const parseCoordinates = (
     coordStr: string | null
   ): { lat: number; lon: number } | null => {

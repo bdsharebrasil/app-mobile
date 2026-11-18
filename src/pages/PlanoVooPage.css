@@ -9,8 +9,8 @@
   --pv-line: #2b3039;
   --pv-text: #f3f4f7;
   --pv-muted: #a0a8b6;
-  --pv-blue: #78b4ff;
-  --pv-primary: #246ed4;
+  --pv-blue: #a8df72;
+  --pv-primary: #6b9f40;
   --pv-radius: 22px;
   color: var(--pv-text);
   color-scheme: dark;
@@ -304,3 +304,19 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Acabamento mobile-native focado apenas nas telas de voo. */
+.pv-page { --pv-accent: #a8df72; --pv-accent-ink: #14230f; --pv-top-offset: max(20px, env(safe-area-inset-top)); }
+.pv-page .pv-button--primary { background: var(--pv-accent); color: var(--pv-accent-ink); border-color: transparent; }
+.pv-page .pv-button--primary:hover { background: #b8eb83; }
+.pv-page .pv-modules button[aria-selected='true'] svg, .pv-page .pv-segments button[aria-selected='true'] { color: var(--pv-accent); }
+.pv-page .pv-section, .pv-page .pv-saved-card { border-radius: 22px; box-shadow: 0 12px 32px rgb(0 0 0 / 14%); }
+@supports (padding: max(0px)) { .pv-page { padding-top: max(12px, env(safe-area-inset-top)); } }
+
+/* Estilo de cartão mobile inspirado na referência; escopo exclusivo do plano de voo. */
+.pv-app { --pv-top-offset: max(24px, env(safe-area-inset-top, 0px)); }
+
+.pv-section, .pv-saved-card { border-radius: 22px; box-shadow: 0 12px 32px rgb(0 0 0 / 14%); }
+.pv-app .pv-button--primary { background: #a8df72; border-color: transparent; color: #14230f; }
+.pv-app .pv-button--primary:hover { background: #b8eb83; }
+.pv-app .pv-modules button[aria-selected='true'] svg { color: #a8df72; }

@@ -5,24 +5,10 @@ import { ArrowLeft, ChevronRight, FileText, Plane, RefreshCw, Loader2, Wallet } 
 import { MobileLayout } from '@/components/mobile/MobileLayout';
 import '@/components/mobile/premium-mobile.css';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
-
-interface SalaryPayment {
-  id: string;
-  created_at: string | null;
-  data_pagamento: string | null;
-  base_salary_holerite: number | null;
-  horas_voo: string | null;
-  ferias: number | null;
-  decimo_terceiro_parcela1: number | null;
-  decimo_terceiro_parcela2: number | null;
-  benefit: string | null;
-  banco: string | null;
-  holerite_url: string | null;
-  comprovante_url: string | null;
-  obs: string | null;
-  obs2: string | null;
-}
+import { apiClient } from '@/lib/api-client';
+import { normalizePayrollRows, type SalaryPayment, type WorkerPayrollRow } from '@/lib/payroll';
+import { openWorkerFile } from '@/lib/open-worker-file';
+import { useToast } from '@/hooks/use-toast';
 
 const currency = (value: number | string | null | undefined) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0));
 
@@ -36,19 +22,15 @@ const monthLabel = (payment: SalaryPayment) => {
 export default function FolhaPagamento() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { toast } = useToast();
   const userId = user?.id ?? '';
 
   const paymentsQuery = useQuery({
     queryKey: ['folha-pagamento', userId],
     enabled: Boolean(userId),
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('pagamento_salario_funcionario')
-        .select('*')
-        .eq('user_profile', userId)
-        .order('data_pagamento', { ascending: false, nullsFirst: false });
-      if (error) throw error;
-      return (data || []) as SalaryPayment[];
+      const response = await apiClient.get<{ pagamentos: WorkerPayrollRow[] }>('/api/colaborador/folha-pagamento');
+      return normalizePayrollRows(response.pagamentos || []);
     },
   });
 
@@ -107,8 +89,8 @@ export default function FolhaPagamento() {
                     {payment.benefit && <div><dt>Benefícios</dt><dd>{payment.benefit}</dd></div>}
                   </dl>
                   {(payment.holerite_url || payment.comprovante_url) && <div className="flex gap-3 pt-2">
-                    {payment.holerite_url && <a href={payment.holerite_url} target="_blank" rel="noreferrer" className="premium-text-button inline-flex items-center gap-1"><FileText size={16} />Holerite</a>}
-                    {payment.comprovante_url && <a href={payment.comprovante_url} target="_blank" rel="noreferrer" className="premium-text-button inline-flex items-center gap-1"><FileText size={16} />Comprovante</a>}
+                    {payment.holerite_url && <a href={payment.holerite_url} onClick={(event) => { event.preventDefault(); void openWorkerFile(payment.holerite_url!).catch(() => toast({ title: 'Não foi possível abrir o holerite', variant: 'destructive' })); }} className="premium-text-button inline-flex items-center gap-1"><FileText size={16} />Holerite</a>}
+                    {payment.comprovante_url && <a href={payment.comprovante_url} onClick={(event) => { event.preventDefault(); void openWorkerFile(payment.comprovante_url!).catch(() => toast({ title: 'Não foi possível abrir o comprovante', variant: 'destructive' })); }} className="premium-text-button inline-flex items-center gap-1"><FileText size={16} />Comprovante</a>}
                   </div>}
                   {(payment.obs || payment.obs2) && <p className="text-sm">{[payment.obs, payment.obs2].filter(Boolean).join(' · ')}</p>}
                 </article>)}

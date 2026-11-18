@@ -55,7 +55,7 @@ interface Aircraft {
 /* ------------------------------------------------------------------ */
 
 const SEVERITY: Record<Severity, { label: string; color: string; tint: string }> = {
-  low: { label: "Baixa", color: "#007AFF", tint: "rgba(0,122,255,0.12)" },
+  low: { label: "Baixa", color: "#7faf50", tint: "rgba(0,122,255,0.12)" },
   medium: { label: "Média", color: "#B38600", tint: "rgba(255,204,0,0.20)" },
   high: { label: "Alta", color: "#FF9500", tint: "rgba(255,149,0,0.14)" },
   critical: { label: "Crítica", color: "#FF3B30", tint: "rgba(255,59,48,0.12)" },
@@ -64,7 +64,7 @@ const SEVERITY: Record<Severity, { label: string; color: string; tint: string }>
 const STATUS: Record<Status, { label: string; color: string; tint: string }> = {
   open: { label: "Aberto", color: "#FF3B30", tint: "rgba(255,59,48,0.12)" },
   in_analysis: { label: "Em análise", color: "#B38600", tint: "rgba(255,204,0,0.20)" },
-  in_maintenance: { label: "Em manutenção", color: "#007AFF", tint: "rgba(0,122,255,0.12)" },
+  in_maintenance: { label: "Em manutenção", color: "#7faf50", tint: "rgba(0,122,255,0.12)" },
   resolved: { label: "Resolvido", color: "#248A3D", tint: "rgba(52,199,89,0.16)" },
 };
 
@@ -126,7 +126,7 @@ function NavBar({
             haptic();
             onBack();
           }}
-          className="-ml-1 mt-[15px] flex h-11 min-w-[44px] items-center gap-0.5 rounded-xl pr-3 text-[17px] text-[#007AFF] active:opacity-50"
+          className="-ml-1 flex h-11 min-w-[44px] items-center gap-0.5 rounded-xl pr-3 text-[17px] text-[#a8df72] active:opacity-50"
           aria-label={`Voltar para ${backLabel}`}
         >
           <ChevronLeft className="h-7 w-7" strokeWidth={2.4} />
@@ -229,7 +229,7 @@ export default function GestaoCTM() {
             animate={{ rotate: 360 }}
             transition={{ duration: 1.6, repeat: Infinity, ease: "linear" }}
           >
-            <Wrench className="h-10 w-10 text-[#007AFF]" strokeWidth={1.8} />
+            <Wrench className="h-10 w-10 text-[#a8df72]" strokeWidth={1.8} />
           </motion.div>
           <p className="text-[15px] text-black/50">Carregando reports…</p>
         </div>
@@ -257,7 +257,7 @@ export default function GestaoCTM() {
                       haptic();
                       toast.info("Criar novo report em breve");
                     }}
-                    className="flex h-11 w-11 items-center justify-center rounded-full text-[#007AFF]"
+                    className="flex h-11 w-11 items-center justify-center rounded-full text-[#a8df72]"
                     aria-label="Novo report"
                   >
                     <Plus className="h-6 w-6" strokeWidth={2.4} />

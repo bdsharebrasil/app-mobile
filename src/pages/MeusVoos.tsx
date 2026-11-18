@@ -185,7 +185,7 @@ export default function MeusVoos() {
     const flight = detail?.voo;
     return (
       <MobileLayout>
-        <main className="min-h-[calc(100dvh-5.5rem)] bg-[#071326] px-4 pb-28 pt-4 text-white sm:px-6">
+        <main className="meus-voos-page min-h-[calc(100dvh-5.5rem)] bg-[#071326] px-4 pb-28 pt-4 text-white sm:px-6">
           <div className="mx-auto max-w-2xl">
             <button onClick={goBack} className="mb-5 inline-flex items-center gap-2 rounded-xl px-2 py-2 text-sm font-medium text-slate-300 transition hover:bg-white/[0.06] hover:text-white"><ArrowLeft className="h-4 w-4" /> Voltar</button>
             {detailQuery.isLoading ? <div className="flex min-h-52 items-center justify-center gap-3 text-sm text-slate-400"><Loader2 className="h-5 w-5 animate-spin text-emerald-300" /> Carregando dados do voo…</div> : detailQuery.isError || !flight ? (
@@ -256,8 +256,8 @@ export default function MeusVoos() {
     );
   }
 
-  if (listQuery.isLoading) return <MobileLayout><main className="min-h-[calc(100dvh-5.5rem)] bg-[#071326] px-4 pb-28 pt-5 text-white"><div className="flex min-h-64 items-center justify-center gap-3 text-sm text-slate-400"><Loader2 className="h-5 w-5 animate-spin text-emerald-300" /> Carregando seus voos…</div></main></MobileLayout>;
-  if (listQuery.isError) return <MobileLayout><main className="min-h-[calc(100dvh-5.5rem)] bg-[#071326] px-4 pb-28 pt-5 text-white"><div className="mx-auto max-w-2xl rounded-2xl border border-rose-300/20 bg-rose-400/[0.07] p-5 text-center"><p className="text-sm text-rose-100">Não foi possível carregar seus voos.</p><button onClick={() => void listQuery.refetch()} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2 text-sm"><RefreshCw className="h-4 w-4" /> Tentar novamente</button></div></main></MobileLayout>;
+  if (listQuery.isLoading) return <MobileLayout><main className="meus-voos-page min-h-[calc(100dvh-5.5rem)] bg-[#071326] px-4 pb-28 pt-5 text-white"><div className="flex min-h-64 items-center justify-center gap-3 text-sm text-slate-400"><Loader2 className="h-5 w-5 animate-spin text-emerald-300" /> Carregando seus voos…</div></main></MobileLayout>;
+  if (listQuery.isError) return <MobileLayout><main className="meus-voos-page min-h-[calc(100dvh-5.5rem)] bg-[#071326] px-4 pb-28 pt-5 text-white"><div className="mx-auto max-w-2xl rounded-2xl border border-rose-300/20 bg-rose-400/[0.07] p-5 text-center"><p className="text-sm text-rose-100">Não foi possível carregar seus voos.</p><button onClick={() => void listQuery.refetch()} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2 text-sm"><RefreshCw className="h-4 w-4" /> Tentar novamente</button></div></main></MobileLayout>;
 
   if (isFolder) {
     const folderFlights = completedFlights.filter((item) => {
@@ -266,7 +266,7 @@ export default function MeusVoos() {
       return itemYear === year && itemAircraft === aircraftId;
     });
     const aircraft = folderFlights[0];
-    return <MobileLayout><main className="min-h-[calc(100dvh-5.5rem)] bg-[#071326] px-4 pb-28 pt-4 text-white sm:px-6"><div className="mx-auto max-w-2xl">
+    return <MobileLayout><main className="meus-voos-page min-h-[calc(100dvh-5.5rem)] bg-[#071326] px-4 pb-28 pt-4 text-white sm:px-6"><div className="mx-auto max-w-2xl">
       <button onClick={() => navigate("/meus-voos?tab=concluidos")} className="mb-5 inline-flex items-center gap-2 rounded-xl px-2 py-2 text-sm font-medium text-slate-300 hover:bg-white/[0.06] hover:text-white"><ArrowLeft className="h-4 w-4" /> Voltar para concluídos</button>
       <header className="mb-5"><p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-300">Pasta de voos</p><h1 className="mt-1 text-2xl font-bold">{year} · {aircraft ? aircraftLabel(aircraft) : "Aeronave"}</h1><p className="mt-1 text-sm text-slate-400">{folderFlights.length} {folderFlights.length === 1 ? "voo concluído" : "voos concluídos"}</p></header>
       {folderFlights.length ? <div className="space-y-3">{folderFlights.map((flight) => <FlightCard key={flight.id} flight={flight} onClick={() => openFlight(flight.id)} />)}</div> : <EmptyState title="Pasta sem voos" description="Não encontramos voos concluídos nesta combinação de ano e aeronave." />}
@@ -286,7 +286,7 @@ export default function MeusVoos() {
 
   return (
     <MobileLayout>
-      <main className="min-h-[calc(100dvh-5.5rem)] bg-[#071326] px-4 pb-28 pt-5 text-white sm:px-6">
+      <main className="meus-voos-page min-h-[calc(100dvh-5.5rem)] bg-[#071326] px-4 pb-28 pt-5 text-white sm:px-6">
         <div className="mx-auto mb-[26px] mt-[26px] max-w-2xl">
           <header className="mb-5 flex items-start justify-between gap-4">
             <div><p className="mb-1 text-xs font-semibold uppercase tracking-[0.22em] text-emerald-300">Área do tripulante</p><h1 className="text-2xl font-bold tracking-tight">Meus Voos</h1><p className="mt-1 text-sm text-slate-400">{crewName ? `Olá, ${crewName.split(" ")[0]}. Acompanhe sua programação.` : "Acompanhe sua programação e histórico."}</p></div>

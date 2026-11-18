@@ -400,3 +400,7 @@ select { min-height: 48px; max-width: 100%; border-radius: 12px; }
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Safe-area navigation and compact native cards, scoped to Meu voo only. */
+.meus-voos-page { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.meus-voos-page button { -webkit-tap-highlight-color: transparent; }

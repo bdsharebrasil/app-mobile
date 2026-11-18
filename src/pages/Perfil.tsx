@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Camera, Loader2, User, UserRound, Calendar, Clock, Eye, EyeOff, ShieldCheck, AlertCircle,
-  FileText, PiggyBank, Timer, ChevronRight, LogOut, Phone, MapPin, Fingerprint, Plane, BadgeCheck, KeyRound,
+  FileText, PiggyBank, ChevronRight, LogOut, Phone, MapPin, Fingerprint, Plane, BadgeCheck, KeyRound,
 } from "lucide-react";
 import { motion, AnimatePresence, MotionConfig } from "framer-motion";
 import { MobileLayout } from "@/components/mobile/MobileLayout";
@@ -17,7 +17,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useQuery } from "@tanstack/react-query";
 import { EmployeeDocumentsManager } from "@/components/profile/EmployeeDocumentsManager";
-import { TimeClockTab } from "@/components/profile/TimeClockTab";
+import { apiClient } from "@/lib/api-client";
+import { normalizePayrollRows, type WorkerPayrollRow } from "@/lib/payroll";
+import { openWorkerFile } from "@/lib/open-worker-file";
 
 /* ───────────────────────── Tokens visuais ───────────────────────── */
 
@@ -122,6 +124,7 @@ const StatusPill = ({ status }: { status: string }) => {
     approved: { text: "Aprovado", cls: "bg-emerald-500/12 text-emerald-700 dark:text-emerald-400 ring-emerald-500/25" },
     rejected: { text: "Rejeitado", cls: "bg-rose-500/12 text-rose-700 dark:text-rose-400 ring-rose-500/25" },
     pending: { text: "Em análise", cls: "bg-amber-500/12 text-amber-700 dark:text-amber-400 ring-amber-500/25" },
+    cancelled: { text: "Cancelada", cls: "bg-muted text-muted-foreground ring-border" },
   };
   const s = map[status] ?? map.pending;
   return <span className={`shrink-0 rounded-full px-2.5 py-1 text-[12px] font-semibold ring-1 ring-inset ${s.cls}`}>{s.text}</span>;
@@ -144,12 +147,6 @@ const getInitials = (input: string | null | undefined) => {
   if (parts.length === 0) return input.slice(0, 2).toUpperCase();
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return `${parts[0][0] ?? ""}${parts[parts.length - 1][0] ?? ""}`.toUpperCase();
-};
-
-const buildAvatarPath = (userId: string, fileName: string) => {
-  const extension = fileName.split(".").pop();
-  const uniqueId = crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  return extension ? `${userId}/${uniqueId}.${extension}` : `${userId}/${uniqueId}`;
 };
 
 // "2026-10-29" -> Date local (evita o bug do dia anterior causado por UTC)
@@ -177,7 +174,7 @@ const EMPTY_FORM: FormState = {
   birth_date: "", bank_name: "", bank_agency: "", bank_account: "", bank_pix: "", canac: "",
 };
 
-type TabId = "dados" | "ponto" | "salario" | "ferias" | "docs";
+type TabId = "dados" | "salario" | "ferias" | "docs";
 
 /* ───────────────────────── Página ───────────────────────── */
 
@@ -187,14 +184,14 @@ export default function Perfil() {
   const { toast } = useToast();
   const isAdmin = roles.includes("admin");
   const isGestorMaster = roles.includes("gestor_master");
-  const showTimeClock = roles.some((r) => ["financeiro", "financeiro_master", "adm", "operacoes"].includes(r));
 
-  const { profile, updateProfile, isUpdating } = useUserProfile(user);
+  const { profile, updateProfile, isUpdating, invalidate } = useUserProfile(user);
 
   const [formState, setFormState] = useState<FormState>(EMPTY_FORM);
   const [tab, setTab] = useState<TabId>("dados");
   const [isEditing, setIsEditing] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarSource, setAvatarSource] = useState<string | null>(null);
 
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [newPassword, setNewPassword] = useState("");
@@ -238,6 +235,19 @@ export default function Perfil() {
   }, [profile]);
 
   useEffect(() => { syncFormFromProfile(); }, [syncFormFromProfile]);
+  useEffect(() => {
+    let active = true;
+    let objectUrl: string | null = null;
+    const source = profile?.avatar_url;
+    if (!source) { setAvatarSource(null); return; }
+    if (/^https?:\/\//i.test(source)) { setAvatarSource(source); return; }
+    void apiClient.getBlob("/api/colaborador/foto").then((blob) => {
+      objectUrl = URL.createObjectURL(blob);
+      if (active) setAvatarSource(objectUrl);
+      else URL.revokeObjectURL(objectUrl);
+    }).catch(() => { if (active) setAvatarSource(null); });
+    return () => { active = false; if (objectUrl) URL.revokeObjectURL(objectUrl); };
+  }, [profile?.avatar_url, profile?.updated_at]);
   useEffect(() => () => { if (cropImage) URL.revokeObjectURL(cropImage.url); }, [cropImage]);
 
   const displayName = useMemo(
@@ -252,8 +262,8 @@ export default function Perfil() {
     queryKey: ["profile-salary-payments", userId],
     queryFn: async () => {
       if (!userId) return [];
-      const { data } = await supabase.from("pagamento_salario_funcionario").select("*").eq("user_profile", userId).order("created_at", { ascending: false });
-      return data || [];
+      const response = await apiClient.get<{ pagamentos: WorkerPayrollRow[] }>("/api/colaborador/folha-pagamento");
+      return normalizePayrollRows(response.pagamentos || []);
     },
     enabled: !!userId,
   });
@@ -262,8 +272,14 @@ export default function Perfil() {
     queryKey: ["vacation-requests", userId],
     queryFn: async () => {
       if (!userId) return [];
-      const { data } = await supabase.from("vacation_requests" as any).select("*").eq("user_id", userId).order("created_at", { ascending: false });
-      return data || [];
+      const rows = await apiClient.get<Array<Record<string, any>>>("/api/colaborador/ferias");
+      return rows.map((row) => ({
+        ...row,
+        start_date: row.data_inicio,
+        end_date: row.data_fim,
+        days: row.quantidade_dias,
+        status: ({ solicitada: "pending", aprovada: "approved", reprovada: "rejected", cancelada: "cancelled" } as Record<string, string>)[String(row.status || "").toLowerCase()] || row.status,
+      }));
     },
     enabled: !!userId,
   });
@@ -290,11 +306,13 @@ export default function Perfil() {
     const s = parseLocalDate(startDate);
     const e = parseLocalDate(endDate);
     if (e < s) return toast({ title: "A data final precisa ser depois da inicial", variant: "destructive" });
-    const days = Math.round((e.getTime() - s.getTime()) / 86400000) + 1;
 
-    const { error } = await supabase.from("vacation_requests" as any).insert({ user_id: userId, start_date: startDate, end_date: endDate, days, status: "pending" });
-    if (error) toast({ title: "Erro ao solicitar", description: error.message, variant: "destructive" });
-    else { toast({ title: "Solicitação enviada" }); setStartDate(""); setEndDate(""); refetchVacations(); }
+    try {
+      await apiClient.post("/api/colaborador/ferias", { data_inicio: startDate, data_fim: endDate });
+      toast({ title: "Solicitação enviada" }); setStartDate(""); setEndDate(""); void refetchVacations();
+    } catch (error) {
+      toast({ title: "Erro ao solicitar", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
+    }
   };
 
   const handlePasswordChange = async () => {
@@ -377,11 +395,10 @@ export default function Perfil() {
       setAvatarUploading(true);
       try {
         const file = new File([blob], "avatar.jpg", { type: "image/jpeg" });
-        const path = buildAvatarPath(userId, "avatar.jpg");
-        const { error: uploadError } = await supabase.storage.from("avatar-profile").upload(path, file, { upsert: true });
-        if (uploadError) throw uploadError;
-        const { data: { publicUrl } } = supabase.storage.from("avatar-profile").getPublicUrl(path);
-        await updateProfile({ avatar_url: publicUrl });
+        const formData = new FormData();
+        formData.append("foto", file, "avatar.jpg");
+        await apiClient.postMultipart("/api/colaborador/foto", formData);
+        invalidate();
         toast({ title: "Foto atualizada" });
         resetCropState();
       } catch {
@@ -402,7 +419,6 @@ export default function Perfil() {
 
   const tabs: { id: TabId; label: string; icon: any }[] = [
     { id: "dados", label: "Dados", icon: User },
-    ...(showTimeClock ? [{ id: "ponto" as TabId, label: "Ponto", icon: Timer }] : []),
     { id: "salario", label: "Salário", icon: PiggyBank },
     { id: "ferias", label: "Férias", icon: Calendar },
     { id: "docs", label: "Docs", icon: FileText },
@@ -507,8 +523,8 @@ export default function Perfil() {
               <div className="flex items-center gap-4 sm:gap-5 mt-7">
                 <div className="relative shrink-0 border-[1px] border-[rgba(51,97,110,0.01)]">
                   <div className="w-[84px] h-[84px] sm:w-24 sm:h-24 rounded-[33px] bg-[#0B1427] border-[2px] border-[rgba(245,166,35,0.91)] flex items-center justify-center overflow-hidden">
-                    {profile?.avatar_url ? (
-                      <img src={profile.avatar_url} className="w-full h-full object-cover border-[1px] border-[rgba(245,166,35,0.55)]" alt={displayName} />
+                    {avatarSource ? (
+                      <img src={avatarSource} className="w-full h-full object-cover border-[1px] border-[rgba(245,166,35,0.55)]" alt={displayName} />
                     ) : (
                       <span className="text-white/70 text-[26px] font-semibold">{avatarInitials}</span>
                     )}
@@ -676,12 +692,6 @@ export default function Perfil() {
                   </>
                 )}
 
-                {/* PONTO */}
-                {tab === "ponto" && showTimeClock && (
-                  <div className={`${SURFACE} p-4 overflow-hidden`}>
-                    <TimeClockTab />
-                  </div>
-                )}
 
                 {/* SALÁRIO */}
                 {tab === "salario" && (
@@ -695,11 +705,14 @@ export default function Perfil() {
                           <div key={s.id} className={`${SURFACE} p-4`}>
                             <div className="flex items-center justify-between gap-3">
                               <span className="text-[16px] font-semibold capitalize text-foreground">
-                                {new Date(s.created_at).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
+                                {(s.data_pagamento || s.created_at)
+                                  ? new Date(`${String(s.data_pagamento || s.created_at).slice(0, 10)}T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })
+                                  : "Pagamento"}
                               </span>
                               {s.comprovante_url && (
                                 <a
-                                  href={s.comprovante_url} target="_blank" rel="noreferrer"
+                                  href={s.comprovante_url}
+                                  onClick={(event) => { event.preventDefault(); void openWorkerFile(s.comprovante_url).catch(() => toast({ title: "Não foi possível abrir o comprovante", variant: "destructive" })); }}
                                   className={`min-h-[36px] inline-flex items-center rounded-full px-3.5 text-[13px] font-semibold text-primary bg-primary/10 ${PRESS}`}
                                 >
                                   Ver recibo

@@ -48,7 +48,7 @@ function mapBackendProfile({ perfil, tripulante, metricas }: BackendProfileRespo
     admission_date: perfil.data_admissao ?? null,
     canac: tripulante?.canac ?? perfil.canac ?? null,
     tipo_licenca: tripulante?.tipo_licenca ?? null,
-    avatar_url: /^https?:\/\//i.test(perfil.url_avatar ?? "") ? perfil.url_avatar : null,
+    avatar_url: perfil.foto_url || (/^https?:\/\//i.test(perfil.url_avatar ?? "") ? perfil.url_avatar : null),
     created_at: perfil.data_criacao ?? null,
     updated_at: perfil.data_atualizacao ?? null,
     metricas,
@@ -68,7 +68,6 @@ function mapProfileUpdates(input: Partial<UserProfile>): Record<string, unknown>
     canac: "canac",
     tipo_licenca: "tipo_licenca",
     tipo: "tipo_licenca",
-    avatar_url: "url_avatar",
   };
   return Object.fromEntries(
     Object.entries(input)
