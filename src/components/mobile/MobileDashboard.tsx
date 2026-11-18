@@ -131,7 +131,7 @@ export function MobileDashboard() {
   );
 
   return (
-    <MobileLayout>
+    <MobileLayout hideTabBar>
       <div
         className="min-h-screen p-6 pb-24 relative overflow-hidden"
         style={{
