@@ -91,19 +91,16 @@ const colorStyles = {
     bg: "bg-white",
     text: "text-[#1a2844]",
     icon: "text-[#1a2844]",
-    iconBg: "bg-[#1a2844]/10",
   },
   green: {
     bg: "bg-[#089a43]",
     text: "text-white",
     icon: "text-white",
-    iconBg: "bg-white/20",
   },
   navy: {
     bg: "bg-[#1a2844]",
     text: "text-white",
     icon: "text-white",
-    iconBg: "bg-white/10",
   },
 };
 
@@ -136,7 +133,7 @@ export function MobileDashboard() {
   return (
     <MobileLayout>
       <div
-        className="min-h-screen px-5 pt-8 pb-24 relative overflow-hidden"
+        className="min-h-screen p-6 pb-24 relative overflow-hidden"
         style={{
           backgroundColor: "#001122",
           backgroundImage: `url('https://cdn.builder.io/api/v1/image/assets%2F7a90d07cace9451eb9eff4bb0d5bcc31%2F2fedfc9aa51d4632b60e4a81a7349aab?format=webp&width=800')`,
@@ -147,31 +144,24 @@ export function MobileDashboard() {
         }}
       >
         {/* Overlay */}
-        <div className="absolute inset-0 bg-[#001122]/90 pointer-events-none" />
+        <div className="absolute inset-0 bg-[#001122]/85 pointer-events-none" />
 
         <div className="max-w-2xl mx-auto relative z-10">
           {/* Header */}
           <motion.div
-            className="mb-6 rounded-[28px] border border-white/10 bg-black/60 p-5 shadow-2xl"
+            className="text-center mb-8"
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <div className="flex items-center gap-3">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#089a43]">
-                <Plane className="h-5 w-5 text-white" strokeWidth={1.5} />
-              </span>
-              <div className="min-w-0">
-                <h1 className="text-2xl font-bold text-white leading-tight">Share Brasil</h1>
-                <p className="text-sm text-gray-400">
-                  Sistema de Compartilhamento de Aeronaves
-                </p>
-              </div>
-            </div>
+            <h1 className="text-4xl font-bold text-white mb-2">Share Brasil</h1>
+            <p className="text-gray-300">
+              Sistema de Compartilhamento de Aeronaves
+            </p>
           </motion.div>
 
           {/* Navigation Grid */}
-          <div className="grid grid-cols-2 grid-rows-4 grid-flow-col gap-3 mb-6">
+          <div className="grid grid-cols-2 grid-rows-4 grid-flow-col gap-3 mb-8">
             {filteredItems.map((item, index) => {
               const style = colorStyles[item.color];
               const needsTimes = item.id === "my-flights" && activeFlightCount > 0;
@@ -188,27 +178,23 @@ export function MobileDashboard() {
                     delay: index * 0.08,
                     ease: "easeOut",
                   }}
-                  whileTap={{ scale: 0.97 }}
-                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.95 }}
+                  whileHover={{ scale: 1.05 }}
                 >
                   <div
-                    className={`${style.bg} relative w-full h-full min-h-[130px] rounded-[24px] flex flex-col justify-between items-start gap-3 p-4 text-left cursor-pointer transition-all duration-300 shadow-lg hover:shadow-xl ${needsTimes ? "ring-2 ring-amber-300 shadow-amber-300/20" : ""}`}
+                    className={`${style.bg} relative aspect-square w-4/5 mx-auto ${needsTimes ? "ring-2 ring-amber-300 shadow-amber-300/20" : ""} rounded-[22%] flex flex-col items-center justify-center gap-1.5 p-2 cursor-pointer transition-all duration-300 shadow-lg hover:shadow-xl`}
                   >
-                    {needsTimes && <span className="absolute right-3 top-3 inline-flex h-5 min-w-5 items-center justify-center gap-0.5 rounded-full bg-amber-300 px-1.5 text-[10px] font-bold text-[#1a2844]"><Clock3 className="h-2.5 w-2.5" />{activeFlightCount}</span>}
-                    <span className={`flex h-10 w-10 items-center justify-center rounded-full ${style.iconBg}`}>
-                      <item.icon
-                        className={`w-5 h-5 ${needsTimes ? "text-amber-200" : style.icon}`}
-                        strokeWidth={1.5}
-                      />
+                    {needsTimes && <span className="absolute right-2 top-2 inline-flex h-5 min-w-5 items-center justify-center gap-0.5 rounded-full bg-amber-300 px-1 text-[10px] font-bold text-[#1a2844]"><Clock3 className="h-2.5 w-2.5" />{activeFlightCount}</span>}
+                    <item.icon
+                      className={`w-9 h-9 ${needsTimes ? "text-amber-200" : style.icon}`}
+                      strokeWidth={1.5}
+                    />
+                    <span
+                      className={`${style.text} text-[11px] leading-tight font-semibold text-center line-clamp-2`}
+                    >
+                      {item.title}
                     </span>
-                    <div className="flex flex-col gap-0.5">
-                      <span
-                        className={`${style.text} text-[13px] leading-tight font-semibold line-clamp-2`}
-                      >
-                        {item.title}
-                      </span>
-                      {needsTimes && <span className="text-[10px] font-bold leading-tight text-amber-200">Complete horários</span>}
-                    </div>
+                    {needsTimes && <span className="text-center text-[9px] font-bold leading-tight text-amber-200">Complete horários</span>}
                   </div>
                 </motion.button>
               );
@@ -218,11 +204,11 @@ export function MobileDashboard() {
           {/* Logout Button */}
           <motion.button
             onClick={handleLogout}
-            className="w-full text-white font-semibold py-3.5 px-6 rounded-full border border-white/15 bg-white/5 transition-all duration-300 flex items-center justify-center gap-2 hover:bg-white/10"
+            className="w-full text-white font-semibold py-3 px-6 rounded-2xl transition-all duration-300 flex items-center justify-center gap-2"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5 }}
-            whileTap={{ scale: 0.97 }}
+            whileTap={{ scale: 0.95 }}
           >
             <LogOut className="w-5 h-5" />
             Sair
