@@ -3,7 +3,7 @@ import { BarChart3, Home, Plane, User, Wrench } from "lucide-react";
 
 const navItems = [
   { title: "Início", ariaLabel: "Página inicial", icon: Home, href: "/", paths: ["/"] },
-  { title: "Voos", ariaLabel: "Diário de bordo e voos", icon: Plane, href: "/diario-bordo", paths: ["/diario-bordo", "/meus-voos", "/plano-voo"] },
+  { title: "Meus Voos", ariaLabel: "Meus voos", icon: Plane, href: "/meus-voos", paths: ["/diario-bordo", "/meus-voos", "/plano-voo"] },
   { title: "Manut.", ariaLabel: "Manutenção de aeronaves", icon: Wrench, href: "/manutencao/ctm", paths: ["/manutencao"] },
   { title: "Despesas", ariaLabel: "Despesas de viagem", icon: BarChart3, href: "/financeiro/despesas-viagem", paths: ["/financeiro"] },
   { title: "Perfil", ariaLabel: "Meu perfil", icon: User, href: "/perfil", paths: ["/perfil"] },
