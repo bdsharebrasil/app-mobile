@@ -182,7 +182,7 @@ export function MobileDashboard() {
                   whileHover={{ scale: 1.05 }}
                 >
                   <div
-                    className={`${style.bg} relative aspect-square w-full ${needsTimes ? "ring-2 ring-amber-300 shadow-amber-300/20" : ""} rounded-[22%] flex flex-col items-center justify-center gap-1.5 p-2 cursor-pointer transition-all duration-300 shadow-lg hover:shadow-xl`}
+                    className={`${style.bg} relative aspect-square w-4/5 mx-auto ${needsTimes ? "ring-2 ring-amber-300 shadow-amber-300/20" : ""} rounded-[22%] flex flex-col items-center justify-center gap-1.5 p-2 cursor-pointer transition-all duration-300 shadow-lg hover:shadow-xl`}
                   >
                     {needsTimes && <span className="absolute right-2 top-2 inline-flex h-5 min-w-5 items-center justify-center gap-0.5 rounded-full bg-amber-300 px-1 text-[10px] font-bold text-[#1a2844]"><Clock3 className="h-2.5 w-2.5" />{activeFlightCount}</span>}
                     <item.icon
