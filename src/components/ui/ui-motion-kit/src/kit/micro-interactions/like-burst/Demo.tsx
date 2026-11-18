@@ -1,0 +1,8 @@
+import { timeline as script } from "@/engine/timeline";
+import { target } from "@/engine/geometry";
+import { FEED, Block, type SceneProps } from "@/wireframe";
+const REST={x:216,y:286};const BOX={x:420,y:190,w:112,h:44};
+const b=script({cursor:REST,tracks:{press:0,liked:0,burst:0}}).wait(1000).moveTo(target(BOX,{fx:.28,fy:.5}),680,{curve:-.2}).press({key:'press',anchor:'like-burst-action'});
+b.tween('liked',1,220,{at:b.lastClick}).tween('burst',1,220,{at:b.lastClick}).moveTo({x:392,y:300},450,{curve:.24}).mark('liked').wait(1000).moveTo(target(BOX,{fx:.28,fy:.5}),400,{curve:-.2}).press({key:'press',anchor:'like-burst-action'}).tween('liked',0,140,{at:b.lastClick,ease:'in'}).wait(200).set('burst',0).moveTo(REST,650,{curve:.3});
+export const timeline=b.build();export const poster=timeline.marks.liked!;
+export default function Scene({frame}:SceneProps){const {liked=0,burst=0}=frame.v;return <><FEED.Page/><Block {...BOX} tone="surface"><div data-anchor="like-burst-action" style={{position:'absolute',inset:0}}/><svg width="28" height="28" viewBox="0 0 24 24" fill={liked>.5?'var(--mk-accent)':'none'} stroke="var(--mk-accent)" strokeWidth="1.6" style={{position:'absolute',left:16,top:8,transform:`scale(${.96+.04*liked})`}}><path d="M12 20 4 12C-2 4 8 0 12 7c4-7 14-3 8 5Z"/></svg>{[0,1,2,3,4,5].map(i=><Block key={i} x={28+Math.cos(i*Math.PI/3)*26*burst} y={20+Math.sin(i*Math.PI/3)*20*burst} w={4} h={4} r={2} tone="strong" style={{opacity:liked*(1-burst)}}/>)}<span data-testid="like-demo-count" style={{position:"absolute",left:60,top:8,fontSize:26,lineHeight:"28px",fontWeight:600,color:"var(--mk-accent)",fontVariantNumeric:"tabular-nums"}}>{24+Math.round(liked)}</span></Block></>;}

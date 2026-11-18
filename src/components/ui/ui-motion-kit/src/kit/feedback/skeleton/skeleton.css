@@ -1,0 +1,10 @@
+.skeleton-root { position: relative; }
+.skeleton-content, .skeleton-cover { transition: opacity var(--mk-dur-enter) var(--mk-ease-out); }
+.skeleton-cover { position: absolute; inset: 0; display: flex; align-items: center; gap: 12px; padding: 16px; overflow: hidden; background: var(--mk-surface); border: 1px solid var(--mk-border); border-radius: var(--mk-r-control); }
+.skeleton-avatar { width: 36px; height: 36px; flex: none; background: var(--mk-wire-title); border-radius: var(--mk-r-control); }
+.skeleton-lines { flex: 1; }
+.skeleton-lines i { display: block; height: 10px; width: 72%; margin-block: 8px; background: var(--mk-wire); border-radius: 4px; }
+.skeleton-lines i:last-child { width: 42%; }
+.skeleton-shimmer::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, var(--mk-surface), transparent); transform: translateX(-100%); animation: skeleton-shimmer 1400ms linear infinite; }
+@keyframes skeleton-shimmer { to { transform: translateX(100%); } }
+@media (prefers-reduced-motion: reduce) { .skeleton-content, .skeleton-cover { transition: none; } .skeleton-shimmer::after { display: none; animation: none; } }

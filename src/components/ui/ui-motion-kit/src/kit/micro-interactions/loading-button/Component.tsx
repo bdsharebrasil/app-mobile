@@ -1,0 +1,15 @@
+import { useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { EASING_POINTS } from "@/engine/tokens";
+import { Button } from "@/ui/Button";
+const MotionButton=motion.create(Button);
+export function LoadingButton({ action, label="Save changes" }: { action:()=>Promise<void>; label?:string }) {
+ const reduced=useReducedMotion(); const [state,setState]=useState<'idle'|'pending'|'success'|'error'>('idle'); const busy=useRef(false); const mounted=useRef(true); const timer=useRef<ReturnType<typeof setTimeout>|undefined>(undefined);
+ useEffect(()=>{mounted.current=true; return ()=>{mounted.current=false;clearTimeout(timer.current);};},[]);
+ const run=async()=>{if(busy.current)return;busy.current=true;clearTimeout(timer.current);setState('pending');try{await action();if(!mounted.current)return;setState('success');timer.current=setTimeout(()=>{setState('idle');busy.current=false;},1500);}catch{if(mounted.current)setState('error');busy.current=false;}};
+ return <div className="space-y-3"><MotionButton initial={false} data-testid="loading-button-trigger" aria-label={label} aria-busy={state==='pending'} aria-disabled={state==='pending'||state==='success'} onClick={()=>void run()} animate={{width:state==='pending'?112:state==='success'?120:168}} transition={{duration:reduced?0:.2,ease:[...EASING_POINTS.out]}}>
+ <span className="relative block h-6 w-full"><AnimatePresence initial={false}><motion.span key={state} className="absolute inset-0 inline-flex items-center justify-center gap-2" initial={{opacity:reduced?1:0}} animate={{opacity:1}} exit={{opacity:0,transition:{duration:reduced?0:.14}}} transition={{duration:reduced?0:.2}} aria-hidden="true">
+ {state==='pending'?<><motion.svg data-testid="loading-mark" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" animate={{rotate:reduced?0:360}} transition={{duration:reduced?0:.9,repeat:reduced?0:Infinity,ease:'linear'}}><path d="M12 3a9 9 0 1 1-9 9"/></motion.svg>Saving</>:state==='success'?<>✓ Saved</>:label}</motion.span></AnimatePresence></span></MotionButton>
+ <p role="status" className="m-0 min-h-6 text-sm">{state==='pending'?'Saving changes…':state==='success'?'Changes saved.':state==='error'?'Could not save. Try Save changes again.':''}</p></div>;
+}
+export function Playground(){const [fail,setFail]=useState(false); const [calls,setCalls]=useState(0);return <div data-testid="loading-button-playground" className="w-full max-w-md space-y-4 text-ink"><p className="text-sm text-muted">Save notification preferences.</p><LoadingButton action={async()=>{setCalls(n=>n+1);await new Promise(r=>setTimeout(r,850));if(fail)throw Error('demo failure');}}/><label className="flex items-center gap-3 text-sm"><input type="checkbox" checked={fail} onChange={e=>setFail(e.target.checked)} className="h-6 w-6"/>Simulate a failed save</label><p className="text-sm" data-testid="loading-calls">Requests: {calls}</p></div>;}

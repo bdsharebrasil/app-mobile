@@ -1,0 +1,7 @@
+import { timeline as script } from "@/engine/timeline";
+import { target } from "@/engine/geometry";
+import { MOBILE, Bar, Block, type SceneProps } from "@/wireframe";
+const REST={x:392,y:282};
+const b=script({cursor:REST,tracks:{pull:0,pending:0,spin:0,updated:0}}).wait(1000).moveTo(target(MOBILE.targets.card0),550,{curve:-.28}).drag({x:280,y:264},600,{key:'pull',curve:.08}).tween('pending',1,240).tween('spin',1,1000,{ease:'linear'}).tween('pull',.6,240,{advance:true}).moveTo({x:396,y:236},380,{curve:.3}).wait(380).tween('pending',0,180).tween('updated',1,240,{advance:true}).mark('fresh').wait(400).tween('pull',0,180,{advance:true,ease:'in'}).tween('updated',0,180,{advance:true,ease:'in'}).set('spin',0).moveTo(REST,550,{curve:.2});
+export const timeline=b.build();export const poster=2500;
+export default function Scene({frame}:SceneProps){const {pull=0,pending=0,spin=0,updated=0}=frame.v;return <><MOBILE.Page/><Block x={206} y={108} w={160} h={169} tone="surface" style={{overflow:'hidden'}}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--mk-accent)" strokeWidth="2" style={{position:'absolute',left:64,top:6,opacity:pull,transform:`rotate(${pending?spin*400:pull*90}deg)`}}><path d="M12 3a9 9 0 1 1-9 9"/></svg>{[0,1,2].map(i=><Block key={i} x={0} y={i*56+40*pull} w={148} h={48}><Bar x={14} y={14} w={88-i*12+updated*12} h={8} tone={i===0&&updated>.5?'strong':'title'}/><Bar x={14} y={30} w={108-i*8} h={6}/></Block>)}</Block></>;}

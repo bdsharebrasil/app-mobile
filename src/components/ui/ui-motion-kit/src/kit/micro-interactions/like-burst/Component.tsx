@@ -1,0 +1,14 @@
+import { useRef, useState } from "react";
+import { motion, useReducedMotion } from "motion/react";
+import { EASING_POINTS } from "@/engine/tokens";
+import { Button } from "@/ui/Button";
+export function LikeButton({initialCount=24,initialLiked=false,onToggle}: {initialCount?:number;initialLiked?:boolean;onToggle?:(liked:boolean)=>Promise<void>}) {
+ const reduced=useReducedMotion();const [liked,setLiked]=useState(initialLiked);const [pending,setPending]=useState(false);const [error,setError]=useState(''); const [burst,setBurst]=useState(0);const busy=useRef(false);
+ const count=initialCount+Number(liked)-Number(initialLiked);
+ const toggle=async()=>{if(busy.current)return;busy.current=true;setPending(true);setError('');const next=!liked;setLiked(next);if(next)setBurst(n=>n+1);try{await onToggle?.(next);}catch{setLiked(!next);setError('Reaction was not saved. Try again.');}finally{busy.current=false;setPending(false);}};
+ return <div className="space-y-3"><Button data-testid="like-burst-trigger" variant="secondary" className="relative overflow-hidden" aria-label="Like this note" aria-pressed={liked} aria-disabled={pending} onClick={()=>void toggle()}>
+ <motion.svg data-testid="heart" aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" initial={false} animate={{scale:liked&&!reduced?[.96,1]:1}} transition={{duration:reduced?0:.22,ease:[...EASING_POINTS.out]}}><path d="M12 20 4 12C-2 4 8 0 12 7c4-7 14-3 8 5Z"/><motion.path d="M12 20 4 12C-2 4 8 0 12 7c4-7 14-3 8 5Z" fill="currentColor" initial={false} animate={{opacity:liked?1:0}} transition={{duration:reduced?0:liked?.22:.14}}/></motion.svg><span aria-hidden="true" className="tabular-nums">{count}</span>
+ {liked&&!reduced&&<span key={burst} aria-hidden="true" className="pointer-events-none absolute inset-0">{[0,1,2,3,4,5].map(i=><motion.span key={i} data-testid="like-particle" className="absolute left-7 top-5 h-1 w-1 rounded-full bg-ink" initial={{x:0,y:0,opacity:1}} animate={{x:Math.cos(i*Math.PI/3)*24,y:Math.sin(i*Math.PI/3)*18,opacity:0}} transition={{duration:.22,ease:[...EASING_POINTS.out]}}/>)}</span>}
+ </Button><p role="status" className="m-0 text-sm">{error||`${count} likes${liked?' · You liked this note.':'.'}`}</p></div>;
+}
+export function Playground(){const [fail,setFail]=useState(false);return <div data-testid="like-burst-playground" className="w-full max-w-md space-y-4 text-ink"><h3 className="text-lg font-medium">A quieter morning routine</h3><p className="text-sm text-muted">A field note from the studio journal.</p><LikeButton onToggle={async()=>{if(fail)throw Error('demo failure');}}/><label className="flex items-center gap-3 text-sm"><input className="h-6 w-6" type="checkbox" checked={fail} onChange={e=>setFail(e.target.checked)}/>Simulate a failed reaction</label></div>;}

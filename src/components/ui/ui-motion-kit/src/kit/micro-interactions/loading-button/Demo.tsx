@@ -1,0 +1,8 @@
+import { timeline as script } from "@/engine/timeline";
+import { target } from "@/engine/geometry";
+import { SETTINGS, Bar, Block, Button, type SceneProps } from "@/wireframe";
+const REST={x:290,y:208};const BOX={x:416,y:20,w:116,h:30};
+const b=script({cursor:REST,tracks:{press:0,pending:0,done:0,spin:0}}).wait(1100).moveTo(target(BOX),640,{curve:.3}).press({key:'press',anchor:'loading-button-action'});
+b.tween('pending',1,200,{at:b.lastClick}).tween('spin',1,1100,{at:b.lastClick,ease:'linear'}).moveTo({x:362,y:140},420,{curve:-.2}).wait(750).tween('pending',0,140,{ease:'in'}).tween('done',1,200,{advance:true}).mark('success').wait(650).tween('done',0,140,{advance:true,ease:'in'}).set('spin',0).moveTo(REST,600,{curve:-.3});
+export const timeline=b.build();export const poster=timeline.marks.success!;
+export default function Scene({frame}:SceneProps){const {press=0,pending=0,done=0,spin=0}=frame.v;const width=116-32*Math.max(pending,done);return <><SETTINGS.Page/><Block x={400} y={14} w={136} h={44} tone="surface"/><Button x={532-width} y={20} w={width} h={30} anchor="loading-button-action" press={press}><Bar x={26} y={12} w={64} h={6} tone="surface" style={{opacity:1-Math.max(pending,done)}}/><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--mk-surface)" strokeWidth="2" style={{position:'absolute',left:width/2-9,top:6,opacity:pending,transform:`rotate(${spin*440}deg)`}}><path d="M12 3a9 9 0 1 1-9 9"/></svg><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--mk-surface)" strokeWidth="2" style={{position:'absolute',left:width/2-10,top:5,opacity:done}}><path d="m4 12 5 5L20 6"/></svg></Button></>;}

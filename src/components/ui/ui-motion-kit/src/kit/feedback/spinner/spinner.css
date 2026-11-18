@@ -1,0 +1,3 @@
+.spinner-ring { flex: none; animation: spinner-turn 900ms linear infinite; }
+@keyframes spinner-turn { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner-ring { animation: none; transform: none; } }
