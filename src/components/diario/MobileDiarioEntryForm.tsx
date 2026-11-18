@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Progress } from '@/components/ui/progress';
+import { FlightNumberCombobox, type ExistingFlightOption } from '@/components/diario/FlightNumberCombobox';
 import { apiClient } from '@/lib/api-client';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -55,6 +56,16 @@ const durationLabel = (hours: string, minutes: string) => {
 
 const minutesDurationLabel = (total: number) => `${Math.floor(total / 60)}h${String(total % 60).padStart(2, '0')}m`;
 
+type DiarioFlightRecord = {
+  id?: string | number | null;
+  numero_voo?: string | null;
+  data_registro?: string | null;
+  aerodromo_partida_icao?: string | null;
+  aerodromo_partida?: string | null;
+  aerodromo_chegada_icao?: string | null;
+  aerodromo_chegada?: string | null;
+};
+
 export const MobileDiarioEntryForm: React.FC<Props> = ({
   aircraftId,
   aircraftRegistration,
@@ -101,6 +112,34 @@ export const MobileDiarioEntryForm: React.FC<Props> = ({
     queryFn: () => apiClient.getDiarioDetalhes(aircraftId, selectedDate.getUTCFullYear(), selectedDate.getUTCMonth() + 1),
     enabled: Boolean(aircraftId && date),
   });
+  const existingFlightOptions = useMemo<ExistingFlightOption[]>(() => {
+    const entries = ((diarioDetails?.lancamentos || []) as DiarioFlightRecord[])
+      .filter((entry) => String(entry.numero_voo || '').trim())
+      .slice()
+      .sort((a, b) => String(b.data_registro || '').localeCompare(String(a.data_registro || '')));
+
+    const seenFlightNumbers = new Set<string>();
+    return entries.flatMap((entry, index) => {
+      const number = String(entry.numero_voo).trim();
+      const normalizedNumber = number.toLocaleUpperCase('pt-BR');
+      if (seenFlightNumbers.has(normalizedNumber)) return [];
+      seenFlightNumbers.add(normalizedNumber);
+
+      const flightDate = String(entry.data_registro || '').slice(0, 10);
+      const dateLabel = flightDate
+        ? new Date(`${flightDate}T12:00:00`).toLocaleDateString('pt-BR')
+        : 'Data não informada';
+      const departure = entry.aerodromo_partida_icao || entry.aerodromo_partida || '—';
+      const arrival = entry.aerodromo_chegada_icao || entry.aerodromo_chegada || '—';
+
+      return [{
+        id: String(entry.id || `${entry.numero_voo}-${flightDate}-${index}`),
+        number,
+        route: `${departure} → ${arrival}`,
+        date: dateLabel,
+      }];
+    });
+  }, [diarioDetails?.lancamentos]);
   const logbookMonth = diarioDetails?.diario_mes || null;
   const lastEntry = diarioDetails?.lancamentos?.[diarioDetails.lancamentos.length - 1] || null;
   const crewMember = tripulantes.find(member => member.id === user?.id || (member.canac && profile?.canac && member.canac.toUpperCase() === profile.canac.toUpperCase())) || null;
@@ -220,13 +259,21 @@ export const MobileDiarioEntryForm: React.FC<Props> = ({
 
   const renderStep0_Flight = () => (
     <div className="space-y-4">
-      <div>
-        <Label className="text-xs text-muted-foreground">Data do Voo</Label>
-        <Input type="date" value={date} onChange={e => { setDate(e.target.value); updateField('entry_date', e.target.value); }} className="mt-1 h-12 rounded-xl bg-background" />
-      </div>
-      <div>
-        <Label className="text-xs text-muted-foreground">Número do voo <span className="font-normal">(opcional)</span></Label>
-        <Input value={flightNumber} onChange={e => setFlightNumber(e.target.value)} className="mt-1 h-12 rounded-xl bg-background" placeholder="Ex.: PT1234" autoCapitalize="characters" />
+      <div className="grid min-w-0 grid-cols-1 gap-3 min-[360px]:grid-cols-2">
+        <div className="min-w-0">
+          <Label className="text-xs text-muted-foreground">Data do Voo</Label>
+          <Input type="date" value={date} onChange={e => { setDate(e.target.value); updateField('entry_date', e.target.value); }} className="mt-1 h-12 w-full min-w-0 max-w-full rounded-xl bg-background" />
+        </div>
+        <div className="min-w-0">
+          <Label className="text-xs text-muted-foreground">Número do voo <span className="font-normal">(opcional)</span></Label>
+          <FlightNumberCombobox
+            value={flightNumber}
+            options={existingFlightOptions}
+            monthLabel={monthLabel}
+            isLoading={isDiaryLoading}
+            onChange={setFlightNumber}
+          />
+        </div>
       </div>
       <div>
         <Label className="text-xs text-muted-foreground">Natureza do Voo</Label>
@@ -533,7 +580,7 @@ export const MobileDiarioEntryForm: React.FC<Props> = ({
 
   return (
     <div className="flex min-h-[100dvh] flex-col bg-background">
-      <header className="sticky top-0 z-40 border-b border-border/50 bg-background/90 backdrop-blur-xl">
+      <header className="sticky top-[max(24px,env(safe-area-inset-top))] z-40 border-b border-border/50 bg-background/90 backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-2xl items-center px-4">
           <button type="button" onClick={goBack} aria-label={step === 0 ? 'Voltar às aeronaves' : 'Voltar uma etapa'} className="flex h-11 min-w-11 items-center gap-1 rounded-xl pr-2 text-primary active:scale-95">
             <ArrowLeft className="h-5 w-5" /><span className="text-xs font-semibold">{step === 0 ? 'Aeronaves' : 'Voltar'}</span>
