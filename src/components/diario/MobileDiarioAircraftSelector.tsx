@@ -62,8 +62,8 @@ export const MobileDiarioAircraftSelector: React.FC<Props> = ({ onSelect, onBack
 
   return (
     <div className="min-h-[calc(100dvh-5rem)] bg-background pb-8">
-      <header className="sticky top-0 z-30 my-[28px] border-b border-border/50 bg-background/90 backdrop-blur-xl">
-        <div className="mx-auto my-[14px] flex h-14 max-w-3xl items-center px-4 py-[31px]">
+      <header className="sticky top-[max(24px,env(safe-area-inset-top))] z-30 border-b border-border/50 bg-background/90 backdrop-blur-xl">
+        <div className="mx-auto flex h-14 max-w-3xl items-center px-4">
           <button type="button" onClick={onBack} aria-label="Voltar ao Dashboard" className="flex h-11 min-w-11 items-center gap-1 rounded-xl pr-2 text-primary active:scale-95">
             <ArrowLeft className="h-5 w-5" /><span className="text-sm font-medium">Voltar</span>
           </button>
@@ -74,15 +74,15 @@ export const MobileDiarioAircraftSelector: React.FC<Props> = ({ onSelect, onBack
         </div>
       </header>
 
-      <main className="-my-[34px] mx-auto max-w-3xl px-4 pb-8 pt-5 sm:px-6">
-        <section className="mb-[11px] mt-[2px] overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#122744] to-[#08172b] px-5 py-[6px] text-white shadow-xl shadow-black/10">
-          <div className="my-0 flex items-start justify-between gap-3 py-0 text-[13px]">
+      <main className="mx-auto w-full max-w-3xl px-4 pb-8 pt-5 sm:px-6">
+        <section className="mb-4 mt-1 overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#122744] to-[#08172b] px-5 py-4 text-white shadow-xl shadow-black/10">
+          <div className="flex items-start justify-between gap-3 text-[13px]">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-200">Operação · {year}</p>
               <h2 className="mt-2 text-[16px] font-bold tracking-tight">Escolha uma aeronave</h2>
             </div>
           </div>
-          <div className="mt-[5px] flex items-center gap-2 py-0 text-xs text-slate-300">
+          <div className="mt-2 flex items-center gap-2 text-xs text-slate-300">
             <span className="font-semibold text-white">{aircraft.length}</span> aeronaves ativas
             <span className="h-1 w-1 rounded-full bg-slate-500" />
           </div>
