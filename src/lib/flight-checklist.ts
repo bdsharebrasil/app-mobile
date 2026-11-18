@@ -24,6 +24,7 @@ export type ChecklistAnswer = {
 };
 
 export type ChecklistRecord = {
+  preparacao_pendencias?: number | null;
   id: string;
   status: string;
   itens: Record<string, ChecklistAnswer>;
@@ -166,3 +167,4 @@ export function checklistItemsForAircraft(
       ),
   );
 }
+

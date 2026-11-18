@@ -1,3 +1,4 @@
+import { interpretarCafe } from '@/lib/cafe-manha';
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft, CalendarDays, ChevronRight, Clock3, FolderOpen,
@@ -68,6 +69,7 @@ type FlightJourney = {
 };
 
 type HotelReservation = {
+  status?: string; hotel_telefone?:string; cafe_estado?:string; cafe_valor?:string; cafe_manha?:string;
   id: string;
   data_checkin: string;
   data_checkout: string;
@@ -239,7 +241,7 @@ export default function MeusVoos() {
 
                 <section className="mt-4 rounded-2xl border border-white/10 bg-[#101e33] p-4">
                   <div className="mb-2 flex items-start gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-300/10 text-amber-200"><Hotel className="h-4 w-4" /></span><div><h2 className="text-sm font-semibold text-white">Hospedagem</h2><p className="text-xs text-slate-500">Reservas que coincidem com o período do voo.</p></div></div>
-                  {detail.hospedagens.length ? <div className="mt-3 space-y-2">{detail.hospedagens.map((hotel) => <div key={hotel.id} className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3"><p className="font-semibold text-slate-100">{hotel.hotel_nome || "Hotel"}</p><p className="mt-1 text-xs text-slate-400">{dateLabel(hotel.data_checkin)} – {dateLabel(hotel.data_checkout)}{hotel.hotel_cidade ? ` · ${hotel.hotel_cidade}${hotel.hotel_uf ? `/${hotel.hotel_uf}` : ""}` : ""}</p><p className="mt-1 text-xs text-slate-500">{hotel.tipo_quarto || "Quarto não especificado"} · {hotel.quantidade_hospedes || 1} hóspedes</p>{hotel.observacoes && <p className="mt-2 whitespace-pre-wrap text-xs text-slate-400">{hotel.observacoes}</p>}</div>)}</div> : <p className="mt-3 text-sm text-slate-400">Nenhuma reserva de hospedagem encontrada no período.</p>}
+                  {detail.hospedagens.length ? <div className="mt-3 space-y-2">{detail.hospedagens.map((hotel) => <div key={hotel.id} className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3"><p className="font-semibold text-slate-100">{hotel.hotel_nome || "Hotel"}</p><p className="mt-1 text-xs text-slate-400">{dateLabel(hotel.data_checkin)} – {dateLabel(hotel.data_checkout)}{hotel.hotel_cidade ? ` · ${hotel.hotel_cidade}${hotel.hotel_uf ? `/${hotel.hotel_uf}` : ""}` : ""}</p><p className="mt-1 text-xs text-slate-500">{hotel.tipo_quarto || "Quarto não especificado"} · {hotel.quantidade_hospedes || 1} hóspedes</p><p className="mt-2 text-xs text-slate-300">Café da manhã: {hotel.cafe_estado ? ({INCLUIDO:'Incluído na diária',A_PARTE:'Pago à parte',NAO_OFERECE:'Não oferece',A_CONFIRMAR:'A confirmar'} as Record<string,string>)[hotel.cafe_estado] : interpretarCafe(hotel.cafe_manha).rotulo}{hotel.cafe_valor ? ' · R$ '+hotel.cafe_valor : ''}</p>{hotel.status==='SOLICITADA'&&<p className="mt-1 text-xs text-sky-200">Solicitação enviada pelo sistema · consulte a confirmação no briefing</p>}{hotel.hotel_telefone&&<a className="mt-2 inline-flex min-h-10 items-center text-xs text-sky-200 underline" href={'tel:'+hotel.hotel_telefone.replace(/[^+\d]/g,'')}>Ligar para o hotel · {hotel.hotel_telefone}</a>}{hotel.observacoes && <p className="mt-2 whitespace-pre-wrap text-xs text-slate-400">{hotel.observacoes}</p>}</div>)}</div> : <p className="mt-3 text-sm text-slate-400">Nenhuma reserva de hospedagem encontrada no período.</p>}
                 </section>
 
                 <section className="mt-4 rounded-2xl border border-white/10 bg-[#101e33] p-4">
@@ -315,3 +317,4 @@ export default function MeusVoos() {
     </MobileLayout>
   );
 }
+
