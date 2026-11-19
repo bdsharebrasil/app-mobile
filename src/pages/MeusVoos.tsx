@@ -383,7 +383,7 @@ export default function MeusVoos() {
 
   return (
     <MobileLayout>
-      <main className="meus-voos-page min-h-[calc(100dvh-5.5rem)] bg-[#071326] px-4 pb-28 pt-5 text-white">
+      <main className="meus-voos-page min-h-[calc(100dvh-5.5rem)] bg-[#090B10] px-4 pb-28 pt-5 text-white">
         <div className="mx-auto max-w-[430px]">
           <header className="mb-5">
             <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-300">Área do tripulante</p>
