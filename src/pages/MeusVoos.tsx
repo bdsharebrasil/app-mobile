@@ -88,6 +88,12 @@ type FlightDetail = {
   hospedagens: HotelReservation[];
 };
 
+type PreparacaoServico = { id: string; tipo: string; observacao: string | null; dados: Record<string, any> };
+type PreparacaoResposta = {
+  dados: { escalas: Array<{ servicos: PreparacaoServico[] }> };
+  reservas?: Array<{ servico_id: string; status: string }>;
+};
+
 type FlightListResponse = { tripulante: { id: string; nome_completo: string; canac: string | null } | null; voos: Flight[] };
 type VooComRelatorio = { solicitacao_id: string; relatorio_id: string | null; relatorio_status: string | null };
 type VoosComRelatorios = { voos: VooComRelatorio[] };
@@ -155,6 +161,11 @@ export default function MeusVoos() {
     queryFn: () => apiClient.get<FlightDetail>(`/api/colaborador/meus-voos/${encodeURIComponent(flightId || "")}`),
     enabled: Boolean(flightId),
   });
+  const preparacaoQuery = useQuery({
+    queryKey: [...flightListQueryKey, "preparacao", flightId],
+    queryFn: () => apiClient.get<PreparacaoResposta>(`/api/interno/agendamento/${encodeURIComponent(flightId || "")}/preparacao`),
+    enabled: Boolean(flightId),
+  });
   const { aeronaves } = useAeronaves();
   const relatoriosVoosQuery = useQuery({
     queryKey: ['relatorios-despesa-meus-voos'],
@@ -165,6 +176,24 @@ export default function MeusVoos() {
   const approvedFlights = flights.filter((item) => activeStatuses.has(String(item.status).trim().toLowerCase()));
   const completedFlights = flights.filter((item) => closedStatuses.has(String(item.status).toLowerCase()));
   const detail = detailQuery.data;
+  const hospedagens: HotelReservation[] = (preparacaoQuery.data?.dados.escalas ?? [])
+    .flatMap((escala) => escala.servicos)
+    .filter((servico) => servico.tipo === "HOTEL")
+    .map((servico) => ({
+      id: servico.id,
+      status: preparacaoQuery.data?.reservas?.some((reserva) => reserva.servico_id === servico.id && reserva.status === "ENVIADO") ? "SOLICITADA" : undefined,
+      data_checkin: servico.dados.checkin ?? "",
+      data_checkout: servico.dados.checkout ?? "",
+      tipo_quarto: servico.dados.tipo_quarto || null,
+      quantidade_hospedes: Number(servico.dados.quantidade_hospedes) || null,
+      observacoes: servico.observacao || null,
+      hotel_nome: servico.dados.nome || null,
+      hotel_cidade: servico.dados.cidade || null,
+      hotel_uf: null,
+      hotel_telefone: servico.dados.telefone || undefined,
+      cafe_estado: servico.dados.cafe_estado || undefined,
+      cafe_valor: servico.dados.cafe_valor ? String(servico.dados.cafe_valor) : undefined,
+    }));
   const aeronaveDoVoo = aeronaves.find((item) => item.id === detail?.voo?.aeronave_id) as (Aeronave & { url_imagem?: string | null }) | undefined;
   const fotoAeronave = detail?.voo?.url_imagem || aeronaveDoVoo?.url_imagem || aeronaveDoVoo?.image_url || null;
   const vooComRelatorio = relatoriosVoosQuery.data?.voos.find((item) => item.solicitacao_id === flightId);
@@ -235,8 +264,8 @@ export default function MeusVoos() {
                 </button>}
 
                 <section className="mt-4 rounded-2xl border border-white/10 bg-[#101e33] p-4">
-                  <div className="mb-2 flex items-start gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-300/10 text-amber-200"><Hotel className="h-4 w-4" /></span><div><h2 className="text-sm font-semibold text-white">Hospedagem</h2><p className="text-xs text-slate-500">Reservas que coincidem com o período do voo.</p></div></div>
-                  {detail.hospedagens.length ? <div className="mt-3 space-y-2">{detail.hospedagens.map((hotel) => <div key={hotel.id} className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3"><p className="font-semibold text-slate-100">{hotel.hotel_nome || "Hotel"}</p><p className="mt-1 text-xs text-slate-400">{dateLabel(hotel.data_checkin)} – {dateLabel(hotel.data_checkout)}{hotel.hotel_cidade ? ` · ${hotel.hotel_cidade}${hotel.hotel_uf ? `/${hotel.hotel_uf}` : ""}` : ""}</p><p className="mt-1 text-xs text-slate-500">{hotel.tipo_quarto || "Quarto não especificado"} · {hotel.quantidade_hospedes || 1} hóspedes</p><p className="mt-2 text-xs text-slate-300">Café da manhã: {hotel.cafe_estado ? ({INCLUIDO:'Incluído na diária',A_PARTE:'Pago à parte',NAO_OFERECE:'Não oferece',A_CONFIRMAR:'A confirmar'} as Record<string,string>)[hotel.cafe_estado] : interpretarCafe(hotel.cafe_manha).rotulo}{hotel.cafe_valor ? ' · R$ '+hotel.cafe_valor : ''}</p>{hotel.status==='SOLICITADA'&&<p className="mt-1 text-xs text-sky-200">Solicitação enviada pelo sistema · consulte a confirmação no briefing</p>}{hotel.hotel_telefone&&<a className="mt-2 inline-flex min-h-11 items-center text-xs text-sky-200 underline" href={'tel:'+hotel.hotel_telefone.replace(/[^+\d]/g,'')}>Ligar para o hotel · {hotel.hotel_telefone}</a>}{hotel.observacoes && <p className="mt-2 whitespace-pre-wrap text-xs text-slate-400">{hotel.observacoes}</p>}</div>)}</div> : <p className="mt-3 text-sm text-slate-400">Nenhuma reserva de hospedagem encontrada no período.</p>}
+                  <div className="mb-2 flex items-start gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-300/10 text-amber-200"><Hotel className="h-4 w-4" /></span><div><h2 className="text-sm font-semibold text-white">Hospedagem</h2><p className="text-xs text-slate-500">Hospedagens cadastradas no briefing do voo.</p></div></div>
+                  {hospedagens.length ? <div className="mt-3 space-y-2">{hospedagens.map((hotel) => <div key={hotel.id} className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3"><p className="font-semibold text-slate-100">{hotel.hotel_nome || "Hotel"}</p><p className="mt-1 text-xs text-slate-400">{dateLabel(hotel.data_checkin)} – {dateLabel(hotel.data_checkout)}{hotel.hotel_cidade ? ` · ${hotel.hotel_cidade}${hotel.hotel_uf ? `/${hotel.hotel_uf}` : ""}` : ""}</p><p className="mt-1 text-xs text-slate-500">{hotel.tipo_quarto || "Quarto não especificado"} · {hotel.quantidade_hospedes || 1} hóspedes</p><p className="mt-2 text-xs text-slate-300">Café da manhã: {hotel.cafe_estado ? ({INCLUIDO:'Incluído na diária',A_PARTE:'Pago à parte',NAO_OFERECE:'Não oferece',A_CONFIRMAR:'A confirmar'} as Record<string,string>)[hotel.cafe_estado] : interpretarCafe(hotel.cafe_manha).rotulo}{hotel.cafe_valor ? ' · R$ '+hotel.cafe_valor : ''}</p>{hotel.status==='SOLICITADA'&&<p className="mt-1 text-xs text-sky-200">Solicitação enviada pelo sistema · consulte a confirmação no briefing</p>}{hotel.hotel_telefone&&<a className="mt-2 inline-flex min-h-11 items-center text-xs text-sky-200 underline" href={'tel:'+hotel.hotel_telefone.replace(/[^+\d]/g,'')}>Ligar para o hotel · {hotel.hotel_telefone}</a>}{hotel.observacoes && <p className="mt-2 whitespace-pre-wrap text-xs text-slate-400">{hotel.observacoes}</p>}</div>)}</div> : <p className="mt-3 text-sm text-slate-400">Nenhuma hospedagem cadastrada no briefing.</p>}
                 </section>
 
                 <section className="mt-4 rounded-2xl border border-white/10 bg-[#101e33] p-4">
