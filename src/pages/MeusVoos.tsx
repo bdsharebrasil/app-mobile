@@ -97,9 +97,8 @@ const activeStatuses = new Set(["aprovada", "acionado", "decolado", "em_voo", "e
 
 function dateLabel(value?: string | null) {
   if (!value) return "Data não informada";
-  const datePart = value.slice(0, 10);
-  const date = new Date(`${datePart}T12:00:00`);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
+  const [year, month, day] = value.slice(0, 10).split("-");
+  return year && month && day ? `${day}/${month}/${year.slice(-2)}` : value;
 }
 
 function aircraftLabel(flight: Flight) {
