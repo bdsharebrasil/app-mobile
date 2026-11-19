@@ -672,10 +672,6 @@ export default function PreparacaoVoo({
         </div>
       </header>
 
-      <p className="pv-meta">
-        {registro.voo.piloto_nome || 'Comandante a confirmar'}
-        {registro.voo.copiloto_nome ? ' · ' + registro.voo.copiloto_nome : ''} · {registro.voo.numero_passageiros ?? '—'} pax
-      </p>
       <p className="pv-meta" role="status">
         {offline
           ? `Offline · ${momento(registro.atualizado_em) || 'última consulta'}`
@@ -1265,7 +1261,7 @@ export default function PreparacaoVoo({
         <div className="pv-lista">
           <h3>Briefing</h3>
           {respostas.filter((r) => !resolvido(r)).length > 0 && (
-            <div className="pv-aviso">
+            <div className="pv-aviso pv-aviso-pendencias">
               <AlertCircle size={17} />
               <span>{pendencias} pendência(s) serão incluídas no briefing.</span>
             </div>
