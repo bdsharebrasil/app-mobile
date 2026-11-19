@@ -225,6 +225,10 @@
   border-color: var(--pv-accent);
 }
 
+.pv .pv-acoes button[aria-pressed=true] {
+  background: #131e2d;
+}
+
 .pv-etapas button,
 .pv-escalas > nav button {
   white-space: nowrap;
@@ -553,7 +557,7 @@
   .pv-tabs {
     padding: 4px;
     gap: 4px;
-    background: var(--pv-alt);
+    background: #13202d;
     border: 1px solid var(--pv-line);
     border-radius: 12px;
     margin: 10px 0 12px;
