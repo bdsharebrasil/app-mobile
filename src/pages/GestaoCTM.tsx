@@ -115,7 +115,7 @@ function NavBar({
 }) {
   return (
     <div
-      className="sticky top-0 z-30 border-b border-black/[0.06] bg-[rgba(29,48,80,0.8)] backdrop-blur-xl backdrop-saturate-150"
+      className="sticky top-0 z-30 border-b border-black/[0.06] bg-[rgba(4,8,14,0.8)] backdrop-blur-xl backdrop-saturate-150"
       style={{ WebkitBackdropFilter: "blur(20px) saturate(1.5)" }}
     >
       <div className="mx-auto my-0 flex h-[52px] w-full max-w-3xl items-center justify-between px-2 sm:px-4">
