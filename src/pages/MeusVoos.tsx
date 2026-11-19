@@ -1,7 +1,7 @@
 import { interpretarCafe } from '@/lib/cafe-manha';
 import { useQuery } from "@tanstack/react-query";
 import {
-  ArrowLeft, CalendarDays, ChevronRight, Clock3, FolderOpen,
+  ArrowLeft, ArrowRight, CalendarDays, ChevronRight, Clock3, FolderOpen,
   Hotel, Loader2, MapPin, MessageSquareText, Plane, RefreshCw, ReceiptText,
 } from "lucide-react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
@@ -100,6 +100,7 @@ type VoosComRelatorios = { voos: VooComRelatorio[] };
 
 const closedStatuses = new Set(["encerrada", "concluida"]);
 const activeStatuses = new Set(["aprovada", "acionado", "decolado", "em_voo", "em voo", "em_rota", "em rota", "em_solo", "pousado"]);
+const inProgressStatuses = new Set(["acionado", "decolado", "em_voo", "em voo", "em_rota", "em rota", "em_solo", "pousado"]);
 
 function dateLabel(value?: string | null) {
   if (!value) return "Data não informada";
@@ -119,15 +120,79 @@ function statusLabel(status: string) {
   return "Aprovado";
 }
 
-function FlightCard({ flight, isToday, onClick }: { flight: Flight; isToday: boolean; onClick: () => void }) {
+function dayKey(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function shortDate(value?: string | null) {
+  if (!value) return "—";
+  const date = new Date(`${value.slice(0, 10)}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return "—";
+  return `${String(date.getDate()).padStart(2, "0")} ${date.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "")} ${date.getFullYear()}`;
+}
+
+function isInProgress(flight: Flight) {
+  return inProgressStatuses.has(String(flight.status || "").trim().toLowerCase());
+}
+
+function flightIsToday(flight: Flight) {
+  const start = (flight.data_agendada || "").slice(0, 10);
+  if (!start) return false;
+  const end = new Date(`${start}T12:00:00`);
+  end.setDate(end.getDate() + Math.max(1, flight.dias_duracao || 1) - 1);
+  const today = dayKey(new Date());
+  return start <= today && today <= dayKey(end);
+}
+
+function TodayFlightHero({ flight, onOpen }: { flight: Flight; onOpen: () => void }) {
+  const chips = [
+    { label: "Data", value: shortDate(flight.data_agendada) },
+    { label: "Horário", value: formatScheduledFlightTime(flight.horario_previsto_agendamento) || "—" },
+    { label: "Passageiros", value: String(flight.numero_passageiros ?? 0).padStart(2, "0") },
+  ];
+  return (
+    <section aria-label="Voo de hoje" className="space-y-3">
+      <div className="rounded-3xl border border-white/10 bg-[#101e33] p-4 shadow-lg shadow-black/10">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-300">Voo de hoje</span>
+          <span className="rounded-full bg-emerald-300/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-200">{statusLabel(flight.status)}</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <span className="block text-[10px] uppercase tracking-wider text-slate-500">Origem</span>
+            <span className="mt-0.5 block truncate text-xl font-bold text-white">{flight.origem || "—"}</span>
+            <div className="my-3 border-t border-white/[0.08]" />
+            <span className="block text-[10px] uppercase tracking-wider text-slate-500">Destino</span>
+            <span className="mt-0.5 block truncate text-xl font-bold text-white">{flight.destino || "—"}</span>
+          </div>
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-[#071326]"><Plane className="h-4 w-4" /></span>
+        </div>
+        <p className="mt-3 truncate text-xs text-slate-400">{flight.numero_voo || "Voo sem número"} · {aircraftLabel(flight)}</p>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2">
+        {chips.map((chip) => (
+          <div key={chip.label} className="rounded-2xl border border-white/[0.08] bg-white/[0.04] px-3 py-2.5">
+            <span className="block text-[10px] uppercase tracking-wider text-slate-500">{chip.label}</span>
+            <span className="mt-1 block truncate text-sm font-semibold text-white">{chip.value}</span>
+          </div>
+        ))}
+      </div>
+
+      <button type="button" onClick={onOpen} className="flex min-h-14 w-full items-center justify-between rounded-full bg-[#3D9C7D] py-2 pl-6 pr-2 text-left text-[15px] font-bold text-[#08110F] transition hover:brightness-110 active:scale-[0.99]">
+        Ver detalhes do voo
+        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#08110F] text-white"><ArrowRight className="h-4 w-4" /></span>
+      </button>
+    </section>
+  );
+}
+
+function FlightCard({ flight, onClick }: { flight: Flight; onClick: () => void }) {
   const needsTimes = flightNeedsTimeCompletion(flight.status);
   return (
-    <button type="button" onClick={onClick} className={`group w-full min-h-11 rounded-2xl border bg-[#101e33] p-4 text-left transition hover:border-emerald-300/30 active:scale-[0.99] ${isToday ? "border-emerald-300/50" : needsTimes ? "border-amber-300/40" : "border-white/10"}`}>
+    <button type="button" onClick={onClick} className={`group w-full min-h-11 rounded-2xl border bg-[#101e33] p-4 text-left transition hover:border-emerald-300/30 active:scale-[0.99] ${needsTimes ? "border-amber-300/40" : "border-white/10"}`}>
       <div className="flex items-center justify-between gap-3">
-        <span className="flex min-w-0 items-center gap-2">
-          <span className="text-lg font-bold tracking-tight text-white">{flight.numero_voo || "Voo sem número"}</span>
-          {isToday && <span className="shrink-0 rounded-full bg-emerald-300/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-200">Voo de hoje</span>}
-        </span>
+        <span className="text-lg font-bold tracking-tight text-white">{flight.numero_voo || "Voo sem número"}</span>
         <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${closedStatuses.has(String(flight.status).toLowerCase()) ? "bg-sky-300/10 text-sky-200" : "bg-emerald-300/10 text-emerald-200"}`}>{statusLabel(flight.status)}</span>
       </div>
       <p className="mt-1 truncate text-sm text-slate-300">{aircraftLabel(flight)}</p>
@@ -136,10 +201,6 @@ function FlightCard({ flight, isToday, onClick }: { flight: Flight; isToday: boo
         <span className="flex min-w-0 items-center gap-1.5"><CalendarDays className="h-3.5 w-3.5 shrink-0 text-emerald-300" /><span className="truncate">{dateLabel(flight.data_agendada)}</span></span>
         <span className="flex min-w-0 items-center gap-1.5"><MapPin className="h-3.5 w-3.5 shrink-0 text-emerald-300" /><span className="truncate">{flight.origem || "—"} → {flight.destino || "—"}</span></span>
       </div>
-      <span className="mt-3 flex min-h-11 w-full items-center justify-between rounded-full bg-[#3D9C7D] py-2 pl-5 pr-2 text-sm font-bold text-[#08110F]">
-        Ver detalhes do voo
-        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#08110F] text-white"><ChevronRight className="h-4 w-4" /></span>
-      </span>
     </button>
   );
 }
@@ -180,11 +241,12 @@ export default function MeusVoos() {
     enabled: Boolean(flightId),
   });
   const flights = listQuery.data?.voos ?? [];
-  const todayKey = new Date().toLocaleDateString("en-CA");
-  const isFlightToday = (flight: Flight) => flight.data_agendada.slice(0, 10) === todayKey;
-  const approvedFlights = flights
-    .filter((item) => activeStatuses.has(String(item.status).trim().toLowerCase()))
-    .sort((a, b) => Number(isFlightToday(b)) - Number(isFlightToday(a)));
+  const approvedFlights = flights.filter((item) => activeStatuses.has(String(item.status).trim().toLowerCase()));
+  const todayFlights = approvedFlights
+    .filter((item) => isInProgress(item) || flightIsToday(item))
+    .sort((a, b) => Number(!isInProgress(a)) - Number(!isInProgress(b)) || String(a.horario_previsto_agendamento || "").localeCompare(String(b.horario_previsto_agendamento || "")));
+  const currentFlight = todayFlights[0];
+  const agendaFlights = approvedFlights.filter((item) => item.id !== currentFlight?.id);
   const completedFlights = flights.filter((item) => closedStatuses.has(String(item.status).toLowerCase()));
   const detail = detailQuery.data;
   const hospedagens: HotelReservation[] = (preparacaoQuery.data?.dados.escalas ?? [])
@@ -304,7 +366,7 @@ export default function MeusVoos() {
     return <MobileLayout><main className="meus-voos-page min-h-[calc(100dvh-5.5rem)] bg-[#071326] px-4 pb-28 pt-2 text-white"><div className="mx-auto max-w-[430px]">
       <button onClick={() => navigate("/meus-voos?tab=concluidos")} className="mb-4 inline-flex min-h-11 items-center gap-2 rounded-xl px-2 text-sm font-medium text-slate-300 transition active:bg-white/[0.06]"><ArrowLeft className="h-4 w-4" /> Voltar para concluídos</button>
       <header className="mb-5"><p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-300">Pasta de voos</p><h1 className="mt-1 text-2xl font-bold">{year} · {aircraft ? aircraftLabel(aircraft) : "Aeronave"}</h1><p className="mt-1 text-sm text-slate-400">{folderFlights.length} {folderFlights.length === 1 ? "voo concluído" : "voos concluídos"}</p></header>
-      {folderFlights.length ? <div className="space-y-3">{folderFlights.map((flight) => <FlightCard key={flight.id} flight={flight} isToday={isFlightToday(flight)} onClick={() => openFlight(flight.id)} />)}</div> : <EmptyState title="Pasta sem voos" description="Não encontramos voos concluídos nesta combinação de ano e aeronave." />}
+      {folderFlights.length ? <div className="space-y-3">{folderFlights.map((flight) => <FlightCard key={flight.id} flight={flight} onClick={() => openFlight(flight.id)} />)}</div> : <EmptyState title="Pasta sem voos" description="Não encontramos voos concluídos nesta combinação de ano e aeronave." />}
     </div></main></MobileLayout>;
   }
 
@@ -330,14 +392,16 @@ export default function MeusVoos() {
           </header>
 
           {!listQuery.data?.tripulante ? <EmptyState title="Perfil de tripulante não vinculado" description="Não encontramos um cadastro de tripulante associado ao seu usuário." /> : (
+            <>
+            {currentFlight && <TodayFlightHero flight={currentFlight} onOpen={() => openFlight(currentFlight.id)} />}
             <Tabs value={activeTab} onValueChange={(tab) => navigate(tab === "concluidos" ? "/meus-voos?tab=concluidos" : "/meus-voos?tab=aprovados")}>
               <TabsList className="mb-5 grid h-auto w-full grid-cols-2 rounded-2xl border border-white/10 bg-white/[0.04] p-1">
-                <TabsTrigger value="aprovados" className="min-h-11 rounded-xl py-3 text-sm font-semibold text-slate-400 data-[state=active]:bg-[#3D9C7D] data-[state=active]:text-[#08110F]">Agenda <span className="ml-1.5 rounded-full bg-black/10 px-2 py-0.5 text-[10px]">{approvedFlights.length}</span></TabsTrigger>
+                <TabsTrigger value="aprovados" className="min-h-11 rounded-xl py-3 text-sm font-semibold text-slate-400 data-[state=active]:bg-[#3D9C7D] data-[state=active]:text-[#08110F]">Agenda <span className="ml-1.5 rounded-full bg-black/10 px-2 py-0.5 text-[10px]">{agendaFlights.length}</span></TabsTrigger>
                 <TabsTrigger value="concluidos" className="min-h-11 rounded-xl py-3 text-sm font-semibold text-slate-400 data-[state=active]:bg-[#3D9C7D] data-[state=active]:text-[#08110F]">Concluídos <span className="ml-1.5 rounded-full bg-black/10 px-2 py-0.5 text-[10px]">{completedFlights.length}</span></TabsTrigger>
               </TabsList>
 
               <TabsContent value="aprovados" className="mt-0 space-y-3">
-                {approvedFlights.length ? approvedFlights.map((flight) => <FlightCard key={flight.id} flight={flight} isToday={isFlightToday(flight)} onClick={() => openFlight(flight.id)} />) : <EmptyState title="Nenhum voo aprovado" description="Quando uma solicitação de reserva for aprovada em seu nome, ela aparecerá aqui." />}
+                {agendaFlights.length ? agendaFlights.map((flight) => <FlightCard key={flight.id} flight={flight} onClick={() => openFlight(flight.id)} />) : <EmptyState title="Nenhum voo aprovado" description="Quando uma solicitação de reserva for aprovada em seu nome, ela aparecerá aqui." />}
               </TabsContent>
 
               <TabsContent value="concluidos" className="mt-0 space-y-5">
@@ -347,6 +411,7 @@ export default function MeusVoos() {
                 </section>) : <EmptyState title="Nenhum voo concluído" description="Os voos finalizados aparecerão organizados por ano e aeronave." />}
               </TabsContent>
             </Tabs>
+            </>
           )}
           {listQuery.isFetching && <p className="mt-4 flex items-center justify-center gap-2 text-xs text-slate-500"><RefreshCw className="h-3.5 w-3.5 animate-spin" /> Atualizando</p>}
         </div>
