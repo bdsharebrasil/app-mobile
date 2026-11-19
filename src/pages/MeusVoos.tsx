@@ -307,7 +307,7 @@ export default function MeusVoos() {
           {!listQuery.data?.tripulante ? <EmptyState title="Perfil de tripulante não vinculado" description="Não encontramos um cadastro de tripulante associado ao seu usuário." /> : (
             <Tabs value={activeTab} onValueChange={(tab) => navigate(tab === "concluidos" ? "/meus-voos?tab=concluidos" : "/meus-voos?tab=aprovados")}>
               <TabsList className="mb-5 grid h-auto w-full grid-cols-2 rounded-2xl border border-white/10 bg-white/[0.04] p-1">
-                <TabsTrigger value="aprovados" className="min-h-11 rounded-xl py-3 text-sm font-semibold text-slate-400 data-[state=active]:bg-[#3D9C7D] data-[state=active]:text-[#08110F]">Ativos <span className="ml-1.5 rounded-full bg-black/10 px-2 py-0.5 text-[10px]">{approvedFlights.length}</span></TabsTrigger>
+                <TabsTrigger value="aprovados" className="min-h-11 rounded-xl py-3 text-sm font-semibold text-slate-400 data-[state=active]:bg-[#3D9C7D] data-[state=active]:text-[#08110F]">Agenda <span className="ml-1.5 rounded-full bg-black/10 px-2 py-0.5 text-[10px]">{approvedFlights.length}</span></TabsTrigger>
                 <TabsTrigger value="concluidos" className="min-h-11 rounded-xl py-3 text-sm font-semibold text-slate-400 data-[state=active]:bg-[#3D9C7D] data-[state=active]:text-[#08110F]">Concluídos <span className="ml-1.5 rounded-full bg-black/10 px-2 py-0.5 text-[10px]">{completedFlights.length}</span></TabsTrigger>
               </TabsList>
 
