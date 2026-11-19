@@ -29,11 +29,11 @@ interface NavigationItem {
 
 const NAV_ITEMS: NavigationItem[] = [
   {
-    id: "flights",
-    title: "Diário de Bordo",
-    icon: Plane,
-    route: "/diario-bordo",
-    color: "white",
+    id: "my-flights",
+    title: "Meus Voos",
+    icon: PlaneTakeoff,
+    route: "/meus-voos",
+    color: "navy",
   },
   {
     id: "flight-plan",
@@ -43,18 +43,11 @@ const NAV_ITEMS: NavigationItem[] = [
     color: "green",
   },
   {
-    id: "my-flights",
-    title: "Meus Voos",
-    icon: PlaneTakeoff,
-    route: "/meus-voos",
-    color: "navy",
-  },
-  {
-    id: "payroll",
-    title: "Folha de Pagamento",
-    icon: DollarSign,
-    route: "/financeiro/folha",
-    color: "green",
+    id: "reports",
+    title: "Despesas de Viagem",
+    icon: CreditCard,
+    route: "/financeiro/despesas-viagem",
+    color: "white",
   },
   {
     id: "maintenance",
@@ -64,11 +57,18 @@ const NAV_ITEMS: NavigationItem[] = [
     color: "navy",
   },
   {
-    id: "reports",
-    title: "Despesas de Viagem",
-    icon: CreditCard,
-    route: "/financeiro/despesas-viagem",
+    id: "flights",
+    title: "Diário de Bordo",
+    icon: Plane,
+    route: "/diario-bordo",
     color: "white",
+  },
+  {
+    id: "payroll",
+    title: "Folha de Pagamento",
+    icon: DollarSign,
+    route: "/financeiro/folha",
+    color: "green",
   },
   {
     id: "notifications",
@@ -161,7 +161,7 @@ export function MobileDashboard() {
           </motion.div>
 
           {/* Navigation Grid */}
-          <div className="grid grid-cols-2 grid-rows-4 grid-flow-col gap-3 mb-8">
+          <div className="grid grid-cols-2 grid-rows-4 grid-flow-row gap-3 mb-8">
             {filteredItems.map((item, index) => {
               const style = colorStyles[item.color];
               const needsTimes = item.id === "my-flights" && activeFlightCount > 0;
