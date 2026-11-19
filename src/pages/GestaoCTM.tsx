@@ -115,7 +115,7 @@ function NavBar({
 }) {
   return (
     <div
-      className="sticky top-0 z-30 border-b border-black/[0.06] bg-[rgba(29,48,80,0.8)] backdrop-blur-xl backdrop-saturate-150"
+      className="sticky top-0 z-30 border-b border-black/[0.06] bg-[rgba(4,8,14,0.8)] backdrop-blur-xl backdrop-saturate-150"
       style={{ WebkitBackdropFilter: "blur(20px) saturate(1.5)" }}
     >
       <div className="mx-auto my-0 flex h-[52px] w-full max-w-3xl items-center justify-between px-2 sm:px-4">
@@ -482,10 +482,10 @@ export default function GestaoCTM() {
                 </div>
 
                 {/* Resumo */}
-                <div className="mx-auto flex w-full max-w-md items-center justify-around gap-4 rounded-[20px] bg-[#556163] px-6 py-3.5 shadow-[0_0_0_0.5px_rgba(0,0,0,0.06)]">
+                <div className="mx-auto flex w-full max-w-md items-center justify-around gap-4 rounded-[20px] bg-[#24272C] px-6 py-3.5 shadow-[0_0_0_0.5px_rgba(0,0,0,0.06)]">
                   <div className="text-center">
                     <p className="text-[13px] text-white">Total de reports</p>
-                    <p className="text-[28px] font-bold leading-none tracking-tight text-[#0D2138]">
+                    <p className="text-[28px] font-bold leading-none tracking-tight text-[#819DBE]">
                       {reports.length}
                     </p>
                   </div>

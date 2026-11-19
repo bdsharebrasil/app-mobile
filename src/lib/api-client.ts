@@ -23,7 +23,7 @@ export interface DiarioAeronaveResumo {
   fechado: number;
 }
 
-export interface DiarioOpcoesResponse {
+interface DiarioOpcoesResponse {
   clientes: Array<{ id: string; nome: string; codigo_cliente: string | null; proprietario: string | null }>;
   holdings: Array<{ id: string; nome: string; proprietario: string | null }>;
   socios: Array<{ id: string; nome: string; cotista_id: string | null; holding_id: string | null }>;
@@ -386,14 +386,3 @@ class ApiClient {
 
 // Instância única da API
 export const apiClient = new ApiClient(API_BASE_URL);
-
-// Helper para tratamento de erros
-export function handleApiError(error: any): string {
-  if (error.response?.data?.error) {
-    return error.response.data.error;
-  }
-  if (error.message) {
-    return error.message;
-  }
-  return 'Erro desconhecido na API';
-}

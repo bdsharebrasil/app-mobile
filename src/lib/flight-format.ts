@@ -34,12 +34,17 @@ export function formatScheduledFlightTime(value: unknown): string {
   return `${zulu}Z · ${brasilia} Brasília`;
 }
 
+export function formatBrasiliaTime(value: unknown): string {
+  const time = formatTime(value, BRASILIA_TIME_ZONE);
+  return time ? `${time} Brasília` : "—";
+}
+
 export function formatZuluTime(value: unknown): string {
   const time = formatTime(value, "UTC");
   return time ? `${time}Z` : "—";
 }
 
-export function formatFlightStatus(value: unknown, fallback = "Não informado"): string {
+function formatFlightStatus(value: unknown, fallback = "Não informado"): string {
   const normalized = String(value ?? "").trim().toLowerCase().replace(/\s+/g, "_");
   if (!normalized) return fallback;
   const labels: Record<string, string> = {

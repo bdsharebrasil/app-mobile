@@ -44,35 +44,6 @@ export function calculateMagneticHeading(
   return Math.round(heading);
 }
 
-// Divide route into segments (30 min or 200 NM)
-export function divideRoute(
-  points: Array<{ lat: number; lon: number; name: string }>,
-  cruiseSpeed: number = 250 // knots
-): Array<{
-  from: string;
-  to: string;
-  distance: number;
-  heading: number;
-  time: number;
-}> {
-  const segments = [];
-  for (let i = 0; i < points.length - 1; i++) {
-    const from = points[i];
-    const to = points[i + 1];
-    const distance = calculateDistance(from.lat, from.lon, to.lat, to.lon);
-    const heading = calculateMagneticHeading(from.lat, from.lon, to.lat, to.lon);
-    const time = (distance / cruiseSpeed) * 60; // minutes
-    segments.push({
-      from: from.name,
-      to: to.name,
-      distance: Math.round(distance * 10) / 10,
-      heading,
-      time: Math.round(time),
-    });
-  }
-  return segments;
-}
-
 // =============================================================================
 // NOTA: As funções de meteorologia (METAR/TAF) foram migradas para:
 // src/services/aiswebWeather.ts
