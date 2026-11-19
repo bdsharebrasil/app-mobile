@@ -178,7 +178,7 @@ export default function MeusVoos() {
     const flight = detail?.voo;
     return (
       <MobileLayout>
-        <main className="meus-voos-page min-h-[calc(100dvh-5.5rem)] bg-[#071326] pb-28 text-white">
+        <main className="meus-voos-page min-h-[calc(100dvh-5.5rem)] bg-[#060c16] pb-28 text-white">
           <div className="mx-auto max-w-[430px] px-4 pt-2">
             <button onClick={goBack} className="-ml-1 inline-flex min-h-11 items-center gap-2 rounded-xl px-2 text-sm font-medium text-slate-300 transition active:bg-white/[0.06]"><ArrowLeft className="h-4 w-4" /> Voltar</button>
             {detailQuery.isLoading ? <div className="flex min-h-52 items-center justify-center gap-3 text-sm text-slate-400"><Loader2 className="h-5 w-5 animate-spin text-emerald-300" /> Carregando dados do voo…</div> : detailQuery.isError || !flight ? (
@@ -187,18 +187,18 @@ export default function MeusVoos() {
               <>
                 <div className="mt-3 px-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-300">Detalhes do voo</div>
 
-                <section className="relative mt-3 overflow-hidden rounded-[26px] border border-emerald-900/60 bg-[#101e33] shadow-xl shadow-black/30">
+                <section className="relative mt-3 overflow-hidden rounded-[26px] border border-[rgba(7,66,52,0.6)] [border-style:inset] bg-[#101e33] shadow-xl shadow-black/30">
                   <div className="relative h-[112px] bg-gradient-to-br from-[#103b3b] via-[#122b3c] to-[#101d34]">
                     {fotoAeronave && <>
                       <img src={fotoAeronave} alt={`Foto da aeronave ${flight.matricula_registro || ""}`} className="absolute inset-0 h-full w-full object-cover" />
-                      <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/25 to-black/75" />
+                      <div className="absolute inset-0 bg-[rgba(41,40,40,0.39)]" />
                     </>}
-                    <div className="absolute left-1/2 top-0 h-10 w-20 -translate-x-1/2 rounded-b-[40px] bg-[#071326]" />
+                    <div className="absolute left-1/2 top-0 -my-[25px] h-10 w-20 -translate-x-1/2 rounded-b-[40px] bg-[#071326] p-0" />
                     <div className="absolute inset-x-5 top-4 flex items-start justify-between text-xs">
-                      <span className="font-semibold text-white">Voo {flight.numero_voo || "—"}</span>
+                      <span className="font-semibold text-[rgba(193,214,171,1)]">Voo {flight.numero_voo || "—"}</span>
                       <span className="text-white/60">{flight.matricula_registro || "—"}</span>
                     </div>
-                    <span className="absolute bottom-3 right-4 rounded-full bg-black/40 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-white">{statusLabel(flight.status)}</span>
+                    <span className="absolute bottom-3 right-4 rounded-full bg-black/40 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-[rgba(126,211,33,1)]">{statusLabel(flight.status)}</span>
                   </div>
                   <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-2 px-5 pt-4">
                     <div className="min-w-0">
@@ -211,7 +211,7 @@ export default function MeusVoos() {
                       <p className="mt-0.5 truncate text-[28px] font-bold leading-none tracking-tight text-white">{flight.destino || "—"}</p>
                     </div>
                   </div>
-                  <div className="mt-4 flex items-center justify-between gap-4 border-t border-white/[0.08] px-5 py-3 text-xs font-semibold tabular-nums text-slate-400"><span>{formatZuluTime(flight.horario_previsto_agendamento)}</span><span>{formatBrasiliaTime(flight.horario_previsto_agendamento)}</span></div>
+                  <div className="mt-4 flex items-center justify-between gap-4 border-t border-white/[0.08] px-5 py-3 text-xs font-semibold tabular-nums text-slate-400"><span className="text-[rgba(203,215,231,1)]">{formatZuluTime(flight.horario_previsto_agendamento)}</span><span className="text-[rgba(212,223,238,1)]">{formatBrasiliaTime(flight.horario_previsto_agendamento)}</span></div>
                 </section>
 
                 <section className="mt-4 rounded-2xl border border-white/10 bg-[#101e33] px-4 pb-1">
