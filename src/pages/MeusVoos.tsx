@@ -8,6 +8,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { MobileLayout } from "@/components/mobile/MobileLayout";
 import { FlightOperations } from "@/components/mobile/FlightOperations";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAeronaves, type Aeronave } from "@/hooks/useAeronaves";
 import { apiClient } from "@/lib/api-client";
 import { formatBrasiliaTime, formatScheduledFlightTime, formatZuluTime } from "@/lib/flight-format";
 import { flightListQueryKey, flightNeedsTimeCompletion } from "@/lib/flight-query-keys";
@@ -155,6 +156,7 @@ export default function MeusVoos() {
     queryFn: () => apiClient.get<FlightDetail>(`/api/colaborador/meus-voos/${encodeURIComponent(flightId || "")}`),
     enabled: Boolean(flightId),
   });
+  const { aeronaves } = useAeronaves();
   const relatoriosVoosQuery = useQuery({
     queryKey: ['relatorios-despesa-meus-voos'],
     queryFn: () => apiClient.get<VoosComRelatorios>('/api/financeiro/relatorios-despesa-viagem/meus-voos'),
@@ -164,6 +166,8 @@ export default function MeusVoos() {
   const approvedFlights = flights.filter((item) => activeStatuses.has(String(item.status).trim().toLowerCase()));
   const completedFlights = flights.filter((item) => closedStatuses.has(String(item.status).toLowerCase()));
   const detail = detailQuery.data;
+  const aeronaveDoVoo = aeronaves.find((item) => item.id === detail?.voo?.aeronave_id) as (Aeronave & { url_imagem?: string | null }) | undefined;
+  const fotoAeronave = detail?.voo?.url_imagem || aeronaveDoVoo?.url_imagem || aeronaveDoVoo?.image_url || null;
   const vooComRelatorio = relatoriosVoosQuery.data?.voos.find((item) => item.solicitacao_id === flightId);
   const isFolder = Boolean(year && aircraftId);
 
@@ -185,6 +189,10 @@ export default function MeusVoos() {
 
                 <section className="relative mt-3 overflow-hidden rounded-[26px] border border-emerald-900/60 bg-[#101e33] shadow-xl shadow-black/30">
                   <div className="relative h-[112px] bg-gradient-to-br from-[#103b3b] via-[#122b3c] to-[#101d34]">
+                    {fotoAeronave && <>
+                      <img src={fotoAeronave} alt={`Foto da aeronave ${flight.matricula_registro || ""}`} className="absolute inset-0 h-full w-full object-cover" />
+                      <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/25 to-black/75" />
+                    </>}
                     <div className="absolute left-1/2 top-0 h-10 w-20 -translate-x-1/2 rounded-b-[40px] bg-[#071326]" />
                     <div className="absolute inset-x-5 top-4 flex items-start justify-between text-xs">
                       <span className="font-semibold text-white">Voo {flight.numero_voo || "—"}</span>
