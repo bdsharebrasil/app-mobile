@@ -147,7 +147,7 @@ function flightIsToday(flight: Flight) {
 function TodayFlightHero({ flight, onOpen }: { flight: Flight; onOpen: () => void }) {
   const chips = [
     { label: "Data", value: shortDate(flight.data_agendada) },
-    { label: "Horário", value: formatScheduledFlightTime(flight.horario_previsto_agendamento) || "—" },
+    { label: "Horário", value: formatZuluTime(flight.horario_previsto_agendamento) },
     { label: "Passageiros", value: String(flight.numero_passageiros ?? 0).padStart(2, "0") },
   ];
   return (
@@ -394,7 +394,7 @@ export default function MeusVoos() {
           {!listQuery.data?.tripulante ? <EmptyState title="Perfil de tripulante não vinculado" description="Não encontramos um cadastro de tripulante associado ao seu usuário." /> : (
             <>
             {currentFlight && <TodayFlightHero flight={currentFlight} onOpen={() => openFlight(currentFlight.id)} />}
-            <Tabs value={activeTab} onValueChange={(tab) => navigate(tab === "concluidos" ? "/meus-voos?tab=concluidos" : "/meus-voos?tab=aprovados")}>
+            <Tabs value={activeTab} onValueChange={(tab) => navigate(tab === "concluidos" ? "/meus-voos?tab=concluidos" : "/meus-voos?tab=aprovados")} className="mt-[13px] mb-[13px]">
               <TabsList className="mb-5 grid h-auto w-full grid-cols-2 rounded-2xl border border-white/10 bg-white/[0.04] p-1">
                 <TabsTrigger value="aprovados" className="min-h-11 rounded-xl py-3 text-sm font-semibold text-slate-400 data-[state=active]:bg-[#3D9C7D] data-[state=active]:text-[#08110F]">Agenda <span className="ml-1.5 rounded-full bg-black/10 px-2 py-0.5 text-[10px]">{agendaFlights.length}</span></TabsTrigger>
                 <TabsTrigger value="concluidos" className="min-h-11 rounded-xl py-3 text-sm font-semibold text-slate-400 data-[state=active]:bg-[#3D9C7D] data-[state=active]:text-[#08110F]">Concluídos <span className="ml-1.5 rounded-full bg-black/10 px-2 py-0.5 text-[10px]">{completedFlights.length}</span></TabsTrigger>
