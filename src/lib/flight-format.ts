@@ -39,7 +39,7 @@ export function formatZuluTime(value: unknown): string {
   return time ? `${time}Z` : "—";
 }
 
-export function formatFlightStatus(value: unknown, fallback = "Não informado"): string {
+function formatFlightStatus(value: unknown, fallback = "Não informado"): string {
   const normalized = String(value ?? "").trim().toLowerCase().replace(/\s+/g, "_");
   if (!normalized) return fallback;
   const labels: Record<string, string> = {

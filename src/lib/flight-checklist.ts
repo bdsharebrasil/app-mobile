@@ -1,17 +1,17 @@
-export type ChecklistItemType =
+type ChecklistItemType =
   | "check"
   | "oleo"
   | "abastecimento"
   | "documentos";
 
-export type ChecklistItem = {
+type ChecklistItem = {
   id: string;
   label: string;
   tipo?: ChecklistItemType;
   somenteAeronaves?: string[];
 };
 
-export type ChecklistSection = {
+type ChecklistSection = {
   id: string;
   titulo: string;
   subtitulo: string;
@@ -50,7 +50,7 @@ export type ChecklistRecord = {
 } | null;
 
 // Fonte reproduzida do checklist oficial enviado para esta aeronave.
-export const FLIGHT_CHECKLIST_SECTIONS: ChecklistSection[] = [
+const FLIGHT_CHECKLIST_SECTIONS: ChecklistSection[] = [
   {
     id: "coordenacao",
     titulo: "Coordenação de voo",
@@ -167,4 +167,3 @@ export function checklistItemsForAircraft(
       ),
   );
 }
-
