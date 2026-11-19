@@ -193,10 +193,6 @@
   border-color: var(--pv-erro);
 }
 
-.pv-aviso.pv-aviso-pendencias {
-  background: #070f14;
-}
-
 .pv-tabs,
 .pv-etapas,
 .pv-escalas > nav {

@@ -107,6 +107,7 @@ export default function PreparacaoVoo({
   const [combustivel, setCombustivel] = useState<any>(null);
   const [busca, setBusca] = useState('');
   const [todos, setTodos] = useState(false);
+  const [soPendencias, setSoPendencias] = useState(false);
 
   const ref = useRef<any>(null);
   const atual = useRef<any>(null);
@@ -623,15 +624,16 @@ export default function PreparacaoVoo({
   }
 
   const respostas = [...Object.values(dados.itens), ...dados.escalas.flatMap((e: any) => e.servicos)] as any[];
+  const cafePendente = (s: any) =>
+    s.tipo === 'HOTEL' && s.estado === 'CONCLUIDO' && !['INCLUIDO', 'A_PARTE', 'NAO_OFERECE'].includes(s.dados.cafe_estado);
   const pendencias =
     respostas.filter((r) => !resolvido(r)).length +
     dados.escalas
       .flatMap((e: any) => e.servicos)
-      .filter((s: any) => s.tipo === 'HOTEL' && s.estado === 'CONCLUIDO' && !['INCLUIDO', 'A_PARTE', 'NAO_OFERECE'].includes(s.dados.cafe_estado)).length +
+      .filter(cafePendente).length +
     (!dados.nivel_oleo.trim() ? 1 : 0) +
     dados.trechos.filter((t: any) => !t.origem || !t.destino || !t.data || !t.horario || !t.fuso).length;
 
-  const status = registro.finalizado_em ? (pendencias ? `Finalizada com ${pendencias} pendência(s)` : 'Preparação finalizada') : 'Em preparação';
   const secoes = registro.secoes.filter((s: any) => s.segmento === aba);
   const filtro = busca
     .normalize('NFD')
@@ -655,9 +657,6 @@ export default function PreparacaoVoo({
             ))}
           </p>
         </div>
-        <span className="pv-selo" data-estado={pendencias ? 'EM_ANDAMENTO' : 'CONCLUIDO'}>
-          {status}
-        </span>
         <div className="pv-acoes">
           <button aria-pressed={aba === 'resumo'} onClick={() => setAba('resumo')}>
             Briefing
@@ -666,6 +665,12 @@ export default function PreparacaoVoo({
             <Download size={16} />
             PDF
           </button>
+          {pendencias > 0 && (
+            <button aria-pressed={soPendencias} onClick={() => { setAba('resumo'); setSoPendencias((v) => !v); }}>
+              <AlertCircle size={16} style={{ color: '#F5A623' }} />
+              {pendencias} pendência(s)
+            </button>
+          )}
           <button aria-label="Atualizar preparação" onClick={() => void carregar()} disabled={sujo || !!ocupado}>
             <RefreshCw size={16} />
           </button>
@@ -1257,15 +1262,54 @@ export default function PreparacaoVoo({
         </>
       )}
 
-      {aba === 'resumo' && (
+      {aba === 'resumo' && soPendencias && (
+        <div className="pv-lista">
+          <h3>Pendências</h3>
+          {dados.trechos.map((t: any, i: number) =>
+            !t.origem || !t.destino || !t.data || !t.horario || !t.fuso ? (
+              <p key={t.id} className="pv-linha-resumo" data-estado="PENDENTE">
+                <strong>
+                  Trecho {i + 1}: {t.origem || '—'} → {t.destino || '—'}
+                </strong>
+                <small>Dados do trecho incompletos</small>
+              </p>
+            ) : null
+          )}
+          {!dados.nivel_oleo.trim() && (
+            <p className="pv-linha-resumo" data-estado="PENDENTE">
+              <strong>Nível de óleo</strong>
+              <small>Não informado</small>
+            </p>
+          )}
+          {dados.escalas
+            .flatMap((e: any) => e.servicos)
+            .filter((s: any) => !resolvido(s) || cafePendente(s))
+            .map((s: any) => (
+              <div key={s.id} className="pv-linha-resumo" data-estado={s.estado}>
+                <strong>
+                  {registro.tipos_servico.find((t: any) => t.id === s.tipo)?.nome}
+                  {s.dados.nome ? ' · ' + s.dados.nome : ''}
+                </strong>
+                <span>{ROTULOS[s.estado]}</span>
+                <small>{cafePendente(s) ? 'Café da manhã a confirmar' : s.observacao || 'Motivo não informado'}</small>
+              </div>
+            ))}
+          {registro.secoes
+            .flatMap((sec: any) => sec.itens)
+            .filter((i: any) => !resolvido(dados.itens[i.id]))
+            .map((i: any) => (
+              <p key={i.id} className="pv-linha-resumo" data-estado={dados.itens[i.id].estado}>
+                <strong>{i.label}</strong>
+                <span>{ROTULOS[dados.itens[i.id].estado]}</span>
+                <small>{dados.itens[i.id].observacao || 'Motivo não informado'}</small>
+              </p>
+            ))}
+        </div>
+      )}
+
+      {aba === 'resumo' && !soPendencias && (
         <div className="pv-lista">
           <h3>Briefing</h3>
-          {respostas.filter((r) => !resolvido(r)).length > 0 && (
-            <div className="pv-aviso pv-aviso-pendencias">
-              <AlertCircle size={17} />
-              <span>{pendencias} pendência(s) serão incluídas no briefing.</span>
-            </div>
-          )}
 
           <details className="pv-rota" open>
             <summary>Trechos ({dados.trechos.length})</summary>
