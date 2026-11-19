@@ -30,7 +30,7 @@ interface NavigationItem {
 const NAV_ITEMS: NavigationItem[] = [
   {
     id: "my-flights",
-    title: "Meus Voos",
+    title: "Minha Agenda de Voos",
     icon: PlaneTakeoff,
     route: "/meus-voos",
     color: "navy",
@@ -169,7 +169,7 @@ export function MobileDashboard() {
                 <motion.button
                   key={item.id}
                   className="group"
-                  aria-label={needsTimes ? `Meus Voos. ${activeFlightCount} voos em operação. Complete os horários das jornadas ou pernas.` : item.title}
+                  aria-label={needsTimes ? `Minha Agenda de Voos. ${activeFlightCount} voos em operação. Complete os horários das jornadas ou pernas.` : item.title}
                   onClick={() => navigate(item.route)}
                   initial={{ opacity: 0, y: 30 }}
                   animate={{ opacity: 1, y: 0 }}

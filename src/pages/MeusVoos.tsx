@@ -300,7 +300,7 @@ export default function MeusVoos() {
         <div className="mx-auto max-w-[430px]">
           <header className="mb-5">
             <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-300">Área do tripulante</p>
-            <h1 className="text-[28px] font-bold leading-tight tracking-tight">Meus Voos</h1>
+            <h1 className="text-[28px] font-bold leading-tight tracking-tight">Minha Agenda de Voos</h1>
             <p className="mt-1 text-sm text-slate-400">{crewName ? `Olá, ${crewName.split(" ")[0]}. Acompanhe sua programação.` : "Acompanhe sua programação e histórico."}</p>
           </header>
 
