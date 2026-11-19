@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle, Check, CheckCircle2, ChevronRight, ClipboardCheck, Clock3,
@@ -31,16 +31,20 @@ type JourneyHistory = { id: string; data: string; status: string; tripulante_nom
 type JourneyData = { id: string; data: string; status: string; pernas: JourneyLeg[]; historico?: JourneyHistory[] } | null;
 type LoadItem = { descricao: string; peso: string; braco: string };
 type LegTimesForm = { horario_ac: string; horario_dep: string; horario_pouso: string; horario_corte: string };
+
 const card = "rounded-[22px] border border-white/[0.09] bg-[#101e33] p-4 shadow-lg shadow-black/10";
-const inputClass = "h-11 rounded-xl border-white/10 bg-[#0a1729] text-white placeholder:text-slate-500 focus-visible:ring-emerald-300/50";
-const labelClass = "mb-1.5 block text-xs font-medium text-slate-400";
-const numberValue = (value: unknown) => Number.isFinite(Number(value)) ? Number(value) : 0;
+const inputClass = "h-12 w-full min-w-0 rounded-xl border-white/15 bg-[#0a1729] px-3.5 text-base text-white placeholder:text-slate-500 focus-visible:ring-emerald-300/50";
+const labelClass = "mb-1.5 block text-xs font-medium text-slate-300";
+const numberValue = (value: unknown) => (Number.isFinite(Number(value)) ? Number(value) : 0);
 const statusDone = (status?: string | null) => String(status || "").trim().toLowerCase() === "concluido";
+const nowZuluHHMM = () => new Date().toISOString().slice(11, 16);
+
 function initialLoadManifest(flight: Flight): LoadItem[] {
   const crew = ["Piloto", ...(flight.copiloto_id ? ["Copiloto"] : [])];
   const passengerCount = Math.max(0, Number(flight.numero_passageiros) || 0);
   return [...crew, ...Array.from({ length: passengerCount }, (_, index) => `Passageiro ${index + 1}`)].map((descricao) => ({ descricao, peso: "", braco: "" }));
 }
+
 function scheduledTime(flight: Flight) {
   const raw = String(flight.horario_previsto_agendamento || "");
   const match = raw.match(/(?:T|\s|^)(\d{2}):(\d{2})/);
@@ -48,54 +52,105 @@ function scheduledTime(flight: Flight) {
   const mins = Number(match[1]) * 60 + Number(match[2]);
   return `${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`;
 }
+
 function timeInputValue(value: string | null | undefined) {
   const formatted = formatZuluTime(value);
   return formatted === "—" ? "" : formatted.slice(0, 5);
 }
+
 function flightTimestamp(flight: Flight, time: string, offsetMinutes = 0) {
   const base = new Date(`${flight.data_agendada.slice(0, 10)}T${time}:00.000Z`);
   return new Date(base.getTime() + offsetMinutes * 60_000).toISOString();
 }
+
+function legNeedsTimeCompletion(leg: JourneyLeg) {
+  return !leg.lancamento_diario_id && (!leg.horario_ac || !leg.horario_dep || !leg.horario_pouso || !leg.horario_corte);
+}
+
+function missingLegTimeLabels(leg: JourneyLeg) {
+  const missing: string[] = [];
+  if (!leg.horario_ac) missing.push("AC");
+  if (!leg.horario_dep) missing.push("DEP");
+  if (!leg.horario_pouso) missing.push("POU");
+  if (!leg.horario_corte) missing.push("COR");
+  return missing;
+}
+
 function OperationTile({ icon: Icon, title, detail, badge, tone, action, disabled, onClick }: { icon: typeof ClipboardCheck; title: string; detail: string; badge: string; tone: "green" | "blue" | "amber"; action: string; disabled?: boolean; onClick: () => void }) {
   const tones = { green: "bg-emerald-300/10 text-emerald-200", blue: "bg-sky-300/10 text-sky-200", amber: "bg-amber-300/10 text-amber-200" };
-  return <button type="button" onClick={onClick} disabled={disabled} className="group flex min-h-16 w-full items-center gap-3 rounded-2xl border border-white/[0.08] bg-[#0c192b] p-3 text-left transition hover:border-emerald-200/20 active:scale-[.99] disabled:cursor-not-allowed disabled:opacity-65"><span className={"flex h-11 w-11 shrink-0 items-center justify-center rounded-xl " + tones[tone]}><Icon className="h-5 w-5" /></span><span className="min-w-0 flex-1"><span className="flex items-center justify-between gap-2"><span className="truncate text-sm font-semibold text-white">{title}</span><span className="shrink-0 rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] font-semibold text-slate-300">{badge}</span></span><span className="mt-0.5 block text-xs leading-5 text-slate-400">{detail}</span><span className="mt-1 block text-[11px] font-semibold text-emerald-200">{action}</span></span><ChevronRight className="h-4 w-4 shrink-0 text-slate-500 group-hover:text-emerald-200" /></button>;
+  return (
+    <button type="button" onClick={onClick} disabled={disabled} className="group flex min-h-16 w-full items-center gap-3 rounded-2xl border border-white/[0.08] bg-[#0c192b] p-3 text-left transition hover:border-emerald-200/20 active:scale-[.99] disabled:cursor-not-allowed disabled:opacity-65">
+      <span className={"flex h-11 w-11 shrink-0 items-center justify-center rounded-xl " + tones[tone]}>
+        <Icon className="h-5 w-5" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center justify-between gap-2">
+          <span className="truncate text-sm font-semibold text-white">{title}</span>
+          <span className="shrink-0 rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] font-semibold text-slate-300">{badge}</span>
+        </span>
+        <span className="mt-0.5 block text-xs leading-5 text-slate-400">{detail}</span>
+        <span className="mt-1 block text-[11px] font-semibold text-emerald-200">{action}</span>
+      </span>
+      <ChevronRight className="h-4 w-4 shrink-0 text-slate-500 group-hover:text-emerald-200" />
+    </button>
+  );
 }
-export function FlightOperations({ flight }: { flight: Flight }) {
+
+export function FlightOperations({
+  flight,
+  autoOpenTimes = false,
+  onAutoOpenConsumed,
+}: {
+  flight: Flight;
+  autoOpenTimes?: boolean;
+  onAutoOpenConsumed?: () => void;
+}) {
   const client = useQueryClient();
   const [dialog, setDialog] = useState<"checklist" | "weight" | "journey" | "leg" | "leg-times" | null>(null);
   const [manifest, setManifest] = useState<LoadItem[]>([]);
-  const [fuelLiters, setFuelLiters] = useState(""); const [fuelKg, setFuelKg] = useState(""); const [fuelArm, setFuelArm] = useState(""); const [plannedFuelBurn, setPlannedFuelBurn] = useState("");
-  const [weightNotes, setWeightNotes] = useState(""); const [pilotName, setPilotName] = useState(flight.piloto_nome || "");
+  const [fuelLiters, setFuelLiters] = useState("");
+  const [fuelKg, setFuelKg] = useState("");
+  const [fuelArm, setFuelArm] = useState("");
+  const [plannedFuelBurn, setPlannedFuelBurn] = useState("");
+  const [weightNotes, setWeightNotes] = useState("");
+  const [pilotName, setPilotName] = useState(flight.piloto_nome || "");
   const [journeyTime, setJourneyTime] = useState(scheduledTime(flight));
   const [legForm, setLegForm] = useState({ origem: flight.destino || "", destino: "", numero_passageiros: String(flight.numero_passageiros || 0), horario_ac: "", horario_dep: "" });
   const [selectedLegTime, setSelectedLegTime] = useState<{ jornadaId: string; leg: JourneyLeg } | null>(null);
   const [legTimes, setLegTimes] = useState<LegTimesForm>({ horario_ac: "", horario_dep: "", horario_pouso: "", horario_corte: "" });
+
   const baseKey = ["flight-operations", flight.id];
   const checklistQuery = useQuery({ queryKey: [...baseKey, "checklist"], queryFn: () => apiClient.get<ChecklistRecord>(`/api/interno/agendamento/${encodeURIComponent(flight.id)}/checklist`) });
   const weightQuery = useQuery({ queryKey: [...baseKey, "weight"], queryFn: () => apiClient.get<WeightData>(`/api/interno/agendamento/${encodeURIComponent(flight.id)}/peso-balanceamento`) });
   const journeyQuery = useQuery({ queryKey: [...baseKey, "journey"], queryFn: () => apiClient.get<JourneyData>(`/api/interno/agendamento/${encodeURIComponent(flight.id)}/jornada`) });
+
   const checklist = checklistQuery.data;
   const weightData = weightQuery.data;
   const config = weightData?.configuracao;
   const ficha = weightData?.ficha;
   const journey = journeyQuery.data;
-  const savedLoadItems = useMemo(() => Array.isArray(ficha?.itens_carregamento) ? ficha.itens_carregamento as WeightItemRecord[] : [], [ficha]);
+  const savedLoadItems = useMemo(() => (Array.isArray(ficha?.itens_carregamento) ? (ficha.itens_carregamento as WeightItemRecord[]) : []), [ficha]);
+
   const checklistComplete = statusDone(checklist?.status);
   const preparacaoPendencias = Number(checklist?.preparacao_pendencias || 0);
   const weightComplete = String(ficha?.status || "").toUpperCase() === "FINALIZADA";
   const hasOpenJourney = Boolean(journey && journey.status !== "encerrada");
+
   const officialChecklistItems = useMemo(() => checklistItemsForAircraft(flight.matricula_registro, flight.modelo), [flight.matricula_registro, flight.modelo]);
   const itemCount = officialChecklistItems.length;
   const answeredChecklistItems = officialChecklistItems.filter((item) => Boolean(checklist?.itens?.[item.id]?.status)).length;
-  const registeredChecklistItems = Object.keys(checklist?.itens || {}).filter(key => !key.startsWith("_")).length;
+  const registeredChecklistItems = Object.keys(checklist?.itens || {}).filter((key) => !key.startsWith("_")).length;
+
   const manifestTotals = useMemo(() => {
     const emptyW = numberValue(config?.peso_vazio_padrao);
     const emptyMoment = numberValue(config?.momento_padrao) || emptyW * numberValue(config?.braco_cg_padrao);
     const rows = manifest.map((x) => ({ weight: numberValue(x.peso), arm: numberValue(x.braco) }));
     const loadW = rows.reduce((sum, x) => sum + x.weight, 0);
     const loadM = rows.reduce((sum, x) => sum + x.weight * x.arm, 0);
-    const fuelW = numberValue(fuelKg); const fuelM = fuelW * numberValue(fuelArm);
-    const total = emptyW + loadW + fuelW; const moment = emptyMoment + loadM + fuelM;
+    const fuelW = numberValue(fuelKg);
+    const fuelM = fuelW * numberValue(fuelArm);
+    const total = emptyW + loadW + fuelW;
+    const moment = emptyMoment + loadM + fuelM;
     const cgArm = total > 0 ? moment / total : 0;
     const macLength = numberValue(config?.mac_comprimento);
     const cg = macLength > 0 ? ((cgArm - numberValue(config?.lemac_distancia)) / macLength) * 100 : 0;
@@ -104,42 +159,172 @@ export function FlightOperations({ flight }: { flight: Flight }) {
     const landingCg = landingWeight > 0 && macLength > 0 ? ((landingMoment / landingWeight - numberValue(config?.lemac_distancia)) / macLength) * 100 : 0;
     return { emptyW, emptyMoment, loadW, loadM, fuelW, fuelM, total, moment, cg, landingWeight, landingMoment, landingCg };
   }, [config, manifest, fuelKg, fuelArm, plannedFuelBurn]);
+
   const manifestValid = manifest.length > 0 && manifest.every((item) => item.descricao.trim() && numberValue(item.peso) > 0 && item.braco.trim() && numberValue(item.braco) !== 0);
   const weightConfigValidated = config?.validado === true || Number(config?.validado) === 1;
   const limitsConfigured = Boolean(config && numberValue(config.peso_maximo_decolagem) > 0 && numberValue(config.peso_maximo_pouso) > 0 && numberValue(config.peso_maximo_sem_combustivel) > 0 && numberValue(config.mac_comprimento) > 0 && numberValue(config.cg_limite_traseiro) > numberValue(config.cg_limite_dianteiro));
   const fuelInputsValid = numberValue(fuelLiters) > 0 && manifestTotals.fuelW > 0 && fuelArm.trim() !== "" && numberValue(fuelArm) !== 0 && plannedFuelBurn.trim() !== "" && numberValue(plannedFuelBurn) >= 0 && numberValue(plannedFuelBurn) <= manifestTotals.fuelW;
-  const balanceWithinLimits = Boolean(config && weightConfigValidated && limitsConfigured && manifestValid && fuelInputsValid && manifestTotals.total > 0 && manifestTotals.total <= numberValue(config.peso_maximo_decolagem) && manifestTotals.landingWeight <= numberValue(config.peso_maximo_pouso) && manifestTotals.landingWeight >= 0 && manifestTotals.total - manifestTotals.fuelW <= numberValue(config.peso_maximo_sem_combustivel) && manifestTotals.cg >= numberValue(config.cg_limite_dianteiro) && manifestTotals.cg <= numberValue(config.cg_limite_traseiro) && manifestTotals.landingCg >= numberValue(config.cg_limite_dianteiro) && manifestTotals.landingCg <= numberValue(config.cg_limite_traseiro));
-  const weightMutation = useMutation({ mutationFn: (status: "RASCUNHO" | "FINALIZADA") => apiClient.post(`/api/interno/agendamento/${encodeURIComponent(flight.id)}/peso-balanceamento`, {
-    peso_balanceamento_id: config?.id, data_voo: flight.data_agendada?.slice(0, 10), numero_voo: flight.numero_voo, piloto_responsavel: pilotName,
-    peso_vazio_kg: manifestTotals.emptyW, braco_vazio: numberValue(config?.braco_cg_padrao), momento_vazio: manifestTotals.emptyMoment,
-    itens_carregamento: [...manifest.filter((item) => numberValue(item.peso) > 0).map((item) => ({ descricao: item.descricao, peso_kg: numberValue(item.peso), braco: numberValue(item.braco), momento: numberValue(item.peso) * numberValue(item.braco) })), { descricao: "Combustível", categoria: "combustivel", peso_kg: manifestTotals.fuelW, braco: numberValue(fuelArm), momento: manifestTotals.fuelM, litros: numberValue(fuelLiters) }],
-    fuel_litros: numberValue(fuelLiters), fuel_kg: manifestTotals.fuelW, fuel_braco: numberValue(fuelArm), fuel_momento: manifestTotals.fuelM,
-    peso_total_kg: manifestTotals.total, momento_total: manifestTotals.moment, cg_calculado: manifestTotals.cg,
-    peso_maximo_decolagem: numberValue(config?.peso_maximo_decolagem), peso_maximo_pouso: numberValue(config?.peso_maximo_pouso), peso_maximo_sem_combustivel: numberValue(config?.peso_maximo_sem_combustivel),
-    cg_limite_dianteiro: numberValue(config?.cg_limite_dianteiro), cg_limite_traseiro: numberValue(config?.cg_limite_traseiro), dentro_dos_limites: balanceWithinLimits,
-    snapshot_limites: { peso_maximo_decolagem: config?.peso_maximo_decolagem, peso_maximo_pouso: config?.peso_maximo_pouso, peso_maximo_sem_combustivel: config?.peso_maximo_sem_combustivel, cg_limite_dianteiro: config?.cg_limite_dianteiro, cg_limite_traseiro: config?.cg_limite_traseiro, pouso_previsto_kg: manifestTotals.landingWeight, cg_previsto_pouso: manifestTotals.landingCg, consumo_estimado_combustivel_kg: numberValue(plannedFuelBurn) }, observacoes: weightNotes, assinatura_nome: pilotName, status,
-  }), onSuccess: () => { void client.invalidateQueries({ queryKey: [...baseKey, "weight"] }); toast.success("Ficha salva."); setDialog(null); }, onError: (error: Error) => toast.error(error.message || "Não foi possível salvar a ficha.") });
-  const journeyMutation = useMutation({ mutationFn: () => apiClient.post(`/api/interno/agendamento/${encodeURIComponent(flight.id)}/jornada`, { data: flight.data_agendada.slice(0, 10), origem: flight.origem, destino: flight.destino, numero_passageiros: flight.numero_passageiros ?? 0, horario_acionamento: flightTimestamp(flight, journeyTime), observacoes: "Iniciada pelo app Meus Voos" }), onSuccess: () => { void client.invalidateQueries({ queryKey: [...baseKey, "journey"] }); void client.invalidateQueries({ queryKey: flightListQueryKey }); toast.success("Jornada e primeira perna iniciadas."); setDialog(null); }, onError: (error: Error) => toast.error(error.message || "Não foi possível iniciar a jornada.") });
-  const legMutation = useMutation({ mutationFn: () => apiClient.post(`/api/interno/jornadas/${encodeURIComponent(journey!.id)}/pernas`, { ...legForm, numero_passageiros: Number(legForm.numero_passageiros) }), onSuccess: () => { void client.invalidateQueries({ queryKey: [...baseKey, "journey"] }); void client.invalidateQueries({ queryKey: flightListQueryKey }); toast.success("Perna adicionada à jornada."); setDialog(null); }, onError: (error: Error) => toast.error(error.message || "Não foi possível adicionar a perna.") });
-  const legTimesMutation = useMutation({ mutationFn: () => {
-    if (!selectedLegTime) throw new Error("Selecione uma perna para atualizar.");
-    return apiClient.patch(`/api/interno/jornadas/${encodeURIComponent(selectedLegTime.jornadaId)}/pernas/${encodeURIComponent(selectedLegTime.leg.id)}`, {
-      horario_ac: legTimes.horario_ac || null,
-      horario_dep: legTimes.horario_dep || null,
-      horario_pouso: legTimes.horario_pouso || null,
-      horario_corte: legTimes.horario_corte || null,
-    });
-  }, onSuccess: () => { void client.invalidateQueries({ queryKey: [...baseKey, "journey"] }); void client.invalidateQueries({ queryKey: flightListQueryKey }); toast.success("Horários da perna salvos; resumo da jornada atualizado."); setDialog(null); setSelectedLegTime(null); }, onError: (error: Error) => toast.error(error.message || "Não foi possível salvar os horários.") });
+  const balanceWithinLimits = Boolean(
+    config &&
+      weightConfigValidated &&
+      limitsConfigured &&
+      manifestValid &&
+      fuelInputsValid &&
+      manifestTotals.total > 0 &&
+      manifestTotals.total <= numberValue(config.peso_maximo_decolagem) &&
+      manifestTotals.landingWeight <= numberValue(config.peso_maximo_pouso) &&
+      manifestTotals.landingWeight >= 0 &&
+      manifestTotals.total - manifestTotals.fuelW <= numberValue(config.peso_maximo_sem_combustivel) &&
+      manifestTotals.cg >= numberValue(config.cg_limite_dianteiro) &&
+      manifestTotals.cg <= numberValue(config.cg_limite_traseiro) &&
+      manifestTotals.landingCg >= numberValue(config.cg_limite_dianteiro) &&
+      manifestTotals.landingCg <= numberValue(config.cg_limite_traseiro),
+  );
+
+  const weightMutation = useMutation({
+    mutationFn: (status: "RASCUNHO" | "FINALIZADA") =>
+      apiClient.post(`/api/interno/agendamento/${encodeURIComponent(flight.id)}/peso-balanceamento`, {
+        peso_balanceamento_id: config?.id,
+        data_voo: flight.data_agendada?.slice(0, 10),
+        numero_voo: flight.numero_voo,
+        piloto_responsavel: pilotName,
+        peso_vazio_kg: manifestTotals.emptyW,
+        braco_vazio: numberValue(config?.braco_cg_padrao),
+        momento_vazio: manifestTotals.emptyMoment,
+        itens_carregamento: [
+          ...manifest.filter((item) => numberValue(item.peso) > 0).map((item) => ({ descricao: item.descricao, peso_kg: numberValue(item.peso), braco: numberValue(item.braco), momento: numberValue(item.peso) * numberValue(item.braco) })),
+          { descricao: "Combustível", categoria: "combustivel", peso_kg: manifestTotals.fuelW, braco: numberValue(fuelArm), momento: manifestTotals.fuelM, litros: numberValue(fuelLiters) },
+        ],
+        fuel_litros: numberValue(fuelLiters),
+        fuel_kg: manifestTotals.fuelW,
+        fuel_braco: numberValue(fuelArm),
+        fuel_momento: manifestTotals.fuelM,
+        peso_total_kg: manifestTotals.total,
+        momento_total: manifestTotals.moment,
+        cg_calculado: manifestTotals.cg,
+        peso_maximo_decolagem: numberValue(config?.peso_maximo_decolagem),
+        peso_maximo_pouso: numberValue(config?.peso_maximo_pouso),
+        peso_maximo_sem_combustivel: numberValue(config?.peso_maximo_sem_combustivel),
+        cg_limite_dianteiro: numberValue(config?.cg_limite_dianteiro),
+        cg_limite_traseiro: numberValue(config?.cg_limite_traseiro),
+        dentro_dos_limites: balanceWithinLimits,
+        snapshot_limites: {
+          peso_maximo_decolagem: config?.peso_maximo_decolagem,
+          peso_maximo_pouso: config?.peso_maximo_pouso,
+          peso_maximo_sem_combustivel: config?.peso_maximo_sem_combustivel,
+          cg_limite_dianteiro: config?.cg_limite_dianteiro,
+          cg_limite_traseiro: config?.cg_limite_traseiro,
+          pouso_previsto_kg: manifestTotals.landingWeight,
+          cg_previsto_pouso: manifestTotals.landingCg,
+          consumo_estimado_combustivel_kg: numberValue(plannedFuelBurn),
+        },
+        observacoes: weightNotes,
+        assinatura_nome: pilotName,
+        status,
+      }),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: [...baseKey, "weight"] });
+      toast.success("Ficha salva.");
+      setDialog(null);
+    },
+    onError: (error: Error) => toast.error(error.message || "Não foi possível salvar a ficha."),
+  });
+
+  const journeyMutation = useMutation({
+    mutationFn: () =>
+      apiClient.post(`/api/interno/agendamento/${encodeURIComponent(flight.id)}/jornada`, {
+        data: flight.data_agendada.slice(0, 10),
+        origem: flight.origem,
+        destino: flight.destino,
+        numero_passageiros: flight.numero_passageiros ?? 0,
+        horario_acionamento: flightTimestamp(flight, journeyTime),
+        observacoes: "Iniciada pelo app Meus Voos",
+      }),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: [...baseKey, "journey"] });
+      void client.invalidateQueries({ queryKey: flightListQueryKey });
+      toast.success("Jornada e primeira perna iniciadas.");
+      setDialog(null);
+    },
+    onError: (error: Error) => toast.error(error.message || "Não foi possível iniciar a jornada."),
+  });
+
+  const legMutation = useMutation({
+    mutationFn: () => apiClient.post(`/api/interno/jornadas/${encodeURIComponent(journey!.id)}/pernas`, { ...legForm, numero_passageiros: Number(legForm.numero_passageiros) }),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: [...baseKey, "journey"] });
+      void client.invalidateQueries({ queryKey: flightListQueryKey });
+      toast.success("Perna adicionada à jornada.");
+      setDialog(null);
+    },
+    onError: (error: Error) => toast.error(error.message || "Não foi possível adicionar a perna."),
+  });
+
+  const legTimesMutation = useMutation({
+    mutationFn: () => {
+      if (!selectedLegTime) throw new Error("Selecione uma perna para atualizar.");
+      return apiClient.patch(`/api/interno/jornadas/${encodeURIComponent(selectedLegTime.jornadaId)}/pernas/${encodeURIComponent(selectedLegTime.leg.id)}`, {
+        horario_ac: legTimes.horario_ac || null,
+        horario_dep: legTimes.horario_dep || null,
+        horario_pouso: legTimes.horario_pouso || null,
+        horario_corte: legTimes.horario_corte || null,
+      });
+    },
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: [...baseKey, "journey"] });
+      void client.invalidateQueries({ queryKey: flightListQueryKey });
+      toast.success("Horários da perna salvos; resumo da jornada atualizado.");
+      setDialog(null);
+      setSelectedLegTime(null);
+    },
+    onError: (error: Error) => toast.error(error.message || "Não foi possível salvar os horários."),
+  });
+
   const flightClosed = ["encerrada", "concluida"].includes(String(flight.status).toLowerCase());
   const checklistEditable = String(flight.status).trim().toLowerCase() === "aprovada" && !hasOpenJourney;
-  const canCompleteJourneyTimes = flightNeedsTimeCompletion(flight.status);
+  const canCompleteJourneyTimes = hasOpenJourney || flightNeedsTimeCompletion(flight.status);
   const startBlocked = !checklistComplete || flightClosed || !checklistEditable || !journeyQuery.isSuccess;
   const weightReadOnly = weightComplete || !config;
   const completedSteps = Number(checklistComplete) + Number(weightComplete);
+
+  const journeyRows = useMemo(() => (journey?.historico?.length ? journey.historico : journey ? [journey as JourneyHistory] : []), [journey]);
+
+  const primaryPendingLeg = useMemo(() => {
+    if (!canCompleteJourneyTimes) return null;
+    for (const record of journeyRows) {
+      const pending = (record.pernas || []).find(legNeedsTimeCompletion);
+      if (pending) return { jornadaId: record.id, leg: pending };
+    }
+    return null;
+  }, [canCompleteJourneyTimes, journeyRows]);
+
+  const openLegTimeEditor = (jornadaId: string, leg: JourneyLeg) => {
+    setSelectedLegTime({ jornadaId, leg });
+    setLegTimes({
+      horario_ac: timeInputValue(leg.horario_ac),
+      horario_dep: timeInputValue(leg.horario_dep),
+      horario_pouso: timeInputValue(leg.horario_pouso),
+      horario_corte: timeInputValue(leg.horario_corte),
+    });
+    setDialog("leg-times");
+  };
+
+  useEffect(() => {
+    if (!autoOpenTimes || !journeyQuery.isSuccess) return;
+    if (primaryPendingLeg) {
+      openLegTimeEditor(primaryPendingLeg.jornadaId, primaryPendingLeg.leg);
+    }
+    onAutoOpenConsumed?.();
+  }, [autoOpenTimes, journeyQuery.isSuccess, primaryPendingLeg, onAutoOpenConsumed]);
+
   const loadDialog = () => {
-    const items = Array.isArray(ficha?.itens_carregamento) ? ficha.itens_carregamento as WeightItemRecord[] : [];
+    const items = Array.isArray(ficha?.itens_carregamento) ? (ficha.itens_carregamento as WeightItemRecord[]) : [];
     const savedItems = items.filter((item) => item.categoria !== "combustivel" && String(item.descricao || "").trim().toLowerCase() !== "combustível");
-    setManifest(savedItems.length ? savedItems.map((item) => ({ descricao: String(item.descricao || "Carga"), peso: String(item.peso_kg ?? item.peso ?? ""), braco: String(item.braco ?? "") })) : initialLoadManifest(flight));
+    setManifest(
+      savedItems.length
+        ? savedItems.map((item) => ({ descricao: String(item.descricao || "Carga"), peso: String(item.peso_kg ?? item.peso ?? ""), braco: String(item.braco ?? "") }))
+        : initialLoadManifest(flight),
+    );
     setFuelLiters(String(ficha?.fuel_litros ?? ""));
     setFuelKg(String(ficha?.fuel_kg ?? ""));
     setFuelArm(String(ficha?.fuel_braco ?? ""));
@@ -148,42 +333,561 @@ export function FlightOperations({ flight }: { flight: Flight }) {
     setPilotName(String(ficha?.piloto_responsavel || flight.piloto_nome || ""));
     setDialog("weight");
   };
-  const refresh = () => { void checklistQuery.refetch(); void weightQuery.refetch(); void journeyQuery.refetch(); };
-  const journeyRows = journey?.historico?.length ? journey.historico : journey ? [journey as JourneyHistory] : [];
-  const openLegTimeEditor = (jornadaId: string, leg: JourneyLeg) => {
-    setSelectedLegTime({ jornadaId, leg });
-    setLegTimes({ horario_ac: timeInputValue(leg.horario_ac), horario_dep: timeInputValue(leg.horario_dep), horario_pouso: timeInputValue(leg.horario_pouso), horario_corte: timeInputValue(leg.horario_corte) });
-    setDialog("leg-times");
+
+  const refresh = () => {
+    void checklistQuery.refetch();
+    void weightQuery.refetch();
+    void journeyQuery.refetch();
   };
+
   const newManifestRow = () => setManifest((rows) => [...rows, { descricao: "", peso: "", braco: "" }]);
-  const updateManifest = (index: number, key: keyof LoadItem, value: string) => setManifest((rows) => rows.map((row, i) => i === index ? { ...row, [key]: value } : row));
-  return <section className={card + " mt-4 overflow-hidden"}>
-    <header className="mb-4 flex items-center justify-between gap-3">
-      <div className="min-w-0"><p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-300">Operação</p><h2 className="mt-1 text-lg font-bold text-white">Registros do voo</h2></div>
-      <div className="flex shrink-0 items-center gap-2">
-        <span className="rounded-full border border-emerald-300/25 bg-emerald-300/[0.08] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-200">{checklistComplete ? "Checklist ok" : "Sem checklist"}</span>
-        <button type="button" onClick={refresh} aria-label="Atualizar operações" className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/[0.05] text-slate-400 hover:text-emerald-200"><Loader2 className={"h-4 w-4 " + (checklistQuery.isFetching || weightQuery.isFetching || journeyQuery.isFetching ? "animate-spin" : "")} /></button>
+  const updateManifest = (index: number, key: keyof LoadItem, value: string) => setManifest((rows) => rows.map((row, i) => (i === index ? { ...row, [key]: value } : row)));
+
+  const timeFields: Array<{ key: keyof LegTimesForm; label: string }> = [
+    { key: "horario_ac", label: "Acionamento (AC · UTC)" },
+    { key: "horario_dep", label: "Decolagem (DEP · UTC)" },
+    { key: "horario_pouso", label: "Pouso (POU · UTC)" },
+    { key: "horario_corte", label: "Corte (COR · UTC)" },
+  ];
+
+  return (
+    <section className={card + " mt-4 overflow-hidden"}>
+      <header className="mb-4 flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-300">Operação</p>
+          <h2 className="mt-1 text-lg font-bold text-white">Registros do voo</h2>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="rounded-full border border-emerald-300/25 bg-emerald-300/[0.08] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-200">
+            {checklistComplete ? "Checklist ok" : "Sem checklist"}
+          </span>
+          <button type="button" onClick={refresh} aria-label="Atualizar operações" className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/[0.05] text-slate-400 hover:text-emerald-200">
+            <Loader2 className={"h-4 w-4 " + (checklistQuery.isFetching || weightQuery.isFetching || journeyQuery.isFetching ? "animate-spin" : "")} />
+          </button>
+        </div>
+      </header>
+
+      {checklistQuery.isError || weightQuery.isError || journeyQuery.isError ? (
+        <div className="mb-3 flex items-start gap-2 rounded-xl border border-amber-300/15 bg-amber-300/[0.06] p-3 text-xs leading-5 text-amber-100">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          Não foi possível consultar parte dos registros. Atualize para verificar a situação antes de prosseguir.
+        </div>
+      ) : null}
+
+      {!checklistComplete ? (
+        <button
+          type="button"
+          disabled={!checklistEditable || !checklistQuery.isSuccess}
+          onClick={() => setDialog("checklist")}
+          className="mb-3 flex min-h-16 w-full items-center gap-3 rounded-2xl bg-emerald-300 px-4 py-3 text-left text-[#062219] shadow-lg shadow-emerald-900/20 transition active:scale-[.99] disabled:cursor-not-allowed disabled:bg-white/[0.09] disabled:text-slate-500 disabled:shadow-none"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#062219]/10">
+            <ClipboardCheck className="h-5 w-5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-bold">{!checklistEditable ? "Checklist indisponível" : checklist?.status === "rascunho" ? "Continuar checklist" : "Fazer checklist para iniciar"}</span>
+            <span className="mt-0.5 block text-xs font-medium opacity-70">Obrigatório antes de registrar horários</span>
+          </span>
+          <ChevronRight className="h-5 w-5 shrink-0" />
+        </button>
+      ) : null}
+
+      {checklistComplete && !hasOpenJourney && !primaryPendingLeg ? (
+        <button
+          type="button"
+          disabled={startBlocked || journeyMutation.isPending}
+          onClick={() => {
+            setJourneyTime(scheduledTime(flight));
+            setDialog("journey");
+          }}
+          className="mb-3 flex min-h-16 w-full items-center gap-3 rounded-2xl bg-emerald-300 px-4 py-3 text-left text-[#062219] shadow-lg shadow-emerald-900/20 transition active:scale-[.99] disabled:cursor-not-allowed disabled:bg-white/[0.09] disabled:text-slate-500 disabled:shadow-none"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#062219]/10">
+            <Plane className="h-5 w-5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-bold">{journeyMutation.isPending ? "Iniciando voo…" : "INICIAR VOO"}</span>
+            <span className="mt-0.5 block text-xs font-medium opacity-70">Registra o acionamento e a primeira perna</span>
+          </span>
+          <ChevronRight className="h-5 w-5 shrink-0" />
+        </button>
+      ) : null}
+
+      {primaryPendingLeg ? (
+        <button
+          type="button"
+          onClick={() => openLegTimeEditor(primaryPendingLeg.jornadaId, primaryPendingLeg.leg)}
+          className="mb-3 flex min-h-16 w-full items-center gap-3 rounded-2xl bg-amber-300 px-4 py-3 text-left text-[#1a1604] shadow-lg shadow-amber-950/25 transition active:scale-[.99]"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#1a1604]/10">
+            <Clock3 className="h-5 w-5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-bold">COMPLETAR HORÁRIOS DO VOO</span>
+            <span className="mt-0.5 block truncate text-xs font-semibold opacity-80">
+              Perna {primaryPendingLeg.leg.numero}: {primaryPendingLeg.leg.origem} → {primaryPendingLeg.leg.destino} · Faltam {missingLegTimeLabels(primaryPendingLeg.leg).join(", ")}
+            </span>
+          </span>
+          <ChevronRight className="h-5 w-5 shrink-0" />
+        </button>
+      ) : null}
+
+      <div className="mb-3 rounded-2xl border border-white/[0.06] bg-[#0c192b] p-3">
+        <div className="flex items-center justify-between text-xs">
+          <span className="font-semibold text-slate-200">{completedSteps} de 2 etapas concluídas</span>
+          <span className="text-slate-500">Preparação</span>
+        </div>
+        <div className="mt-2 grid grid-cols-2 gap-1.5" role="progressbar" aria-label="Progresso da preparação do voo" aria-valuemin={0} aria-valuemax={2} aria-valuenow={completedSteps}>
+          <span className={"h-1.5 rounded-full transition-colors " + (checklistComplete ? (preparacaoPendencias ? "bg-amber-300" : "bg-emerald-300") : "bg-white/10")} />
+          <span className={"h-1.5 rounded-full transition-colors " + (weightComplete ? "bg-emerald-300" : "bg-white/10")} />
+        </div>
       </div>
-    </header>
-    {checklistQuery.isError || weightQuery.isError || journeyQuery.isError ? <div className="mb-3 flex items-start gap-2 rounded-xl border border-amber-300/15 bg-amber-300/[0.06] p-3 text-xs leading-5 text-amber-100"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />Não foi possível consultar parte dos registros. Atualize para verificar a situação antes de prosseguir.</div> : null}
-    {!checklistComplete ? <button type="button" disabled={!checklistEditable || !checklistQuery.isSuccess} onClick={() => setDialog("checklist")} className="mb-3 flex min-h-16 w-full items-center gap-3 rounded-2xl bg-emerald-300 px-4 py-3 text-left text-[#062219] shadow-lg shadow-emerald-900/20 transition active:scale-[.99] disabled:cursor-not-allowed disabled:bg-white/[0.09] disabled:text-slate-500 disabled:shadow-none"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#062219]/10"><ClipboardCheck className="h-5 w-5" /></span><span className="min-w-0 flex-1"><span className="block text-sm font-bold">{!checklistEditable ? "Checklist indisponível" : checklist?.status === "rascunho" ? "Continuar checklist" : "Fazer checklist para iniciar"}</span><span className="mt-0.5 block text-xs font-medium opacity-70">Obrigatório antes de registrar horários</span></span><ChevronRight className="h-5 w-5 shrink-0" /></button> : null}
-    {checklistComplete && !hasOpenJourney ? <button type="button" disabled={startBlocked || journeyMutation.isPending} onClick={() => { setJourneyTime(scheduledTime(flight)); setDialog("journey"); }} className="mb-3 flex min-h-16 w-full items-center gap-3 rounded-2xl bg-emerald-300 px-4 py-3 text-left text-[#062219] shadow-lg shadow-emerald-900/20 transition active:scale-[.99] disabled:cursor-not-allowed disabled:bg-white/[0.09] disabled:text-slate-500 disabled:shadow-none"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#062219]/10"><Plane className="h-5 w-5" /></span><span className="min-w-0 flex-1"><span className="block text-sm font-bold">{journeyMutation.isPending ? "Iniciando voo…" : "INICIAR VOO"}</span><span className="mt-0.5 block text-xs font-medium opacity-70">Registra o acionamento e a primeira perna</span></span><ChevronRight className="h-5 w-5 shrink-0" /></button> : null}
-    <div className="mb-3 rounded-2xl border border-white/[0.06] bg-[#0c192b] p-3">
-      <div className="flex items-center justify-between text-xs"><span className="font-semibold text-slate-200">{completedSteps} de 2 etapas concluídas</span><span className="text-slate-500">Preparação</span></div>
-      <div className="mt-2 grid grid-cols-2 gap-1.5" role="progressbar" aria-label="Progresso da preparação do voo" aria-valuemin={0} aria-valuemax={2} aria-valuenow={completedSteps}><span className={"h-1.5 rounded-full transition-colors " + (checklistComplete ? (preparacaoPendencias ? "bg-amber-300" : "bg-emerald-300") : "bg-white/10")} /><span className={"h-1.5 rounded-full transition-colors " + (weightComplete ? "bg-emerald-300" : "bg-white/10")} /></div>
-    </div>
-    <div className="space-y-2.5">
-      <OperationTile icon={ClipboardCheck} title="Preparação do voo" detail={checklistComplete ? `${registeredChecklistItems} itens registrados${checklist?.executado_por_nome ? ` · ${checklist.executado_por_nome}` : ""}` : `${answeredChecklistItems}/${itemCount} itens respondidos${checklist?.status === "rascunho" ? " · rascunho salvo" : ""}`} badge={checklistComplete ? preparacaoPendencias ? `${preparacaoPendencias} pendência(s)` : "Finalizada" : checklist?.status === "rascunho" ? "Rascunho" : "Pendente"} tone={checklistComplete && !preparacaoPendencias ? "green" : "amber"} action={checklistComplete ? "Ver preparação / briefing" : checklistEditable ? checklist?.status === "rascunho" ? "Continuar checklist" : "Executar checklist" : "Somente para consulta"} disabled={!checklistComplete && (!checklistEditable || !checklistQuery.isSuccess)} onClick={() => setDialog("checklist")} />
-      <OperationTile icon={Scale} title="Peso e balanceamento" detail={weightComplete ? `${numberValue(ficha?.peso_total_kg).toFixed(1)} kg · CG ${numberValue(ficha?.cg_calculado).toFixed(2)}` : config ? `${flight.matricula_registro || "Aeronave"} · ficha operacional` : "Sem configuração técnica cadastrada para esta aeronave."} badge={weightComplete ? "Finalizada" : ficha ? "Rascunho" : "Pendente"} tone="blue" action={weightComplete || (!config && ficha) ? "Visualizar ficha" : config ? "Preencher ficha" : "Configuração indisponível"} disabled={(!config && !ficha) || weightMutation.isPending} onClick={loadDialog} />
-      {journeyRows.length > 0 && <div className="rounded-2xl border border-white/[0.08] bg-[#0c192b] p-3.5"><div className="mb-2 flex items-center gap-2 text-xs font-semibold text-slate-300"><Clock3 className="h-4 w-4 text-sky-200" /> Jornadas e pernas</div><div className="space-y-2">{journeyRows.map((record) => <div key={record.id} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3"><div className="flex items-center justify-between gap-2"><span className="text-xs font-semibold text-white">{formatFlightDate(record.data)} · {record.funcao_tripulante || "Jornada"}</span><span className="text-[10px] text-slate-400">{formatFlightJourneyStatus(record)}</span></div><p className="mt-1 text-[11px] text-slate-400">Apresentação {formatZuluTime(record.horario_apresentacao)} · Acionamento {formatZuluTime(record.horario_acionamento)} · Decolagem {formatZuluTime(record.horario_decolagem)}</p>{(record.pernas || []).map((leg) => <div key={leg.id} className="mt-2 rounded-lg bg-black/15 p-2"><p className="flex items-center gap-2 text-xs text-slate-300"><MapPin className="h-3 w-3 text-emerald-300" />Perna {leg.numero}: {leg.origem} → {leg.destino}<span className="ml-auto text-[10px] text-slate-500">{formatFlightLegStatus(leg)}</span></p><p className="mt-1 pl-5 text-[10px] text-slate-500">AC {formatZuluTime(leg.horario_ac)} · DEP {formatZuluTime(leg.horario_dep)} · POU {formatZuluTime(leg.horario_pouso)} · COR {formatZuluTime(leg.horario_corte)}</p>{canCompleteJourneyTimes && !leg.lancamento_diario_id && (!leg.horario_ac || !leg.horario_dep || !leg.horario_pouso || !leg.horario_corte) && <button type="button" onClick={() => openLegTimeEditor(record.id, leg)} className="ml-5 mt-2 rounded-lg bg-amber-300/10 px-2.5 py-1.5 text-[10px] font-bold text-amber-200 hover:bg-amber-300/20">Completar horários da perna</button>}</div>)}</div>)}</div></div>}
-      {hasOpenJourney && <Button type="button" variant="outline" onClick={() => { setLegForm({ origem: journey?.pernas?.at(-1)?.destino || flight.destino || "", destino: "", numero_passageiros: String(flight.numero_passageiros || 0), horario_ac: "", horario_dep: "" }); setDialog("leg"); }} className="h-12 w-full rounded-xl border-white/10 bg-white/[0.03] text-white hover:bg-white/[0.07]"><Plus className="mr-2 h-4 w-4" />Adicionar perna</Button>}
-      {startBlocked && !hasOpenJourney && <p className="text-center text-[11px] leading-5 text-slate-500">{flightClosed ? "" : !checklistEditable ? "A jornada só pode começar durante a preparação de um voo aprovado." : !journeyQuery.isSuccess ? "Confirme o estado da jornada antes de iniciar." : "Para iniciar, finalize a checklist oficial."}</p>}
-      {flightClosed && <p className="text-center text-[11px] text-slate-500">Voo encerrado: a ficha de peso pendente ainda pode ser preenchida e salva.</p>}
-    </div>
-    <Dialog open={dialog === "checklist"} onOpenChange={(open) => !open && setDialog(null)}><DialogContent className="max-h-[92dvh] overflow-y-auto border-white/10 bg-[#0c192b] text-white sm:max-w-5xl"><FlightPreflightChecklist key={flight.id} flight={flight} checklist={checklist || null} editable={checklistEditable} open={dialog === "checklist"} onClose={() => setDialog(null)} onSaved={() => { void client.invalidateQueries({ queryKey: flightListQueryKey }); }} /></DialogContent></Dialog>
-    <Dialog open={dialog === "weight"} onOpenChange={(open) => !open && setDialog(null)}><DialogContent className="max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] max-w-xl overflow-y-auto border-white/10 bg-[#0c192b] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] text-white sm:max-h-[92dvh] sm:w-full sm:p-6"><DialogHeader><DialogTitle className="flex items-center gap-2"><Weight className="h-5 w-5 text-sky-200" />Peso e balanceamento</DialogTitle><DialogDescription className="text-slate-400">Dados da aeronave {flight.matricula_registro || "selecionada"}. Use os valores medidos/confirmados para este voo.</DialogDescription></DialogHeader>{weightReadOnly && ficha ? <div className="space-y-3 rounded-xl border border-emerald-300/20 bg-emerald-300/[0.06] p-4"><p className="flex items-center gap-2 text-sm font-semibold text-emerald-200"><ShieldCheck className="h-4 w-4" />{weightComplete ? "Ficha finalizada" : "Ficha salva · consulta"}</p><div className="grid grid-cols-2 gap-2 text-xs"><div className="rounded-lg bg-black/10 p-3"><span className="text-slate-400">Peso na decolagem</span><p className="mt-1 font-semibold text-white">{numberValue(ficha.peso_total_kg).toFixed(1)} kg</p></div><div className="rounded-lg bg-black/10 p-3"><span className="text-slate-400">CG na decolagem</span><p className="mt-1 font-semibold text-white">{numberValue(ficha.cg_calculado).toFixed(2)}% MAC</p></div><div className="rounded-lg bg-black/10 p-3"><span className="text-slate-400">Peso previsto no pouso</span><p className="mt-1 font-semibold text-white">{numberValue(ficha.snapshot_limites?.pouso_previsto_kg).toFixed(1)} kg</p></div><div className="rounded-lg bg-black/10 p-3"><span className="text-slate-400">CG previsto no pouso</span><p className="mt-1 font-semibold text-white">{numberValue(ficha.snapshot_limites?.cg_previsto_pouso).toFixed(2)}% MAC</p></div></div><div className="rounded-xl border border-white/[0.06] bg-black/10 p-3"><p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Pessoas e carga</p>{savedLoadItems.filter((item) => item.categoria !== "combustivel" && String(item.descricao || "").trim().toLowerCase() !== "combustível").map((item, index) => <div key={`${item.descricao || "item"}-${index}`} className="flex items-center justify-between gap-3 border-b border-white/[0.06] py-2 last:border-0"><span className="min-w-0 truncate text-xs text-slate-200">{item.descricao || "Carga"}</span><span className="shrink-0 text-right text-xs text-slate-400">{numberValue(item.peso_kg ?? item.peso).toFixed(1)} kg · braço {numberValue(item.braco).toFixed(2)} pol</span></div>)}</div><div className="rounded-xl bg-black/10 p-3 text-xs"><p className="font-semibold text-slate-200">Combustível</p><p className="mt-1 text-slate-300">{numberValue(ficha.fuel_litros).toFixed(1)} L · {numberValue(ficha.fuel_kg).toFixed(1)} kg · braço {numberValue(ficha.fuel_braco).toFixed(2)} pol</p><p className="mt-1 text-slate-400">Consumo previsto até pouso: {numberValue(ficha.snapshot_limites?.consumo_estimado_combustivel_kg).toFixed(1)} kg</p></div><p className="text-xs text-slate-400">Responsável: {ficha.assinatura_nome || ficha.piloto_responsavel || "—"}{ficha.finalizado_em ? ` · Assinada ${new Date(ficha.finalizado_em).toLocaleString("pt-BR")}` : ""}</p>{ficha.observacoes && <p className="whitespace-pre-wrap text-xs text-slate-400">{ficha.observacoes}</p>}</div> : !config ? <div className="rounded-xl border border-amber-300/20 bg-amber-300/[0.06] p-4 text-sm text-amber-100">A aeronave não possui configuração de peso e balanceamento cadastrada. Não é possível calcular a ficha com segurança.</div> : weightReadOnly ? <div className="rounded-xl border border-amber-300/20 bg-amber-300/[0.06] p-4 text-sm text-amber-100">Ainda não há ficha salva para consulta. A edição só pode ocorrer durante a preparação do voo.</div> : <div className="space-y-4"><div className="grid grid-cols-2 gap-2"><div className="rounded-xl bg-white/[0.04] p-3"><span className="text-[10px] text-slate-400">Peso vazio (kg)</span><p className="mt-1 font-semibold">{numberValue(config.peso_vazio_padrao).toFixed(1)}</p></div><div className="rounded-xl bg-white/[0.04] p-3"><span className="text-[10px] text-slate-400">Limite de decolagem</span><p className="mt-1 font-semibold">{numberValue(config.peso_maximo_decolagem).toFixed(1)} kg</p></div></div><label><span className={labelClass}>Piloto responsável</span><Input value={pilotName} onChange={(event) => setPilotName(event.target.value)} className={inputClass} placeholder="Nome do responsável" /></label><div><div className="mb-2 flex items-center justify-between"><span className={labelClass}>Pessoas e carga</span><button type="button" onClick={newManifestRow} className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-200"><Plus className="h-3.5 w-3.5" />Adicionar item</button></div><div className="space-y-2">{manifest.map((row, index) => <div key={index} className="space-y-2 rounded-xl border border-white/[0.07] bg-white/[0.025] p-3"><Input aria-label={`Descrição do item ${index + 1}`} value={row.descricao} onChange={(event) => updateManifest(index, "descricao", event.target.value)} className={inputClass} placeholder="Pessoa ou carga" /><div className="grid grid-cols-2 gap-2"><label><span className={labelClass}>Peso (kg)</span><Input aria-label={`Peso em kg do item ${index + 1}`} type="number" min="0" step="0.1" inputMode="decimal" value={row.peso} onChange={(event) => updateManifest(index, "peso", event.target.value)} className={inputClass} placeholder="0,0" /></label><label><span className={labelClass}>Braço (pol)</span><Input aria-label={`Braço do item ${index + 1}`} type="number" step="0.01" inputMode="decimal" value={row.braco} onChange={(event) => updateManifest(index, "braco", event.target.value)} className={inputClass} placeholder="0,00" /></label></div><p className="text-right text-[10px] text-slate-500">Momento {(numberValue(row.peso) * numberValue(row.braco)).toFixed(1)} kg·pol</p></div>)}</div><p className="mt-1 text-[10px] text-slate-500">Informe peso e braço conforme dados reais de cada item/passageiro.</p></div><div className="grid grid-cols-2 gap-2"><label><span className={labelClass}>Combustível (L)</span><Input type="number" min="0" step="0.1" inputMode="decimal" value={fuelLiters} onChange={(event) => setFuelLiters(event.target.value)} className={inputClass} placeholder="0" /></label><label><span className={labelClass}>Combustível (kg)</span><Input type="number" min="0" step="0.1" inputMode="decimal" value={fuelKg} onChange={(event) => setFuelKg(event.target.value)} className={inputClass} placeholder="0" /></label><label><span className={labelClass}>Braço do combustível</span><Input type="number" step="0.01" inputMode="decimal" value={fuelArm} onChange={(event) => setFuelArm(event.target.value)} className={inputClass} placeholder="—" /></label><label className="col-span-2"><span className={labelClass}>Consumo estimado até o pouso (kg)</span><Input type="number" min="0" step="0.1" inputMode="decimal" value={plannedFuelBurn} onChange={(event) => setPlannedFuelBurn(event.target.value)} className={inputClass} placeholder="0" /></label></div><div className="rounded-2xl border border-white/[0.08] bg-[#071326] p-3"><div className="flex items-center justify-between text-xs"><span className="text-slate-400">Peso total</span><strong className={balanceWithinLimits ? "text-emerald-200" : "text-amber-200"}>{manifestTotals.total.toFixed(1)} kg</strong></div><div className="mt-2 flex items-center justify-between text-xs"><span className="text-slate-400">CG na decolagem (% MAC)</span><strong className="text-white">{manifestTotals.cg.toFixed(2)}%</strong></div><div className="mt-2 flex items-center justify-between text-xs"><span className="text-slate-400">CG previsto no pouso</span><strong className="text-white">{manifestTotals.landingCg.toFixed(2)}%</strong></div><div className="mt-2 flex items-center justify-between text-xs"><span className="text-slate-400">Peso previsto no pouso</span><strong className="text-white">{manifestTotals.landingWeight.toFixed(1)} kg</strong></div><div className="mt-2 flex items-center gap-2 text-[10px]">{balanceWithinLimits ? <><CheckCircle2 className="h-3.5 w-3.5 text-emerald-300" /><span className="text-emerald-200">Dentro dos limites informados</span></> : <><AlertTriangle className="h-3.5 w-3.5 text-amber-300" /><span className="text-amber-200">Fora dos limites ou dados incompletos</span></>}</div></div><label><span className={labelClass}>Observações</span><Textarea value={weightNotes} onChange={(event) => setWeightNotes(event.target.value)} className="min-h-20 rounded-xl border-white/10 bg-[#071326] text-white" placeholder="Observações da ficha" /></label></div>}<DialogFooter className="sticky bottom-[-1rem] z-10 -mx-4 -mb-4 mt-2 flex-col-reverse gap-2 border-t border-white/10 bg-[#0c192b]/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:mb-0 sm:flex-row sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 sm:backdrop-blur-0">{!weightComplete && config && <><Button type="button" variant="outline" disabled={weightMutation.isPending} onClick={() => weightMutation.mutate("RASCUNHO")} className="h-11 w-full rounded-xl border-white/10 text-white sm:w-auto">Salvar rascunho</Button><Button type="button" disabled={weightMutation.isPending || !balanceWithinLimits || !pilotName.trim()} onClick={() => weightMutation.mutate("FINALIZADA")} className="h-11 w-full rounded-xl bg-emerald-300 font-semibold text-[#062219] hover:bg-emerald-200 sm:w-auto">{weightMutation.isPending ? "Salvando…" : "Finalizar ficha"}</Button></>}<Button type="button" variant="ghost" onClick={() => setDialog(null)} className="h-11 w-full rounded-xl text-slate-300 sm:w-auto">{weightComplete ? "Fechar" : "Cancelar"}</Button></DialogFooter></DialogContent></Dialog>
-    <Dialog open={dialog === "leg-times"} onOpenChange={(open) => { if (!open) { setDialog(null); setSelectedLegTime(null); } }}><DialogContent className="max-h-[90dvh] overflow-y-auto border-white/10 bg-[#0c192b] text-white"><DialogHeader><DialogTitle>Completar horários da perna</DialogTitle><DialogDescription className="text-slate-400">Informe os horários reais em Zulu. A atualização recalcula o resumo da jornada.</DialogDescription></DialogHeader><div className="grid grid-cols-2 gap-3"><label><span className={labelClass}>Acionamento (AC, UTC)</span><Input type="time" value={legTimes.horario_ac} onChange={(event) => setLegTimes({ ...legTimes, horario_ac: event.target.value })} className={inputClass} /></label><label><span className={labelClass}>Decolagem (DEP, UTC)</span><Input type="time" value={legTimes.horario_dep} onChange={(event) => setLegTimes({ ...legTimes, horario_dep: event.target.value })} className={inputClass} /></label><label><span className={labelClass}>Pouso (POU, UTC)</span><Input type="time" value={legTimes.horario_pouso} onChange={(event) => setLegTimes({ ...legTimes, horario_pouso: event.target.value })} className={inputClass} /></label><label><span className={labelClass}>Corte (COR, UTC)</span><Input type="time" value={legTimes.horario_corte} onChange={(event) => setLegTimes({ ...legTimes, horario_corte: event.target.value })} className={inputClass} /></label></div><DialogFooter><Button type="button" variant="outline" onClick={() => { setDialog(null); setSelectedLegTime(null); }} className="rounded-xl border-white/10 text-white">Cancelar</Button><Button type="button" disabled={!selectedLegTime || !Object.values(legTimes).some(Boolean) || legTimesMutation.isPending} onClick={() => legTimesMutation.mutate()} className="rounded-xl bg-amber-300 font-semibold text-[#1a2844] hover:bg-amber-200">{legTimesMutation.isPending ? "Salvando…" : "Salvar horários"}</Button></DialogFooter></DialogContent></Dialog>
-    <Dialog open={dialog === "journey"} onOpenChange={(open) => !open && setDialog(null)}><DialogContent className="border-white/10 bg-[#0c192b] text-white"><DialogHeader><DialogTitle className="flex items-center gap-2"><Plane className="h-5 w-5 text-emerald-200" />Iniciar jornada</DialogTitle><DialogDescription className="text-slate-400">Será criada uma jornada para a tripulação vinculada e a primeira perna {flight.origem} → {flight.destino}.</DialogDescription></DialogHeader><div className="space-y-3"><div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-3 text-sm"><p className="font-semibold">{flight.numero_voo || "Voo aprovado"} · {flight.matricula_registro || "Aeronave"}</p><p className="mt-1 text-xs text-slate-400">{flight.origem} → {flight.destino} · {flight.numero_passageiros || 0} passageiros</p></div><label><span className={labelClass}>Acionamento (UTC)</span><Input type="time" value={journeyTime} onChange={(event) => setJourneyTime(event.target.value)} className={inputClass} /><span className="mt-1 block text-[10px] text-slate-500">A apresentação da tripulação será calculada automaticamente para 30 minutos antes do acionamento.</span></label></div><DialogFooter><Button type="button" variant="outline" onClick={() => setDialog(null)} className="rounded-xl border-white/10 text-white">Cancelar</Button><Button type="button" disabled={!journeyTime || journeyMutation.isPending} onClick={() => journeyMutation.mutate()} className="rounded-xl bg-emerald-300 text-[#062219] hover:bg-emerald-200">{journeyMutation.isPending ? "Criando…" : "Criar jornada e perna 1"}</Button></DialogFooter></DialogContent></Dialog>
-    <Dialog open={dialog === "leg"} onOpenChange={(open) => !open && setDialog(null)}><DialogContent className="border-white/10 bg-[#0c192b] text-white"><DialogHeader><DialogTitle>Adicionar perna</DialogTitle><DialogDescription className="text-slate-400">A próxima etapa será vinculada à jornada ativa. Informe os horários reais conforme o registro operacional.</DialogDescription></DialogHeader><div className="grid grid-cols-2 gap-3"><label><span className={labelClass}>Origem (ICAO)</span><Input maxLength={4} value={legForm.origem} onChange={(event) => setLegForm({ ...legForm, origem: event.target.value.toUpperCase() })} className={inputClass} /></label><label><span className={labelClass}>Destino (ICAO)</span><Input maxLength={4} value={legForm.destino} onChange={(event) => setLegForm({ ...legForm, destino: event.target.value.toUpperCase() })} className={inputClass} /></label><label><span className={labelClass}>Passageiros</span><Input type="number" min="0" step="1" value={legForm.numero_passageiros} onChange={(event) => setLegForm({ ...legForm, numero_passageiros: event.target.value })} className={inputClass} /></label><label><span className={labelClass}>Acionamento (UTC)</span><Input type="time" value={legForm.horario_ac} onChange={(event) => setLegForm({ ...legForm, horario_ac: event.target.value })} className={inputClass} /></label><label className="col-span-2"><span className={labelClass}>Decolagem (UTC, opcional)</span><Input type="time" value={legForm.horario_dep} onChange={(event) => setLegForm({ ...legForm, horario_dep: event.target.value })} className={inputClass} /></label></div><DialogFooter><Button type="button" variant="outline" onClick={() => setDialog(null)} className="rounded-xl border-white/10 text-white">Cancelar</Button><Button type="button" disabled={!legForm.origem.trim() || !legForm.destino.trim() || !legForm.horario_ac || legMutation.isPending} onClick={() => legMutation.mutate()} className="rounded-xl bg-emerald-300 text-[#062219] hover:bg-emerald-200">{legMutation.isPending ? "Salvando…" : "Salvar perna"}</Button></DialogFooter></DialogContent></Dialog>
-  </section>;
+
+      <div className="space-y-2.5">
+        <OperationTile
+          icon={ClipboardCheck}
+          title="Preparação do voo"
+          detail={checklistComplete ? `${registeredChecklistItems} itens registrados${checklist?.executado_por_nome ? ` · ${checklist.executado_por_nome}` : ""}` : `${answeredChecklistItems}/${itemCount} itens respondidos${checklist?.status === "rascunho" ? " · rascunho salvo" : ""}`}
+          badge={checklistComplete ? (preparacaoPendencias ? `${preparacaoPendencias} pendência(s)` : "Finalizada") : checklist?.status === "rascunho" ? "Rascunho" : "Pendente"}
+          tone={checklistComplete && !preparacaoPendencias ? "green" : "amber"}
+          action={checklistComplete ? "Ver preparação / briefing" : checklistEditable ? (checklist?.status === "rascunho" ? "Continuar checklist" : "Executar checklist") : "Somente para consulta"}
+          disabled={!checklistComplete && (!checklistEditable || !checklistQuery.isSuccess)}
+          onClick={() => setDialog("checklist")}
+        />
+        <OperationTile
+          icon={Scale}
+          title="Peso e balanceamento"
+          detail={weightComplete ? `${numberValue(ficha?.peso_total_kg).toFixed(1)} kg · CG ${numberValue(ficha?.cg_calculado).toFixed(2)}` : config ? `${flight.matricula_registro || "Aeronave"} · ficha operacional` : "Sem configuração técnica cadastrada para esta aeronave."}
+          badge={weightComplete ? "Finalizada" : ficha ? "Rascunho" : "Pendente"}
+          tone="blue"
+          action={weightComplete || (!config && ficha) ? "Visualizar ficha" : config ? "Preencher ficha" : "Configuração indisponível"}
+          disabled={(!config && !ficha) || weightMutation.isPending}
+          onClick={loadDialog}
+        />
+
+        {journeyRows.length > 0 && (
+          <div className="rounded-2xl border border-white/[0.08] bg-[#0c192b] p-3.5">
+            <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-slate-300">
+              <Clock3 className="h-4 w-4 text-sky-200" /> Jornadas e pernas
+            </div>
+            <div className="space-y-2">
+              {journeyRows.map((record) => (
+                <div key={record.id} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-semibold text-white">
+                      {formatFlightDate(record.data)} · {record.funcao_tripulante || "Jornada"}
+                    </span>
+                    <span className="text-[10px] text-slate-400">{formatFlightJourneyStatus(record)}</span>
+                  </div>
+                  <p className="mt-1 text-[11px] text-slate-400">
+                    Apresentação {formatZuluTime(record.horario_apresentacao)} · Acionamento {formatZuluTime(record.horario_acionamento)} · Decolagem {formatZuluTime(record.horario_decolagem)}
+                  </p>
+                  {(record.pernas || []).map((leg) => (
+                    <div key={leg.id} className="mt-2.5 rounded-xl border border-white/[0.06] bg-black/20 p-3">
+                      <p className="flex items-center gap-2 text-xs font-semibold text-slate-200">
+                        <MapPin className="h-3.5 w-3.5 shrink-0 text-emerald-300" />
+                        Perna {leg.numero}: {leg.origem} → {leg.destino}
+                        <span className="ml-auto text-[10px] font-medium text-slate-400">{formatFlightLegStatus(leg)}</span>
+                      </p>
+                      <div className="mt-2 grid grid-cols-2 gap-1.5 text-[11px] tabular-nums text-slate-400">
+                        <span>AC: <strong className="text-slate-200">{formatZuluTime(leg.horario_ac)}</strong></span>
+                        <span>DEP: <strong className="text-slate-200">{formatZuluTime(leg.horario_dep)}</strong></span>
+                        <span>POU: <strong className="text-slate-200">{formatZuluTime(leg.horario_pouso)}</strong></span>
+                        <span>COR: <strong className="text-slate-200">{formatZuluTime(leg.horario_corte)}</strong></span>
+                      </div>
+                      {canCompleteJourneyTimes && legNeedsTimeCompletion(leg) && (
+                        <button
+                          type="button"
+                          onClick={() => openLegTimeEditor(record.id, leg)}
+                          className="mt-2.5 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-amber-300/15 px-3 py-2 text-xs font-bold text-amber-200 transition hover:bg-amber-300/25 active:scale-[.99]"
+                        >
+                          <Clock3 className="h-3.5 w-3.5" />
+                          Completar horários desta perna
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {hasOpenJourney && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              setLegForm({ origem: journey?.pernas?.at(-1)?.destino || flight.destino || "", destino: "", numero_passageiros: String(flight.numero_passageiros || 0), horario_ac: "", horario_dep: "" });
+              setDialog("leg");
+            }}
+            className="h-12 w-full rounded-xl border-white/10 bg-white/[0.03] text-white hover:bg-white/[0.07]"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Adicionar perna
+          </Button>
+        )}
+
+        {startBlocked && !hasOpenJourney && (
+          <p className="text-center text-[11px] leading-5 text-slate-500">
+            {flightClosed ? "" : !checklistEditable ? "A jornada só pode começar durante a preparação de um voo aprovado." : !journeyQuery.isSuccess ? "Confirme o estado da jornada antes de iniciar." : "Para iniciar, finalize a checklist oficial."}
+          </p>
+        )}
+        {flightClosed && <p className="text-center text-[11px] text-slate-500">Voo encerrado: a ficha de peso pendente ainda pode ser preenchida e salva.</p>}
+      </div>
+
+      <Dialog open={dialog === "checklist"} onOpenChange={(open) => !open && setDialog(null)}>
+        <DialogContent className="max-h-[92dvh] overflow-y-auto border-white/10 bg-[#0c192b] text-white sm:max-w-5xl">
+          <FlightPreflightChecklist
+            key={flight.id}
+            flight={flight}
+            checklist={checklist || null}
+            editable={checklistEditable}
+            open={dialog === "checklist"}
+            onClose={() => setDialog(null)}
+            onSaved={() => {
+              void client.invalidateQueries({ queryKey: flightListQueryKey });
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialog === "weight"} onOpenChange={(open) => !open && setDialog(null)}>
+        <DialogContent className="max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] max-w-xl overflow-y-auto border-white/10 bg-[#0c192b] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] text-white sm:max-h-[92dvh] sm:w-full sm:p-6">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Weight className="h-5 w-5 text-sky-200" />
+              Peso e balanceamento
+            </DialogTitle>
+            <DialogDescription className="text-slate-400">Dados da aeronave {flight.matricula_registro || "selecionada"}. Use os valores medidos/confirmados para este voo.</DialogDescription>
+          </DialogHeader>
+          {weightReadOnly && ficha ? (
+            <div className="space-y-3 rounded-xl border border-emerald-300/20 bg-emerald-300/[0.06] p-4">
+              <p className="flex items-center gap-2 text-sm font-semibold text-emerald-200">
+                <ShieldCheck className="h-4 w-4" />
+                {weightComplete ? "Ficha finalizada" : "Ficha salva · consulta"}
+              </p>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="rounded-lg bg-black/10 p-3">
+                  <span className="text-slate-400">Peso na decolagem</span>
+                  <p className="mt-1 font-semibold text-white">{numberValue(ficha.peso_total_kg).toFixed(1)} kg</p>
+                </div>
+                <div className="rounded-lg bg-black/10 p-3">
+                  <span className="text-slate-400">CG na decolagem</span>
+                  <p className="mt-1 font-semibold text-white">{numberValue(ficha.cg_calculado).toFixed(2)}% MAC</p>
+                </div>
+                <div className="rounded-lg bg-black/10 p-3">
+                  <span className="text-slate-400">Peso previsto no pouso</span>
+                  <p className="mt-1 font-semibold text-white">{numberValue(ficha.snapshot_limites?.pouso_previsto_kg).toFixed(1)} kg</p>
+                </div>
+                <div className="rounded-lg bg-black/10 p-3">
+                  <span className="text-slate-400">CG previsto no pouso</span>
+                  <p className="mt-1 font-semibold text-white">{numberValue(ficha.snapshot_limites?.cg_previsto_pouso).toFixed(2)}% MAC</p>
+                </div>
+              </div>
+              <div className="rounded-xl border border-white/[0.06] bg-black/10 p-3">
+                <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Pessoas e carga</p>
+                {savedLoadItems
+                  .filter((item) => item.categoria !== "combustivel" && String(item.descricao || "").trim().toLowerCase() !== "combustível")
+                  .map((item, index) => (
+                    <div key={`${item.descricao || "item"}-${index}`} className="flex items-center justify-between gap-3 border-b border-white/[0.06] py-2 last:border-0">
+                      <span className="min-w-0 truncate text-xs text-slate-200">{item.descricao || "Carga"}</span>
+                      <span className="shrink-0 text-right text-xs text-slate-400">
+                        {numberValue(item.peso_kg ?? item.peso).toFixed(1)} kg · braço {numberValue(item.braco).toFixed(2)} pol
+                      </span>
+                    </div>
+                  ))}
+              </div>
+              <div className="rounded-xl bg-black/10 p-3 text-xs">
+                <p className="font-semibold text-slate-200">Combustível</p>
+                <p className="mt-1 text-slate-300">
+                  {numberValue(ficha.fuel_litros).toFixed(1)} L · {numberValue(ficha.fuel_kg).toFixed(1)} kg · braço {numberValue(ficha.fuel_braco).toFixed(2)} pol
+                </p>
+                <p className="mt-1 text-slate-400">Consumo previsto até pouso: {numberValue(ficha.snapshot_limites?.consumo_estimado_combustivel_kg).toFixed(1)} kg</p>
+              </div>
+              <p className="text-xs text-slate-400">
+                Responsável: {ficha.assinatura_nome || ficha.piloto_responsavel || "—"}
+                {ficha.finalizado_em ? ` · Assinada ${new Date(ficha.finalizado_em).toLocaleString("pt-BR")}` : ""}
+              </p>
+              {ficha.observacoes && <p className="whitespace-pre-wrap text-xs text-slate-400">{ficha.observacoes}</p>}
+            </div>
+          ) : !config ? (
+            <div className="rounded-xl border border-amber-300/20 bg-amber-300/[0.06] p-4 text-sm text-amber-100">A aeronave não possui configuração de peso e balanceamento cadastrada. Não é possível calcular a ficha com segurança.</div>
+          ) : weightReadOnly ? (
+            <div className="rounded-xl border border-amber-300/20 bg-amber-300/[0.06] p-4 text-sm text-amber-100">Ainda não há ficha salva para consulta. A edição só pode ocorrer durante a preparação do voo.</div>
+          ) : (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-xl bg-white/[0.04] p-3">
+                  <span className="text-[10px] text-slate-400">Peso vazio (kg)</span>
+                  <p className="mt-1 font-semibold">{numberValue(config.peso_vazio_padrao).toFixed(1)}</p>
+                </div>
+                <div className="rounded-xl bg-white/[0.04] p-3">
+                  <span className="text-[10px] text-slate-400">Limite de decolagem</span>
+                  <p className="mt-1 font-semibold">{numberValue(config.peso_maximo_decolagem).toFixed(1)} kg</p>
+                </div>
+              </div>
+              <label>
+                <span className={labelClass}>Piloto responsável</span>
+                <Input value={pilotName} onChange={(event) => setPilotName(event.target.value)} className={inputClass} placeholder="Nome do responsável" />
+              </label>
+              <div>
+                <div className="mb-2 flex items-center justify-between">
+                  <span className={labelClass}>Pessoas e carga</span>
+                  <button type="button" onClick={newManifestRow} className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-200">
+                    <Plus className="h-3.5 w-3.5" />
+                    Adicionar item
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {manifest.map((row, index) => (
+                    <div key={index} className="space-y-2 rounded-xl border border-white/[0.07] bg-white/[0.025] p-3">
+                      <Input aria-label={`Descrição do item ${index + 1}`} value={row.descricao} onChange={(event) => updateManifest(index, "descricao", event.target.value)} className={inputClass} placeholder="Pessoa ou carga" />
+                      <div className="grid grid-cols-2 gap-2">
+                        <label>
+                          <span className={labelClass}>Peso (kg)</span>
+                          <Input aria-label={`Peso em kg do item ${index + 1}`} type="number" min="0" step="0.1" inputMode="decimal" value={row.peso} onChange={(event) => updateManifest(index, "peso", event.target.value)} className={inputClass} placeholder="0,0" />
+                        </label>
+                        <label>
+                          <span className={labelClass}>Braço (pol)</span>
+                          <Input aria-label={`Braço do item ${index + 1}`} type="number" step="0.01" inputMode="decimal" value={row.braco} onChange={(event) => updateManifest(index, "braco", event.target.value)} className={inputClass} placeholder="0,00" />
+                        </label>
+                      </div>
+                      <p className="text-right text-[10px] text-slate-500">Momento {(numberValue(row.peso) * numberValue(row.braco)).toFixed(1)} kg·pol</p>
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-1 text-[10px] text-slate-500">Informe peso e braço conforme dados reais de cada item/passageiro.</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <label>
+                  <span className={labelClass}>Combustível (L)</span>
+                  <Input type="number" min="0" step="0.1" inputMode="decimal" value={fuelLiters} onChange={(event) => setFuelLiters(event.target.value)} className={inputClass} placeholder="0" />
+                </label>
+                <label>
+                  <span className={labelClass}>Combustível (kg)</span>
+                  <Input type="number" min="0" step="0.1" inputMode="decimal" value={fuelKg} onChange={(event) => setFuelKg(event.target.value)} className={inputClass} placeholder="0" />
+                </label>
+                <label>
+                  <span className={labelClass}>Braço do combustível</span>
+                  <Input type="number" step="0.01" inputMode="decimal" value={fuelArm} onChange={(event) => setFuelArm(event.target.value)} className={inputClass} placeholder="—" />
+                </label>
+                <label className="col-span-2">
+                  <span className={labelClass}>Consumo estimado até o pouso (kg)</span>
+                  <Input type="number" min="0" step="0.1" inputMode="decimal" value={plannedFuelBurn} onChange={(event) => setPlannedFuelBurn(event.target.value)} className={inputClass} placeholder="0" />
+                </label>
+              </div>
+              <div className="rounded-2xl border border-white/[0.08] bg-[#071326] p-3">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-400">Peso total</span>
+                  <strong className={balanceWithinLimits ? "text-emerald-200" : "text-amber-200"}>{manifestTotals.total.toFixed(1)} kg</strong>
+                </div>
+                <div className="mt-2 flex items-center justify-between text-xs">
+                  <span className="text-slate-400">CG na decolagem (% MAC)</span>
+                  <strong className="text-white">{manifestTotals.cg.toFixed(2)}%</strong>
+                </div>
+                <div className="mt-2 flex items-center justify-between text-xs">
+                  <span className="text-slate-400">CG previsto no pouso</span>
+                  <strong className="text-white">{manifestTotals.landingCg.toFixed(2)}%</strong>
+                </div>
+                <div className="mt-2 flex items-center justify-between text-xs">
+                  <span className="text-slate-400">Peso previsto no pouso</span>
+                  <strong className="text-white">{manifestTotals.landingWeight.toFixed(1)} kg</strong>
+                </div>
+                <div className="mt-2 flex items-center gap-2 text-[10px]">
+                  {balanceWithinLimits ? (
+                    <>
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-300" />
+                      <span className="text-emerald-200">Dentro dos limites informados</span>
+                    </>
+                  ) : (
+                    <>
+                      <AlertTriangle className="h-3.5 w-3.5 text-amber-300" />
+                      <span className="text-amber-200">Fora dos limites ou dados incompletos</span>
+                    </>
+                  )}
+                </div>
+              </div>
+              <label>
+                <span className={labelClass}>Observações</span>
+                <Textarea value={weightNotes} onChange={(event) => setWeightNotes(event.target.value)} className="min-h-20 rounded-xl border-white/10 bg-[#071326] text-base text-white" placeholder="Observações da ficha" />
+              </label>
+            </div>
+          )}
+          <DialogFooter className="sticky bottom-[-1rem] z-10 -mx-4 -mb-4 mt-2 flex-col-reverse gap-2 border-t border-white/10 bg-[#0c192b]/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:mb-0 sm:flex-row sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 sm:backdrop-blur-0">
+            {!weightComplete && config && (
+              <>
+                <Button type="button" variant="outline" disabled={weightMutation.isPending} onClick={() => weightMutation.mutate("RASCUNHO")} className="h-11 w-full rounded-xl border-white/10 text-white sm:w-auto">
+                  Salvar rascunho
+                </Button>
+                <Button type="button" disabled={weightMutation.isPending || !balanceWithinLimits || !pilotName.trim()} onClick={() => weightMutation.mutate("FINALIZADA")} className="h-11 w-full rounded-xl bg-emerald-300 font-semibold text-[#062219] hover:bg-emerald-200 sm:w-auto">
+                  {weightMutation.isPending ? "Salvando…" : "Finalizar ficha"}
+                </Button>
+              </>
+            )}
+            <Button type="button" variant="ghost" onClick={() => setDialog(null)} className="h-11 w-full rounded-xl text-slate-300 sm:w-auto">
+              {weightComplete ? "Fechar" : "Cancelar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={dialog === "leg-times"}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDialog(null);
+            setSelectedLegTime(null);
+          }
+        }}
+      >
+        <DialogContent className="max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] max-w-md overflow-y-auto rounded-2xl border-white/10 bg-[#0c192b] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] text-white sm:p-6">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Clock3 className="h-5 w-5 text-amber-300" />
+              {selectedLegTime ? `Horários · Perna ${selectedLegTime.leg.numero} (${selectedLegTime.leg.origem} → ${selectedLegTime.leg.destino})` : "Completar horários da perna"}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-400 sm:text-sm">Informe os horários reais em Zulu (UTC). A atualização recalcula o resumo da jornada.</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-1">
+            {timeFields.map(({ key, label }) => (
+              <div key={key} className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <label htmlFor={`leg-time-${key}`} className="text-xs font-semibold text-slate-200">
+                    {label}
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setLegTimes((prev) => ({ ...prev, [key]: nowZuluHHMM() }))}
+                    className="rounded-lg bg-emerald-300/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-200 transition hover:bg-emerald-300/20 active:scale-[.98]"
+                  >
+                    Agora UTC
+                  </button>
+                </div>
+                <Input
+                  id={`leg-time-${key}`}
+                  type="time"
+                  value={legTimes[key]}
+                  onChange={(event) => setLegTimes((prev) => ({ ...prev, [key]: event.target.value }))}
+                  className={inputClass + " font-semibold tabular-nums"}
+                />
+              </div>
+            ))}
+          </div>
+
+          <DialogFooter className="mt-2 flex-col-reverse gap-2 sm:flex-row">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setDialog(null);
+                setSelectedLegTime(null);
+              }}
+              className="h-12 w-full rounded-xl border-white/10 text-white sm:w-auto"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              disabled={!selectedLegTime || !Object.values(legTimes).some(Boolean) || legTimesMutation.isPending}
+              onClick={() => legTimesMutation.mutate()}
+              className="h-12 w-full rounded-xl bg-amber-300 font-bold text-[#1a1604] hover:bg-amber-200 sm:w-auto"
+            >
+              {legTimesMutation.isPending ? "Salvando…" : "Salvar horários"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialog === "journey"} onOpenChange={(open) => !open && setDialog(null)}>
+        <DialogContent className="w-[calc(100%-1rem)] max-w-md rounded-2xl border-white/10 bg-[#0c192b] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] text-white sm:p-6">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plane className="h-5 w-5 text-emerald-200" />
+              Iniciar jornada
+            </DialogTitle>
+            <DialogDescription className="text-slate-400">
+              Será criada uma jornada para a tripulação vinculada e a primeira perna {flight.origem} → {flight.destino}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-3 text-sm">
+              <p className="font-semibold">
+                {flight.numero_voo || "Voo aprovado"} · {flight.matricula_registro || "Aeronave"}
+              </p>
+              <p className="mt-1 text-xs text-slate-400">
+                {flight.origem} → {flight.destino} · {flight.numero_passageiros || 0} passageiros
+              </p>
+            </div>
+            <div>
+              <div className="mb-1.5 flex items-center justify-between">
+                <label htmlFor="journey-ac-time" className="text-xs font-medium text-slate-300">
+                  Acionamento (UTC)
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setJourneyTime(nowZuluHHMM())}
+                  className="rounded-lg bg-emerald-300/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-200 hover:bg-emerald-300/20"
+                >
+                  Agora UTC
+                </button>
+              </div>
+              <Input id="journey-ac-time" type="time" value={journeyTime} onChange={(event) => setJourneyTime(event.target.value)} className={inputClass + " font-semibold tabular-nums"} />
+              <span className="mt-1.5 block text-[11px] text-slate-500">A apresentação da tripulação será calculada automaticamente para 30 minutos antes do acionamento.</span>
+            </div>
+          </div>
+          <DialogFooter className="mt-2 flex-col-reverse gap-2 sm:flex-row">
+            <Button type="button" variant="outline" onClick={() => setDialog(null)} className="h-12 w-full rounded-xl border-white/10 text-white sm:w-auto">
+              Cancelar
+            </Button>
+            <Button type="button" disabled={!journeyTime || journeyMutation.isPending} onClick={() => journeyMutation.mutate()} className="h-12 w-full rounded-xl bg-emerald-300 font-bold text-[#062219] hover:bg-emerald-200 sm:w-auto">
+              {journeyMutation.isPending ? "Criando…" : "Criar jornada e perna 1"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialog === "leg"} onOpenChange={(open) => !open && setDialog(null)}>
+        <DialogContent className="max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] max-w-md overflow-y-auto rounded-2xl border-white/10 bg-[#0c192b] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] text-white sm:p-6">
+          <DialogHeader>
+            <DialogTitle>Adicionar perna</DialogTitle>
+            <DialogDescription className="text-slate-400">A próxima etapa será vinculada à jornada ativa. Informe os horários reais conforme o registro operacional.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <label>
+                <span className={labelClass}>Origem (ICAO)</span>
+                <Input maxLength={4} autoCapitalize="characters" value={legForm.origem} onChange={(event) => setLegForm({ ...legForm, origem: event.target.value.toUpperCase() })} className={inputClass} />
+              </label>
+              <label>
+                <span className={labelClass}>Destino (ICAO)</span>
+                <Input maxLength={4} autoCapitalize="characters" value={legForm.destino} onChange={(event) => setLegForm({ ...legForm, destino: event.target.value.toUpperCase() })} className={inputClass} />
+              </label>
+            </div>
+            <label className="block">
+              <span className={labelClass}>Passageiros</span>
+              <Input type="number" min="0" step="1" inputMode="numeric" value={legForm.numero_passageiros} onChange={(event) => setLegForm({ ...legForm, numero_passageiros: event.target.value })} className={inputClass} />
+            </label>
+            <label className="block">
+              <span className={labelClass}>Acionamento (UTC)</span>
+              <Input type="time" value={legForm.horario_ac} onChange={(event) => setLegForm({ ...legForm, horario_ac: event.target.value })} className={inputClass} />
+            </label>
+            <label className="block">
+              <span className={labelClass}>Decolagem (UTC, opcional)</span>
+              <Input type="time" value={legForm.horario_dep} onChange={(event) => setLegForm({ ...legForm, horario_dep: event.target.value })} className={inputClass} />
+            </label>
+          </div>
+          <DialogFooter className="mt-2 flex-col-reverse gap-2 sm:flex-row">
+            <Button type="button" variant="outline" onClick={() => setDialog(null)} className="h-12 w-full rounded-xl border-white/10 text-white sm:w-auto">
+              Cancelar
+            </Button>
+            <Button type="button" disabled={!legForm.origem.trim() || !legForm.destino.trim() || !legForm.horario_ac || legMutation.isPending} onClick={() => legMutation.mutate()} className="h-12 w-full rounded-xl bg-emerald-300 font-bold text-[#062219] hover:bg-emerald-200 sm:w-auto">
+              {legMutation.isPending ? "Salvando…" : "Salvar perna"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </section>
+  );
 }
