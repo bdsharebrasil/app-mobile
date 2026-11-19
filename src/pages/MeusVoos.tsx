@@ -9,7 +9,7 @@ import { MobileLayout } from "@/components/mobile/MobileLayout";
 import { FlightOperations } from "@/components/mobile/FlightOperations";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { apiClient } from "@/lib/api-client";
-import { formatFlightDate, formatFlightJourneyStatus, formatFlightLegStatus, formatScheduledFlightTime, formatZuluTime } from "@/lib/flight-format";
+import { formatBrasiliaTime, formatScheduledFlightTime, formatZuluTime } from "@/lib/flight-format";
 import { flightListQueryKey, flightNeedsTimeCompletion } from "@/lib/flight-query-keys";
 
 type Flight = {
@@ -99,12 +99,6 @@ function dateLabel(value?: string | null) {
   const datePart = value.slice(0, 10);
   const date = new Date(`${datePart}T12:00:00`);
   return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
-}
-
-function dateTimeLabel(value?: string | null) {
-  if (!value) return "Não informado";
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 }
 
 function aircraftLabel(flight: Flight) {
@@ -200,19 +194,16 @@ export default function MeusVoos() {
                   </div>
                   <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-2 px-5 pt-4">
                     <div className="min-w-0">
-                      <p className="text-xs font-semibold tabular-nums text-slate-400">{formatScheduledFlightTime(flight.horario_previsto_agendamento)}</p>
                       <p className="mt-0.5 truncate text-[28px] font-bold leading-none tracking-tight text-white">{flight.origem || "—"}</p>
                     </div>
                     <div className="flex flex-col items-center gap-1 pb-0.5">
                       <span className="flex h-11 w-11 items-center justify-center rounded-full border border-dashed border-white/30 text-emerald-300"><Plane className="h-4 w-4" /></span>
-                      <span className="whitespace-nowrap text-[11px] text-slate-400">{dateLabel(flight.data_agendada)}{flight.dias_duracao ? ` · ${flight.dias_duracao} ${flight.dias_duracao === 1 ? "dia" : "dias"}` : ""}</span>
                     </div>
                     <div className="min-w-0 text-right">
-                      <p className="text-xs font-semibold text-slate-400">{flight.numero_passageiros ?? 0} pax</p>
                       <p className="mt-0.5 truncate text-[28px] font-bold leading-none tracking-tight text-white">{flight.destino || "—"}</p>
                     </div>
                   </div>
-                  <p className="mt-4 border-t border-white/[0.08] px-5 py-3 text-xs text-slate-400">{aircraftLabel(flight)}</p>
+                  <div className="mt-4 flex items-center justify-between gap-4 border-t border-white/[0.08] px-5 py-3 text-xs font-semibold tabular-nums text-slate-400"><span>{formatZuluTime(flight.horario_previsto_agendamento)}</span><span>{formatBrasiliaTime(flight.horario_previsto_agendamento)}</span></div>
                 </section>
 
                 <section className="mt-4 rounded-2xl border border-white/10 bg-[#101e33] px-4 pb-1">
@@ -220,13 +211,11 @@ export default function MeusVoos() {
                   <DetailRow label="Data de início" value={dateLabel(flight.data_agendada)} />
                   <DetailRow label="Data de término" value={dateLabel(flight.data_fim)} />
                   <DetailRow label="Horário previsto" value={formatScheduledFlightTime(flight.horario_previsto_agendamento)} />
-                  <DetailRow label="Duração" value={flight.dias_duracao ? `${flight.dias_duracao} ${flight.dias_duracao === 1 ? "dia" : "dias"}` : null} />
                   <DetailRow label="Passageiros" value={flight.numero_passageiros} />
-                  <DetailRow label="Cliente" value={flight.cliente_razao_social ? `${flight.cliente_tipo || "Cliente"}: ${flight.cliente_razao_social}` : null} />
+                  <DetailRow label="Cliente" value={flight.cliente_razao_social} />
                   <DetailRow label="Piloto" value={flight.piloto_nome} />
                   <DetailRow label="Copiloto" value={flight.copiloto_nome} />
                   <DetailRow label="Voo emprestado" value={flight.voo_emprestado} />
-                  <DetailRow label="Aprovado em" value={dateTimeLabel(flight.aprovado_em)} />
                 </section>
 
                 <div className="mt-4">
@@ -237,17 +226,6 @@ export default function MeusVoos() {
                   <span className="min-w-0"><span className="block text-[15px] font-bold">{vooComRelatorio.relatorio_id ? 'Continuar relatório de despesas' : 'Criar relatório de despesas'}</span><span className="block text-xs font-medium opacity-70">Registre os gastos deste voo</span></span>
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#08110F] text-white"><ReceiptText className="h-4 w-4" /></span>
                 </button>}
-
-                <section className="mt-4 rounded-2xl border border-white/10 bg-[#101e33] p-4">
-                  <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-white"><Clock3 className="h-4 w-4 text-emerald-300" /> Jornadas registradas</h2>
-                  {detail.jornadas.length ? <div className="space-y-3">{detail.jornadas.map((jornada) => <div key={jornada.id} className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-semibold text-slate-100">{formatFlightDate(jornada.data)} · {jornada.funcao_tripulante || "Tripulante"}</p><span className="rounded-full bg-sky-300/10 px-2 py-1 text-[10px] font-semibold text-sky-200">{formatFlightJourneyStatus(jornada, "Registrada")}</span></div>
-                    <p className="mt-1 text-xs text-slate-400">{jornada.tripulante_nome || "Tripulante"}</p>
-                    <div className="mt-2 grid grid-cols-2 gap-2 text-xs"><span className="rounded-lg bg-black/15 px-2.5 py-2 text-slate-400">Apresentação <strong className="ml-1 text-slate-200">{formatZuluTime(jornada.horario_apresentacao)}</strong></span><span className="rounded-lg bg-black/15 px-2.5 py-2 text-slate-400">Acionamento <strong className="ml-1 text-slate-200">{formatZuluTime(jornada.horario_acionamento)}</strong></span><span className="rounded-lg bg-black/15 px-2.5 py-2 text-slate-400">Decolagem <strong className="ml-1 text-slate-200">{formatZuluTime(jornada.horario_decolagem)}</strong></span></div>
-                    {jornada.pernas?.length > 0 && <div className="mt-3 space-y-2">{jornada.pernas.map((perna) => <div key={perna.id} className="rounded-lg bg-black/15 px-3 py-2 text-xs text-slate-300"><div className="flex items-center justify-between gap-2"><span className="font-semibold">Perna {perna.numero}: {perna.origem || "—"} → {perna.destino || "—"}</span><span className="text-slate-500">{formatFlightLegStatus(perna)}</span></div><p className="mt-1 text-slate-500">AC {formatZuluTime(perna.horario_ac)} · DEP {formatZuluTime(perna.horario_dep)} · POU {formatZuluTime(perna.horario_pouso)} · COR {formatZuluTime(perna.horario_corte)}</p></div>)}</div>}
-                    <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-500"><span>Pouso: {formatZuluTime(jornada.horario_pouso)}</span><span>Corte: {formatZuluTime(jornada.horario_corte)}</span><span>Jornada: {jornada.minutos_jornada == null ? "—" : `${jornada.minutos_jornada} min`}</span></div>
-                  </div>)}</div> : <p className="text-sm text-slate-400">Ainda não há jornadas registradas para este agendamento.</p>}
-                </section>
 
                 <section className="mt-4 rounded-2xl border border-white/10 bg-[#101e33] p-4">
                   <div className="mb-2 flex items-start gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-300/10 text-amber-200"><Hotel className="h-4 w-4" /></span><div><h2 className="text-sm font-semibold text-white">Hospedagem</h2><p className="text-xs text-slate-500">Reservas que coincidem com o período do voo.</p></div></div>

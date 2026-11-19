@@ -34,6 +34,11 @@ export function formatScheduledFlightTime(value: unknown): string {
   return `${zulu}Z · ${brasilia} Brasília`;
 }
 
+export function formatBrasiliaTime(value: unknown): string {
+  const time = formatTime(value, BRASILIA_TIME_ZONE);
+  return time ? `${time} Brasília` : "—";
+}
+
 export function formatZuluTime(value: unknown): string {
   const time = formatTime(value, "UTC");
   return time ? `${time}Z` : "—";

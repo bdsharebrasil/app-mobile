@@ -18,9 +18,6 @@ test("horário previsto mostra apenas horas UTC e de Brasília e não duplica co
 });
 
 test("jornadas usam data curta e horários Zulu sem repetir data nos horários", () => {
-  assert.match(detailSource, /formatFlightDate\(jornada\.data\)/);
-  assert.match(detailSource, /formatZuluTime\(jornada\.horario_apresentacao\)/);
-  assert.match(detailSource, /formatZuluTime\(perna\.horario_ac\)/);
   assert.match(operationsSource, /formatFlightDate\(record\.data\)/);
   assert.match(operationsSource, /formatZuluTime\(leg\.horario_ac\)/);
 });
@@ -74,6 +71,4 @@ test("início solicita acionamento, calcula apresentação e mostra decolagem co
   assert.match(formatterSource, /em_solo: "Em solo"/);
   assert.match(operationsSource, /formatFlightJourneyStatus\(record\)/);
   assert.match(operationsSource, /formatFlightLegStatus\(leg\)/);
-  assert.match(detailSource, /formatFlightJourneyStatus\(jornada, "Registrada"\)/);
-  assert.match(detailSource, /formatFlightLegStatus\(perna\)/);
 });
