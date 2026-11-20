@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle, Check, CheckCircle2, ChevronRight, ClipboardCheck, Clock3,
-  Loader2, MapPin, Plane, Plus, Scale, ShieldCheck, Weight,
+  Loader2, MapPin, Plane, Plus, Scale, ShieldCheck, Weight, LogOut,
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiClient } from "@/lib/api-client";
@@ -38,6 +38,7 @@ const labelClass = "mb-1.5 block text-xs font-medium text-slate-300";
 const numberValue = (value: unknown) => (Number.isFinite(Number(value)) ? Number(value) : 0);
 const statusDone = (status?: string | null) => String(status || "").trim().toLowerCase() === "concluido";
 const nowZuluHHMM = () => new Date().toISOString().slice(11, 16);
+const todayLocalISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 
 function initialLoadManifest(flight: Flight): LoadItem[] {
   const crew = ["Piloto", ...(flight.copiloto_id ? ["Copiloto"] : [])];
@@ -56,11 +57,6 @@ function scheduledTime(flight: Flight) {
 function timeInputValue(value: string | null | undefined) {
   const formatted = formatZuluTime(value);
   return formatted === "—" ? "" : formatted.slice(0, 5);
-}
-
-function flightTimestamp(flight: Flight, time: string, offsetMinutes = 0) {
-  const base = new Date(`${flight.data_agendada.slice(0, 10)}T${time}:00.000Z`);
-  return new Date(base.getTime() + offsetMinutes * 60_000).toISOString();
 }
 
 function legNeedsTimeCompletion(leg: JourneyLeg) {
@@ -106,7 +102,7 @@ export function FlightOperations({
   onAutoOpenConsumed?: () => void;
 }) {
   const client = useQueryClient();
-  const [dialog, setDialog] = useState<"checklist" | "weight" | "journey" | "leg" | "leg-times" | null>(null);
+  const [dialog, setDialog] = useState<"checklist" | "weight" | "journey" | "leg" | "leg-times" | "end-journey" | null>(null);
   const [manifest, setManifest] = useState<LoadItem[]>([]);
   const [fuelLiters, setFuelLiters] = useState("");
   const [fuelKg, setFuelKg] = useState("");
@@ -115,6 +111,9 @@ export function FlightOperations({
   const [weightNotes, setWeightNotes] = useState("");
   const [pilotName, setPilotName] = useState(flight.piloto_nome || "");
   const [journeyTime, setJourneyTime] = useState(scheduledTime(flight));
+  const [journeyDate, setJourneyDate] = useState(flight.data_agendada.slice(0, 10));
+  const [journeyOrigin, setJourneyOrigin] = useState(flight.origem || "");
+  const [journeyDestination, setJourneyDestination] = useState(flight.destino || "");
   const [legForm, setLegForm] = useState({ origem: flight.destino || "", destino: "", numero_passageiros: String(flight.numero_passageiros || 0), horario_ac: "", horario_dep: "" });
   const [selectedLegTime, setSelectedLegTime] = useState<{ jornadaId: string; leg: JourneyLeg } | null>(null);
   const [legTimes, setLegTimes] = useState<LegTimesForm>({ horario_ac: "", horario_dep: "", horario_pouso: "", horario_corte: "" });
@@ -134,7 +133,13 @@ export function FlightOperations({
   const checklistComplete = statusDone(checklist?.status);
   const preparacaoPendencias = Number(checklist?.preparacao_pendencias || 0);
   const weightComplete = String(ficha?.status || "").toUpperCase() === "FINALIZADA";
-  const hasOpenJourney = Boolean(journey && journey.status !== "encerrada");
+  const hasOpenJourney = Boolean(journey && String(journey.status).toLowerCase() !== "encerrada");
+  const hasPreviousJourney = Boolean(journey && !hasOpenJourney);
+  const lastJourneyLeg = journey?.pernas?.at(-1);
+  const canEndJourney = Boolean(
+    hasOpenJourney && lastJourneyLeg?.horario_corte &&
+    journey?.pernas?.every((leg) => String(leg.status).toLowerCase() !== "em_voo"),
+  );
 
   const officialChecklistItems = useMemo(() => checklistItemsForAircraft(flight.matricula_registro, flight.modelo), [flight.matricula_registro, flight.modelo]);
   const itemCount = officialChecklistItems.length;
@@ -233,11 +238,11 @@ export function FlightOperations({
   const journeyMutation = useMutation({
     mutationFn: () =>
       apiClient.post(`/api/interno/agendamento/${encodeURIComponent(flight.id)}/jornada`, {
-        data: flight.data_agendada.slice(0, 10),
-        origem: flight.origem,
-        destino: flight.destino,
+        data: journeyDate,
+        origem: journeyOrigin.trim().toUpperCase(),
+        destino: journeyDestination.trim().toUpperCase(),
         numero_passageiros: flight.numero_passageiros ?? 0,
-        horario_acionamento: flightTimestamp(flight, journeyTime),
+        horario_acionamento: new Date(`${journeyDate}T${journeyTime}:00.000Z`).toISOString(),
         observacoes: "Iniciada pelo app Meus Voos",
       }),
     onSuccess: () => {
@@ -247,6 +252,28 @@ export function FlightOperations({
       setDialog(null);
     },
     onError: (error: Error) => toast.error(error.message || "Não foi possível iniciar a jornada."),
+  });
+
+  const endJourneyMutation = useMutation({
+    mutationFn: () => {
+      if (!journey || !canEndJourney) throw new Error("Registre o corte da última perna e finalize as pernas em voo antes de encerrar.");
+      return apiClient.patch(`/api/interno/jornadas/${encodeURIComponent(journey.id)}`, { status: "encerrada" });
+    },
+    onSuccess: async () => {
+      setDialog(null);
+      await Promise.all([
+        client.invalidateQueries({ queryKey: [...baseKey, "journey"] }),
+        client.invalidateQueries({ queryKey: flightListQueryKey }),
+      ]);
+      toast.success("Jornada encerrada. Você já pode criar uma nova jornada neste voo.");
+    },
+    onError: (error: Error) => {
+      if (error.message.includes("limite_jornada_excedido")) {
+        toast.error("Limite de jornada excedido. Solicite a confirmação da exceção conforme a regra operacional.");
+      } else {
+        toast.error(error.message || "Não foi possível encerrar a jornada.");
+      }
+    },
   });
 
   const legMutation = useMutation({
@@ -281,9 +308,11 @@ export function FlightOperations({
   });
 
   const flightClosed = ["encerrada", "concluida"].includes(String(flight.status).toLowerCase());
-  const checklistEditable = String(flight.status).trim().toLowerCase() === "aprovada" && !hasOpenJourney;
+  const checklistEditable = !flightClosed && !hasOpenJourney &&
+    (String(flight.status).trim().toLowerCase() === "aprovada" || hasPreviousJourney);
   const canCompleteJourneyTimes = hasOpenJourney || flightNeedsTimeCompletion(flight.status);
-  const startBlocked = !checklistComplete || flightClosed || !checklistEditable || !journeyQuery.isSuccess;
+  const startBlocked = !checklistComplete || flightClosed || hasOpenJourney || !journeyQuery.isSuccess ||
+    (!hasPreviousJourney && !checklistEditable);
   const weightReadOnly = weightComplete || !config;
   const completedSteps = Number(checklistComplete) + Number(weightComplete);
 
@@ -316,6 +345,15 @@ export function FlightOperations({
     }
     onAutoOpenConsumed?.();
   }, [autoOpenTimes, journeyQuery.isSuccess, primaryPendingLeg, onAutoOpenConsumed]);
+
+  const openJourneyDialog = () => {
+    const novaJornada = hasPreviousJourney;
+    setJourneyDate(novaJornada ? todayLocalISO() : flight.data_agendada.slice(0, 10));
+    setJourneyTime(novaJornada ? nowZuluHHMM() : scheduledTime(flight));
+    setJourneyOrigin(novaJornada ? (journey?.pernas?.at(-1)?.destino || flight.origem || "") : (flight.origem || ""));
+    setJourneyDestination(novaJornada ? "" : (flight.destino || ""));
+    setDialog("journey");
+  };
 
   const loadDialog = () => {
     const items = Array.isArray(ficha?.itens_carregamento) ? (ficha.itens_carregamento as WeightItemRecord[]) : [];
@@ -392,22 +430,19 @@ export function FlightOperations({
         </button>
       ) : null}
 
-      {checklistComplete && !hasOpenJourney && !primaryPendingLeg ? (
+      {checklistComplete && !hasOpenJourney && (!primaryPendingLeg || hasPreviousJourney) ? (
         <button
           type="button"
           disabled={startBlocked || journeyMutation.isPending}
-          onClick={() => {
-            setJourneyTime(scheduledTime(flight));
-            setDialog("journey");
-          }}
+          onClick={openJourneyDialog}
           className="mb-3 flex min-h-16 w-full items-center gap-3 rounded-2xl bg-emerald-300 px-4 py-3 text-left text-[#062219] shadow-lg shadow-emerald-900/20 transition active:scale-[.99] disabled:cursor-not-allowed disabled:bg-white/[0.09] disabled:text-slate-500 disabled:shadow-none"
         >
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#062219]/10">
             <Plane className="h-5 w-5" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-sm font-bold">{journeyMutation.isPending ? "Iniciando voo…" : "INICIAR VOO"}</span>
-            <span className="mt-0.5 block text-xs font-medium opacity-70">Registra o acionamento e a primeira perna</span>
+            <span className="block text-sm font-bold">{journeyMutation.isPending ? "Criando jornada…" : hasPreviousJourney ? "CRIAR NOVA JORNADA" : "INICIAR VOO"}</span>
+            <span className="mt-0.5 block text-xs font-medium opacity-70">{hasPreviousJourney ? "Nova jornada no mesmo voo, com histórico preservado" : "Registra o acionamento e a primeira perna"}</span>
           </span>
           <ChevronRight className="h-5 w-5 shrink-0" />
         </button>
@@ -514,18 +549,38 @@ export function FlightOperations({
         )}
 
         {hasOpenJourney && (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-              setLegForm({ origem: journey?.pernas?.at(-1)?.destino || flight.destino || "", destino: "", numero_passageiros: String(flight.numero_passageiros || 0), horario_ac: "", horario_dep: "" });
-              setDialog("leg");
-            }}
-            className="h-12 w-full rounded-xl border-white/10 bg-white/[0.03] text-white hover:bg-white/[0.07]"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Adicionar perna
-          </Button>
+          <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={endJourneyMutation.isPending}
+                onClick={() => {
+                  setLegForm({ origem: journey?.pernas?.at(-1)?.destino || flight.destino || "", destino: "", numero_passageiros: String(flight.numero_passageiros || 0), horario_ac: "", horario_dep: "" });
+                  setDialog("leg");
+                }}
+                className="h-auto min-h-14 w-full min-w-0 gap-1.5 rounded-xl border-white/10 bg-white/[0.03] px-2 text-xs font-semibold text-white hover:bg-white/[0.07] sm:text-sm"
+              >
+                <Plus className="h-4 w-4 shrink-0" />
+                Adicionar perna
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!canEndJourney || endJourneyMutation.isPending}
+                onClick={() => setDialog("end-journey")}
+                className="h-auto min-h-14 w-full min-w-0 gap-1.5 rounded-xl border-amber-300/40 bg-amber-300/10 px-2 text-xs font-semibold text-amber-200 hover:bg-amber-300/20 disabled:opacity-45 sm:text-sm"
+              >
+                <LogOut className="h-4 w-4 shrink-0" />
+                Encerrar jornada
+              </Button>
+            </div>
+            {!canEndJourney && (
+              <p className="text-center text-[11px] leading-5 text-amber-200/80">
+                Registre o corte da última perna e o pouso de todas as pernas para habilitar o encerramento.
+              </p>
+            )}
+          </div>
         )}
 
         {startBlocked && !hasOpenJourney && (
@@ -800,15 +855,44 @@ export function FlightOperations({
         </DialogContent>
       </Dialog>
 
+      <Dialog open={dialog === "end-journey"} onOpenChange={(open) => !open && !endJourneyMutation.isPending && setDialog(null)}>
+        <DialogContent className="w-[calc(100%-1rem)] max-w-md rounded-2xl border-white/10 bg-[#0c192b] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] text-white sm:p-6">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <LogOut className="h-5 w-5 text-amber-200" />
+              Encerrar jornada?
+            </DialogTitle>
+            <DialogDescription className="text-slate-300">
+              O encerramento registra o término da jornada da tripulação. O voo permanece disponível para criar outra jornada.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-xl border border-amber-300/20 bg-amber-300/[0.06] p-3 text-sm text-slate-200">
+            <p>{flight.numero_voo || "Voo"} · {flight.matricula_registro || "Aeronave"}</p>
+            <p className="mt-1 text-xs text-slate-400">Corte da última perna: {formatZuluTime(lastJourneyLeg?.horario_corte)}</p>
+          </div>
+          <DialogFooter className="mt-2 flex-col-reverse gap-2 sm:flex-row">
+            <Button type="button" variant="outline" disabled={endJourneyMutation.isPending}
+              onClick={() => setDialog(null)} className="h-12 w-full rounded-xl border-white/10 text-white sm:w-auto">Cancelar</Button>
+            <Button type="button" disabled={!canEndJourney || endJourneyMutation.isPending}
+              onClick={() => endJourneyMutation.mutate()}
+              className="h-12 w-full rounded-xl bg-amber-300 font-bold text-[#1a1604] hover:bg-amber-200 sm:w-auto">
+              {endJourneyMutation.isPending ? "Encerrando…" : "Confirmar encerramento"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={dialog === "journey"} onOpenChange={(open) => !open && setDialog(null)}>
         <DialogContent className="w-[calc(100%-1rem)] max-w-md rounded-2xl border-white/10 bg-[#0c192b] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] text-white sm:p-6">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Plane className="h-5 w-5 text-emerald-200" />
-              Iniciar jornada
+              {hasPreviousJourney ? "Criar nova jornada" : "Iniciar jornada"}
             </DialogTitle>
             <DialogDescription className="text-slate-400">
-              Será criada uma jornada para a tripulação vinculada e a primeira perna {flight.origem} → {flight.destino}.
+              {hasPreviousJourney
+                ? "A jornada anterior continuará no histórico. Informe a data, a rota e o acionamento da nova jornada."
+                : "Será criada uma jornada para a tripulação vinculada e sua primeira perna."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -817,8 +901,25 @@ export function FlightOperations({
                 {flight.numero_voo || "Voo aprovado"} · {flight.matricula_registro || "Aeronave"}
               </p>
               <p className="mt-1 text-xs text-slate-400">
-                {flight.origem} → {flight.destino} · {flight.numero_passageiros || 0} passageiros
+                {journeyOrigin || "Origem"} → {journeyDestination || "Destino"} · {flight.numero_passageiros || 0} passageiros
               </p>
+            </div>
+            <label className="block">
+              <span className={labelClass}>Data da jornada</span>
+              <Input type="date" value={journeyDate} onChange={(event) => setJourneyDate(event.target.value)}
+                className={inputClass + " [color-scheme:dark]"} />
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block">
+                <span className={labelClass}>Origem (ICAO)</span>
+                <Input maxLength={4} autoCapitalize="characters" value={journeyOrigin}
+                  onChange={(event) => setJourneyOrigin(event.target.value.toUpperCase())} className={inputClass} />
+              </label>
+              <label className="block">
+                <span className={labelClass}>Destino (ICAO)</span>
+                <Input maxLength={4} autoCapitalize="characters" value={journeyDestination}
+                  onChange={(event) => setJourneyDestination(event.target.value.toUpperCase())} className={inputClass} />
+              </label>
             </div>
             <div>
               <div className="mb-1.5 flex items-center justify-between">
@@ -841,8 +942,8 @@ export function FlightOperations({
             <Button type="button" variant="outline" onClick={() => setDialog(null)} className="h-12 w-full rounded-xl border-white/10 text-white sm:w-auto">
               Cancelar
             </Button>
-            <Button type="button" disabled={!journeyTime || journeyMutation.isPending} onClick={() => journeyMutation.mutate()} className="h-12 w-full rounded-xl bg-emerald-300 font-bold text-[#062219] hover:bg-emerald-200 sm:w-auto">
-              {journeyMutation.isPending ? "Criando…" : "Criar jornada e perna 1"}
+            <Button type="button" disabled={!journeyDate || !/^\\d{4}-\\d{2}-\\d{2}$/.test(journeyDate) || !journeyOrigin.trim() || !journeyDestination.trim() || !journeyTime || journeyMutation.isPending} onClick={() => journeyMutation.mutate()} className="h-12 w-full rounded-xl bg-emerald-300 font-bold text-[#062219] hover:bg-emerald-200 sm:w-auto">
+              {journeyMutation.isPending ? "Criando…" : hasPreviousJourney ? "Criar nova jornada" : "Criar jornada e perna 1"}
             </Button>
           </DialogFooter>
         </DialogContent>
