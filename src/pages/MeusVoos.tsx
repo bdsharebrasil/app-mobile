@@ -303,7 +303,7 @@ export default function MeusVoos() {
   const journeyCompleted = allLegTimesRecorded || Boolean(todayJourney && ["encerrada", "concluida"].includes(String(todayJourney.status).toLowerCase()) && journeyLegs.every((leg) => Boolean(leg.horario_corte)));
   const todayNeedsTimes = todayJourneyQuery.isSuccess && todayJourney
     ? journeyLegs.some((leg) => !leg.horario_ac || !leg.horario_dep || !leg.horario_pouso || !leg.horario_corte)
-    : isInProgress(currentFlight as Flight) || flightNeedsTimeCompletion(currentFlight?.status || "");
+    : Boolean(currentFlight && (isInProgress(currentFlight) || flightNeedsTimeCompletion(currentFlight.status)));
   const agendaFlights = approvedFlights.filter((item) => item.id !== currentFlight?.id);
   const completedFlights = flights.filter((item) => closedStatuses.has(String(item.status).toLowerCase()));
   const detail = detailQuery.data;
