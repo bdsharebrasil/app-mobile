@@ -306,6 +306,15 @@ class ApiClient {
     return this.get<{ data: any[]; aeronaves: any[] }>('/api/ctm/relatorios-manutencao', aeronaveId ? { aeronave_id: aeronaveId } : undefined);
   }
 
+  async createCTMMaintenanceReport(payload: {
+    aeronave_id: string;
+    descricao: string;
+    severidade: 'low' | 'medium' | 'high' | 'critical';
+    data_relatorio: string;
+  }) {
+    return this.post<{ data: { id: string; aircraft_id: string; status: string } }>('/api/ctm/relatorios-manutencao', payload);
+  }
+
   async criarLancamentoDiario(payload: Record<string, unknown>) {
     return this.post<Record<string, unknown>>('/api/interno/diario-bordo/lancamentos', payload);
   }
