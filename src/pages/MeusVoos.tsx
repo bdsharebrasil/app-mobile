@@ -145,8 +145,7 @@ function flightIsToday(flight: Flight) {
   return start <= today && today <= dayKey(end);
 }
 
-function TodayFlightHero({ flight, onOpen }: { flight: Flight; onOpen: (completeTimes?: boolean) => void }) {
-  const needsTimes = isInProgress(flight) || flightNeedsTimeCompletion(flight.status);
+function TodayFlightHero({ flight, onOpen, needsTimes, completed }: { flight: Flight; onOpen: (completeTimes?: boolean) => void; needsTimes: boolean; completed: boolean }) {
   const chips = [
     { label: "Data", value: shortDate(flight.data_agendada) },
     { label: "Horário", value: formatZuluTime(flight.horario_previsto_agendamento) },
@@ -158,7 +157,7 @@ function TodayFlightHero({ flight, onOpen }: { flight: Flight; onOpen: (complete
         <div className="mb-3 flex items-center justify-between gap-2">
           <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-300">Voo de hoje</span>
           <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${needsTimes ? "bg-amber-300/15 text-amber-200" : "bg-emerald-300/10 text-emerald-200"}`}>
-            {statusLabel(flight.status)}
+            {completed ? "Concluído" : statusLabel(flight.status)}
           </span>
         </div>
         <div className="flex items-center gap-3">
@@ -288,6 +287,23 @@ export default function MeusVoos() {
     .filter((item) => isInProgress(item) || flightIsToday(item))
     .sort((a, b) => Number(!isInProgress(a)) - Number(!isInProgress(b)) || String(a.horario_previsto_agendamento || "").localeCompare(String(b.horario_previsto_agendamento || "")));
   const currentFlight = todayFlights[0];
+  // O status da solicitação pode permanecer EM_SOLO após o corte. Consulte a jornada real.
+  const todayJourneyQuery = useQuery({
+    queryKey: ["flight-operations", currentFlight?.id, "journey"],
+    queryFn: () => apiClient.get<{ status?: string; pernas?: FlightLeg[]; historico?: Array<{ status?: string; pernas?: FlightLeg[] }> } | null>(`/api/interno/agendamento/${encodeURIComponent(currentFlight!.id)}/jornada`),
+    enabled: Boolean(currentFlight?.id) && !Boolean(flightId),
+  });
+  const todayJourney = todayJourneyQuery.data;
+  const journeyLegs = todayJourney?.historico?.length
+    ? todayJourney.historico.flatMap((j) => j.pernas || [])
+    : todayJourney?.pernas || [];
+  const allLegTimesRecorded = journeyLegs.length > 0 && journeyLegs.every((leg) =>
+    Boolean(leg.horario_ac && leg.horario_dep && leg.horario_pouso && leg.horario_corte),
+  );
+  const journeyCompleted = allLegTimesRecorded || Boolean(todayJourney && ["encerrada", "concluida"].includes(String(todayJourney.status).toLowerCase()) && journeyLegs.every((leg) => Boolean(leg.horario_corte)));
+  const todayNeedsTimes = todayJourneyQuery.isSuccess && todayJourney
+    ? journeyLegs.some((leg) => !leg.horario_ac || !leg.horario_dep || !leg.horario_pouso || !leg.horario_corte)
+    : isInProgress(currentFlight as Flight) || flightNeedsTimeCompletion(currentFlight?.status || "");
   const agendaFlights = approvedFlights.filter((item) => item.id !== currentFlight?.id);
   const completedFlights = flights.filter((item) => closedStatuses.has(String(item.status).toLowerCase()));
   const detail = detailQuery.data;
@@ -566,7 +582,7 @@ export default function MeusVoos() {
             <EmptyState title="Perfil de tripulante não vinculado" description="Não encontramos um cadastro de tripulante associado ao seu usuário." />
           ) : (
             <>
-              {currentFlight && <TodayFlightHero flight={currentFlight} onOpen={(completeTimes) => openFlight(currentFlight.id, completeTimes)} />}
+              {currentFlight && <TodayFlightHero flight={currentFlight} needsTimes={todayNeedsTimes} completed={journeyCompleted} onOpen={(completeTimes) => openFlight(currentFlight.id, completeTimes)} />}
               <Tabs value={activeTab} onValueChange={(tab) => navigate(tab === "concluidos" ? "/meus-voos?tab=concluidos" : "/meus-voos?tab=aprovados")} className="mt-[13px] mb-[13px]">
                 <TabsList className="mb-5 grid h-auto w-full grid-cols-2 rounded-2xl border border-white/10 bg-white/[0.04] p-1">
                   <TabsTrigger value="aprovados" className="min-h-11 rounded-xl py-3 text-sm font-semibold text-slate-400 data-[state=active]:bg-[#3D9C7D] data-[state=active]:text-[#08110F]">
