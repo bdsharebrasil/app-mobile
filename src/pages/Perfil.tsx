@@ -570,7 +570,7 @@ export default function Perfil() {
             <div
               role="tablist"
               aria-label="Seções do perfil"
-              className="relative flex p-1 mb-6 rounded-[16px] bg-muted/60 border border-black/[0.04] dark:border-white/[0.06]"
+              className="relative grid w-full grid-cols-4 gap-1 p-1 mb-6 rounded-[16px] bg-muted/60 border border-black/[0.04] dark:border-white/[0.06]"
             >
               {tabs.map((t) => {
                 const active = tab === t.id;
@@ -581,7 +581,7 @@ export default function Perfil() {
                     role="tab"
                     aria-selected={active}
                     onClick={() => setTab(t.id)}
-                    className={`relative flex-1 min-h-[52px] rounded-[12px] flex flex-col items-center justify-center gap-0.5 touch-manipulation select-none
+                    className={`relative isolate flex w-full min-w-0 min-h-[56px] rounded-[12px] flex-col items-center justify-center gap-1 px-1 touch-manipulation select-none
                     transition-colors duration-200 active:opacity-70 ${active ? "text-foreground" : "text-muted-foreground"}`}
                   >
                     {active && (
@@ -592,7 +592,7 @@ export default function Perfil() {
                       />
                     )}
                     <t.icon size={19} strokeWidth={active ? 2.2 : 1.8} className="relative" />
-                    <span className="relative text-[11px] font-medium leading-none">{t.label}</span>
+                    <span className="relative block w-full truncate text-center text-[11px] font-medium leading-tight">{t.label}</span>
                   </button>
                 );
               })}
