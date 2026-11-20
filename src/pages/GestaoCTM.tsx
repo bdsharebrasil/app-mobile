@@ -162,7 +162,7 @@ export default function GestaoCTM() {
   const [createOpen, setCreateOpen] = useState(false);
   const [reportDescription, setReportDescription] = useState("");
   const [reportSeverity, setReportSeverity] = useState<Severity>("medium");
-  const [reportDate, setReportDate] = useState(() => new Date().toLocaleDateString("en-CA"));
+  const [reportDate, setReportDate] = useState(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; });
   const [savingReport, setSavingReport] = useState(false);
 
   useEffect(() => {
