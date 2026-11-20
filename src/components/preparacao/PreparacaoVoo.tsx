@@ -280,6 +280,7 @@ export default function PreparacaoVoo({
       }
       aoSalvar?.();
       if (concluir) {
+        setSoPendencias(false);
         setAviso(
           r.resumo.pendencias
             ? `Preparação finalizada com ${r.resumo.pendencias} pendência(s). Os detalhes constam no briefing.`
@@ -1456,7 +1457,7 @@ export default function PreparacaoVoo({
             {ocupado === 'salvar' ? <Loader2 size={16} className="pv-giro" /> : null}
             Salvar
           </button>
-          <button className="pv-principal" disabled={readonly || !!ocupado || !!conflito} onClick={() => void salvar(true)}>
+          <button type="button" className="pv-principal" disabled={readonly || !!ocupado || !!conflito} onClick={() => void salvar(true)} aria-label="Concluir preparação, registrando as pendências no briefing">
             {ocupado === 'concluir' ? <Loader2 size={16} className="pv-giro" /> : <Check size={16} />}
             Concluir
           </button>
