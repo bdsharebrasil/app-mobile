@@ -14,6 +14,7 @@ import {
   Plane,
 } from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 /* ------------------------------------------------------------------ */
 /* Tipos                                                               */
@@ -158,6 +159,11 @@ export default function GestaoCTM() {
   const [statusFilter, setStatusFilter] = useState<Status | "all">("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [reportDescription, setReportDescription] = useState("");
+  const [reportSeverity, setReportSeverity] = useState<Severity>("medium");
+  const [reportDate, setReportDate] = useState(() => new Date().toLocaleDateString("en-CA"));
+  const [savingReport, setSavingReport] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -207,6 +213,29 @@ export default function GestaoCTM() {
     setSelectedAircraftId(id);
   };
 
+  const submitReport = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!selectedAircraftId || savingReport) return;
+    const descricao = reportDescription.trim();
+    if (!descricao) return toast.error("Descreva a ocorrência na aeronave.");
+    setSavingReport(true);
+    try {
+      await apiClient.createCTMMaintenanceReport({
+        aeronave_id: selectedAircraftId, descricao, severidade: reportSeverity, data_relatorio: reportDate,
+      });
+      setCreateOpen(false);
+      setReportDescription("");
+      setReportSeverity("medium");
+      setStatusFilter("all");
+      toast.success("Report registrado na manutenção.");
+      await loadData();
+    } catch (error: any) {
+      toast.error(error?.message || "Não foi possível salvar o report.");
+    } finally {
+      setSavingReport(false);
+    }
+  };
+
   const closeAircraft = () => {
     setSelectedAircraftId(null);
     setExpandedId(null);
@@ -248,21 +277,7 @@ export default function GestaoCTM() {
                 title={selectedAircraft.registration}
                 backLabel="Aeronaves"
                 onBack={closeAircraft}
-                action={
-                  <motion.button
-                    type="button"
-                    whileTap={{ scale: 0.88 }}
-                    transition={PRESS}
-                    onClick={() => {
-                      haptic();
-                      toast.info("Criar novo report em breve");
-                    }}
-                    className="flex h-11 w-11 items-center justify-center rounded-full text-[#a8df72]"
-                    aria-label="Novo report"
-                  >
-                    <Plus className="h-6 w-6" strokeWidth={2.4} />
-                  </motion.button>
-                }
+                action={null}
               />
 
               <div
@@ -293,6 +308,14 @@ export default function GestaoCTM() {
                     )}
                   </div>
                 </div>
+
+                <motion.button
+                  type="button" whileTap={{ scale: 0.98 }}
+                  onClick={() => { haptic(); setCreateOpen(true); }}
+                  className="flex min-h-[56px] w-full items-center justify-center gap-3 rounded-[16px] bg-[#1f8fd6] px-5 py-3 text-[16px] font-bold text-white shadow-[0_6px_18px_rgba(31,143,214,0.2)] active:bg-[#187bbb]"
+                >
+                  <Plus className="h-5 w-5" strokeWidth={2.5} /> Criar report
+                </motion.button>
 
                 {/* Filtros por status (scroll horizontal com snap) */}
                 <div className="-mx-4 sm:-mx-6">
@@ -325,7 +348,7 @@ export default function GestaoCTM() {
                   </div>
                 </div>
 
-                <p className="px-1 text-[13px] font-medium text-black/50">
+                <p className="px-1 text-[13px] font-medium text-slate-400">
                   {filteredReports.length === 1
                     ? "1 report"
                     : `${filteredReports.length} reports`}
@@ -333,12 +356,12 @@ export default function GestaoCTM() {
 
                 {/* Lista de reports */}
                 {filteredReports.length === 0 ? (
-                  <div className="flex flex-col items-center rounded-[20px] bg-white px-6 py-12 text-center shadow-[0_0_0_0.5px_rgba(0,0,0,0.06)]">
-                    <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-black/[0.04]">
-                      <Wrench className="h-6 w-6 text-black/35" />
+                  <div className="flex flex-col items-center rounded-[20px] border border-white/10 bg-[#151d2b] px-6 py-12 text-center">
+                    <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-white/[0.06]">
+                      <Wrench className="h-6 w-6 text-slate-400" />
                     </div>
-                    <p className="text-[17px] font-semibold text-black">Nenhum report</p>
-                    <p className="mt-1 max-w-[260px] text-[15px] leading-snug text-black/50">
+                    <p className="text-[17px] font-semibold text-white">Nenhum report</p>
+                    <p className="mt-1 max-w-[260px] text-[15px] leading-snug text-slate-400">
                       {statusFilter === "all"
                         ? "Esta aeronave ainda não tem reports de manutenção."
                         : "Nenhum report com este status. Troque o filtro para ver outros."}
@@ -439,6 +462,43 @@ export default function GestaoCTM() {
                   </div>
                 )}
               </div>
+
+              <Dialog open={createOpen} onOpenChange={(open) => { if (!savingReport) setCreateOpen(open); }}>
+                <DialogContent className="max-h-[90dvh] w-[calc(100%-1.5rem)] max-w-lg overflow-y-auto rounded-[24px] border border-white/10 bg-[#111b2a] p-5 text-white sm:p-6">
+                  <DialogHeader>
+                    <DialogTitle className="text-[20px] font-semibold">Criar report</DialogTitle>
+                    <DialogDescription className="text-[13px] text-slate-400">{selectedAircraft.registration} · {selectedAircraft.model}</DialogDescription>
+                  </DialogHeader>
+                  <form onSubmit={submitReport} className="mt-2 space-y-5">
+                    <label className="block space-y-2">
+                      <span className="text-[13px] font-medium text-slate-300">Data do report</span>
+                      <input type="date" required value={reportDate} onChange={(e) => setReportDate(e.target.value)}
+                        className="min-h-[50px] w-full rounded-xl border border-white/15 bg-white/[0.06] px-4 text-[16px] text-white [color-scheme:dark]" />
+                    </label>
+                    <label className="block space-y-2">
+                      <span className="text-[13px] font-medium text-slate-300">Gravidade</span>
+                      <select value={reportSeverity} onChange={(e) => setReportSeverity(e.target.value as Severity)}
+                        className="min-h-[50px] w-full rounded-xl border border-white/15 bg-[#1b293b] px-4 text-[16px] text-white">
+                        {Object.entries(SEVERITY).map(([value, item]) => <option key={value} value={value}>{item.label}</option>)}
+                      </select>
+                    </label>
+                    <label className="block space-y-2">
+                      <span className="text-[13px] font-medium text-slate-300">Descrição da ocorrência *</span>
+                      <textarea required maxLength={5000} rows={5} value={reportDescription}
+                        onChange={(e) => setReportDescription(e.target.value)}
+                        placeholder="Descreva a discrepância ou ocorrência encontrada na aeronave."
+                        className="w-full resize-y rounded-xl border border-white/15 bg-white/[0.06] p-4 text-[16px] leading-6 text-white placeholder:text-slate-500" />
+                    </label>
+                    <p className="text-[12px] leading-5 text-slate-400">O report será registrado como Aberto, vinculado à aeronave e ao seu usuário.</p>
+                    <div className="grid grid-cols-2 gap-3 pb-[env(safe-area-inset-bottom)]">
+                      <button type="button" disabled={savingReport} onClick={() => setCreateOpen(false)}
+                        className="min-h-[52px] rounded-xl border border-white/15 text-[15px] font-semibold text-slate-200 disabled:opacity-50">Cancelar</button>
+                      <button type="submit" disabled={savingReport || !reportDescription.trim() || !reportDate}
+                        className="min-h-[52px] rounded-xl bg-[#1f8fd6] text-[15px] font-bold text-white disabled:opacity-50">{savingReport ? "Salvando…" : "Registrar report"}</button>
+                    </div>
+                  </form>
+                </DialogContent>
+              </Dialog>
             </motion.div>
           ) : (
             /* ======================= LISTA DE AERONAVES ======================= */
