@@ -883,7 +883,7 @@ export function FlightOperations({
       </Dialog>
 
       <Dialog open={dialog === "journey"} onOpenChange={(open) => !open && setDialog(null)}>
-        <DialogContent className="w-[calc(100%-1rem)] max-w-md rounded-2xl border-white/10 bg-[#0c192b] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] text-white sm:p-6">
+        <DialogContent className="max-h-[92dvh] w-[calc(100%-1rem)] max-w-md overflow-y-auto rounded-2xl border-white/10 bg-[#0c192b] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] text-white sm:p-6">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Plane className="h-5 w-5 text-emerald-200" />
@@ -942,7 +942,7 @@ export function FlightOperations({
             <Button type="button" variant="outline" onClick={() => setDialog(null)} className="h-12 w-full rounded-xl border-white/10 text-white sm:w-auto">
               Cancelar
             </Button>
-            <Button type="button" disabled={!journeyDate || !/^\\d{4}-\\d{2}-\\d{2}$/.test(journeyDate) || !journeyOrigin.trim() || !journeyDestination.trim() || !journeyTime || journeyMutation.isPending} onClick={() => journeyMutation.mutate()} className="h-12 w-full rounded-xl bg-emerald-300 font-bold text-[#062219] hover:bg-emerald-200 sm:w-auto">
+            <Button type="button" disabled={!journeyDate || !/^\d{4}-\d{2}-\d{2}$/.test(journeyDate) || !journeyOrigin.trim() || !journeyDestination.trim() || !journeyTime || journeyMutation.isPending} onClick={() => journeyMutation.mutate()} className="h-12 w-full rounded-xl bg-emerald-300 font-bold text-[#062219] hover:bg-emerald-200 sm:w-auto">
               {journeyMutation.isPending ? "Criando…" : hasPreviousJourney ? "Criar nova jornada" : "Criar jornada e perna 1"}
             </Button>
           </DialogFooter>
