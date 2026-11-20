@@ -463,7 +463,8 @@
 }
 
 .pv-rodape {
-  position: sticky;
+  /* Dentro do diálogo rolável do iPhone, sticky encobria os últimos itens. */
+  position: relative;
   bottom: 0;
   z-index: 2;
   display: flex;
